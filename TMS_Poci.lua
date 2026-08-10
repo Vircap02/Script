@@ -727,54 +727,76 @@ buatTombol("🔄 Respawn Karakter Instan", function()
         task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
     end)
 end)
--- FUNGSI AMBIL TALI POCI SEKALI TEKAN (NON-LOOP)
+-- FUNGSI AMBIL TALI POCI & OTOMATIS KEMBALI KE TELEPON
 local function ambilTaliPociSekali()
     pcall(function()
         local player = game.Players.LocalPlayer
         local character = player.Character or player.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart")
 
+        -- Simpan posisi awal (Telepon/Lobby) sebelum berteleportasi ke poci
+        local posisiAwal = rootPart.CFrame
+
         local found = false
+        
+        -- Daftar folder target pencarian (Story dan Patrol)
+        local targetFolders = {
+            workspace:FindFirstChild("Story"),
+            workspace:FindFirstChild("Patrol")
+        }
 
-        for _, item in ipairs(workspace:GetDescendants()) do
-            if item.Name:match("Poci") then
-                local prompt = nil
-                if item:IsA("ProximityPrompt") then
-                    prompt = item
-                else
-                    prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-                end
-
-                if prompt then
-                    local parentPart = prompt.Parent
-                    local targetCFrame = nil
-
-                    if parentPart and (parentPart:IsA("BasePart") or parentPart:IsA("MeshPart")) then
-                        targetCFrame = parentPart.CFrame
-                    elseif parentPart and parentPart:IsA("Model") then
-                        local primary = parentPart.PrimaryPart or parentPart:FindFirstChildWhichIsA("BasePart", true)
-                        if primary then
-                            targetCFrame = primary.CFrame
+        for _, folder in ipairs(targetFolders) do
+            if folder and not found then
+                for _, item in ipairs(folder:GetDescendants()) do
+                    -- Mendeteksi kata Poci atau Wowo (untuk patroli)
+                    if item.Name:match("Poci") or item.Name:match("Wowo") then
+                        local prompt = nil
+                        if item:IsA("ProximityPrompt") then
+                            prompt = item
+                        else
+                            prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
                         end
-                    elseif item:IsA("BasePart") or item:IsA("MeshPart") then
-                        targetCFrame = item.CFrame
-                    end
 
-                    if targetCFrame then
-                        rootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
-                        task.wait(0.05)
+                        if prompt then
+                            local parentPart = prompt.Parent
+                            local targetCFrame = nil
 
-                        pcall(function()
-                            prompt.MaxActivationDistance = 99999
-                            prompt.HoldDuration = 0
-                            fireproximityprompt(prompt)
-                        end)
+                            if parentPart and (parentPart:IsA("BasePart") or parentPart:IsA("MeshPart")) then
+                                targetCFrame = parentPart.CFrame
+                            elseif parentPart and parentPart:IsA("Model") then
+                                local primary = parentPart.PrimaryPart or parentPart:FindFirstChildWhichIsA("BasePart", true)
+                                if primary then
+                                    targetCFrame = primary.CFrame
+                                end
+                            elseif item:IsA("BasePart") or item:IsA("MeshPart") then
+                                targetCFrame = item.CFrame
+                            end
 
-                        found = true
-                        task.spawn(function()
-                            buatNotifikasi("Tali Poci", "Berhasil mengambil Poci!", 2)
-                        end)
-                        break
+                            if targetCFrame then
+                                -- Teleport ke posisi Poci/Wowo
+                                rootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+                                task.wait(0.05)
+
+                                pcall(function()
+                                    prompt.MaxActivationDistance = 99999
+                                    prompt.HoldDuration = 0
+                                    fireproximityprompt(prompt)
+                                end)
+
+                                found = true
+                                
+                                -- Beri jeda singkat agar interaksi terproses server
+                                task.wait(0.1)
+
+                                -- Teleport kembali otomatis ke posisi awal (Telepon)
+                                rootPart.CFrame = posisiAwal
+
+                                task.spawn(function()
+                                    buatNotifikasi("Tali Poci", "Berhasil ambil & kembali ke telepon!", 2)
+                                end)
+                                break
+                            end
+                        end
                     end
                 end
             end
@@ -782,7 +804,7 @@ local function ambilTaliPociSekali()
 
         if not found then
             task.spawn(function()
-                buatNotifikasi("Tali Poci", "Tidak ada Poci yang ditemukan di sekitar!", 2)
+                buatNotifikasi("Tali Poci", "Tidak ada Poci atau Wowo di folder Story/Patrol!", 2)
             end)
         end
     end)
