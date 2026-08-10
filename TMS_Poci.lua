@@ -18,11 +18,7 @@ for _, v in pairs(workspace:GetDescendants()) do
 end
 task.wait(0.1)
 
--- VARIABEL KONTROL UTAMA UNTUK MATIKAN SCRIPT
-local scriptAktif = true
-
 local function buatNotifikasi(judul, pesan, durasi)
-    if not scriptAktif then return end
     durasi = durasi or 3.5
     local notifGui = targetGuiParent:FindFirstChild("VirgoboyNotifGui")
     if not notifGui then
@@ -82,7 +78,6 @@ local function buatNotifikasi(judul, pesan, durasi)
     task.wait(durasi)
 
     for i = 0, 1, 0.1 do
-        if not notifFrame.Parent then break end
         notifFrame.BackgroundTransparency = 0.25 + (i * 0.75)
         nStroke.Transparency = i
         lineAksen.BackgroundTransparency = i
@@ -174,7 +169,6 @@ local function jalankanIntro()
     bar.Parent = barBg
 
     for i, teksFitur in ipairs(daftarFitur) do
-        if not scriptAktif then break end
         status.Text = teksFitur
         local targetSize = UDim2.new(i / #daftarFitur, 0, 1, 0)
         bar:TweenSize(targetSize, Enum.EasingDirection.Out, Enum.EasingStyle.Linear, 0.12, true)
@@ -182,7 +176,6 @@ local function jalankanIntro()
     end
 
     for i = 0, 1, 0.1 do
-        if not bg.Parent then break end
         bg.BackgroundTransparency = i
         introBgImage.ImageTransparency = i
         introOverlay.BackgroundTransparency = i + (1 - i) * 0.4
@@ -203,17 +196,17 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local autoAcceptPhone = true
-local interactActive = true        
-local remoteInteractActive = true  
+local interactActive = true        -- AUTO ON
+local remoteInteractActive = true  -- AUTO ON
 local promptConnection = nil 
-local espActive = true             
-local playerEspActive = true       
-local noclipActive = true          
-local autoNailActive = true        
-local autoCleanActive = true       
-local godModeActive = true         
-local cameraClassicActive = false  
-local currentSpeed = 30            
+local espActive = true             -- AUTO ON
+local playerEspActive = true       -- AUTO ON
+local noclipActive = true          -- AUTO ON
+local autoNailActive = true        -- AUTO ON
+local autoCleanActive = true       -- AUTO ON
+local godModeActive = true         -- AUTO ON
+local cameraClassicActive = false  -- TETAP OFF (Sesuai Permintaan)
+local currentSpeed = 30            -- Walkspeed langsung di-boost seimbang
 local stainIndex = 1
 local espObjects = {}
 local playerEspTable = {} 
@@ -222,8 +215,8 @@ local targetPoci = nil
 
 -- [[ CORE LOGIC FUNCTIONS ]] --
 local function pelumpuhKematian(char)
-    if not char or not scriptAktif then return end
-    task.wait(0.1)
+    if not char then return end
+    task.wait()
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if godModeActive then
@@ -293,14 +286,15 @@ local function managePromptListener()
     end
 end
 
+-- Langsung picu trigger sistem prompt bawaan saat running
 refreshAllPrompts()
 managePromptListener()
 
 -- [[ SYSTEM VISUAL ESP ]] --
 local function createPlayerESP(player)
-    if player == lp or not scriptAktif then return end
+    if player == lp then return end
     player.CharacterAdded:Connect(function(char)
-        if not playerEspActive or not scriptAktif then return end
+        if not playerEspActive then return end
         if char:FindFirstChild("Player_ESP_Virgo") then return end
         local highlight = Instance.new("Highlight")
         highlight.Name = "Player_ESP_Virgo"
@@ -331,7 +325,7 @@ local mainGui = Instance.new("ScreenGui")
 mainGui.Name = "VirgoboyCustomHub"
 mainGui.ResetOnSpawn = false
 mainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-mainGui.Parent = targetGuiParent
+mainGui.Parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 
 local openBtn = Instance.new("ImageButton")
 openBtn.Name = "ToggleMenuBtn"
@@ -530,10 +524,8 @@ local function buatTombol(nama, callback)
         btn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
         btn.TextColor3 = Color3.fromRGB(0, 0, 0)
         task.wait(0.08)
-        if btn and btn.Parent then
-            btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-            btn.TextColor3 = Color3.fromRGB(245, 245, 245)
-        end
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+        btn.TextColor3 = Color3.fromRGB(245, 245, 245)
         pcall(callback)
     end)
 end
@@ -666,7 +658,7 @@ local function removePlayerESP()
 end
 
 local function createESP(obj)
-    if not obj or not scriptAktif or obj:FindFirstChild("Virgo_ESP") then return end 
+    if not obj or obj:FindFirstChild("Virgo_ESP") then return end 
     local hl = Instance.new("Highlight")
     hl.Name = "Virgo_ESP"
     hl.FillColor = Color3.fromRGB(255, 0, 50)
@@ -703,7 +695,7 @@ local function removeESP()
 end
 
 -- =============================================================================
--- [[ INTEGRASI MASTER FITUR GAMEPLAY ]] --
+-- [[ INTEGRASI MASTER FITUR GAMEPLAY KE MENU KONTEN — SINKRONISASI STATUS DEFAULT UTAMA ]] --
 -- =============================================================================
 
 buatSection("Quick Actions & Lobby")
@@ -718,8 +710,8 @@ buatTombol("🏆 Ending Aja Pocongnya Ga Ada", function()
         local secretEndings = {"Truth Ending", "Invitation Ending", "Missing Ending", "Collab1 Ending", "CultInvitation Ending", "CultSacrifice Ending"}
         local mainEndings = {"Truth", "True", "Quiet", "Missing", "Invitation", "Invisible", "Incomplete", "Good", "Failed", "Bad", "Dead", "CultSacrifice", "CultInvitation", "Collab1"}
 
-        task.spawn(function() for _, name in ipairs(secretEndings) do if not scriptAktif then break end SecretEndingHandler:FireServer(name) task.wait(0.4) end end)
-        task.spawn(function() for _, name in ipairs(mainEndings) do if not scriptAktif then break end EndingHandler:FireServer(name) task.wait(0.4) end EndingHandler:FireServer("Leave") end)
+        task.spawn(function() for _, name in ipairs(secretEndings) do SecretEndingHandler:FireServer(name) task.wait(0.4) end end)
+        task.spawn(function() for _, name in ipairs(mainEndings) do EndingHandler:FireServer(name) task.wait(0.4) end EndingHandler:FireServer("Leave") end)
         if RespawnHandler then task.spawn(function() RespawnHandler:FireServer() end) end
         task.spawn(function()
             local character = lp.Character or lp.CharacterAdded:Wait()
@@ -729,14 +721,13 @@ buatTombol("🏆 Ending Aja Pocongnya Ga Ada", function()
         end)
     end)
 end)
-
 buatTombol("🔄 Respawn Karakter Instan", function()
     pcall(function()
         game:GetService("ReplicatedStorage"):WaitForChild("Gameplay"):WaitForChild("RespawnHandler"):FireServer()
         task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
     end)
 end)
-
+-- FUNGSI AMBIL TALI POCI SEKALI TEKAN (NON-LOOP)
 local function ambilTaliPociSekali()
     pcall(function()
         local player = game.Players.LocalPlayer
@@ -806,17 +797,18 @@ buatTombol("Ruang Listrik (Lantai 2)", function() teleportTo(CFrame.new(25.66, 1
 buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.40, 17.78, -49.91)) end)
 
 buatSection("Automation Core Matrix")
-buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPrompts() managePromptListener() end) 
-buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)   
-buatToggle("Bersihkan Lantai", true, function(v) autoCleanActive = v end) 
+buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPrompts() managePromptListener() end) -- SET ON
+buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)   -- SET ON
+
+buatToggle("Bersihkan Lantai", true, function(v) autoCleanActive = v end) -- SET ON
 
 buatSection("Movement & Defensive Visuals")
-buatToggle("🛡️ Mode God", true, function(v) 
+buatToggle("🛡️ Mode God", true, function(v) -- SET ON
     godModeActive = v 
     if lp.Character then pelumpuhKematian(lp.Character) end
     if v then task.spawn(buatNotifikasi, "God Mode", "Mode God V6 Aktif!", 2.5) end
 end)
-buatToggle("🎥 Kamera Classic", false, function(v) 
+buatToggle("🎥 Kamera Classic", false, function(v) -- TETAP OFF
     cameraClassicActive = v
     pcall(function()
         if v then lp.CameraMode = Enum.CameraMode.Classic lp.CameraMinZoomDistance = 5 lp.CameraMaxZoomDistance = 100
@@ -824,9 +816,9 @@ buatToggle("🎥 Kamera Classic", false, function(v)
     end)
 end)
 buatSlider("WalkSpeed Booster", 16, 120, 30, function(v) currentSpeed = v end)
-buatToggle("Noclip", true, function(v) noclipActive = v end)        
-buatToggle("Entity ESP", true, function(v) espActive = v if not v then removeESP() end end) 
-buatToggle("Player ESP", true, function(v) playerEspActive = v if v then for _, p in pairs(Players:GetPlayers()) do createPlayerESP(p) end else removePlayerESP() end end) 
+buatToggle("Noclip", true, function(v) noclipActive = v end)        -- SET ON
+buatToggle("Entity ESP", true, function(v) espActive = v if not v then removeESP() end end) -- SET ON
+buatToggle("Player ESP", true, function(v) playerEspActive = v if v then for _, p in pairs(Players:GetPlayers()) do createPlayerESP(p) end else removePlayerESP() end end) -- SET ON
 
 local originalMaterials = {}
 buatToggle("⚡ Mode Boost FPS", false, function(v)
@@ -849,68 +841,24 @@ buatToggle("⚡ Mode Boost FPS", false, function(v)
     end)
 end)
 
--- TOMBOL MATIKAN SCRIPT YANG SUDAH DIPERBAIKI TOTAL
-buatTombol("🛑 Matikan Script & Reset", function()
-    pcall(function()
-        -- 1. Ubah status kontrol jadi false untuk menghentikan seluruh looping background
-        scriptAktif = false
-
-        -- 2. Hapus GUI Utama, Menu, & Notifikasi
-        local gui = targetGuiParent:FindFirstChild("VirgoboyCustomHub")
-        local notif = targetGuiParent:FindFirstChild("VirgoboyNotifGui")
-        local intro = targetGuiParent:FindFirstChild("VirgoWarningCenterGui")
-        if gui then gui:Destroy() end
-        if notif then notif:Destroy() end
-        if intro then intro:Destroy() end
-
-        -- 3. Bersihkan semua ESP & Highlight
-        removeESP()
-        removePlayerESP()
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v.Name == "Virgo_ESP" or v.Name == "Virgo_Tag" or v.Name == "Player_ESP_Virgo" then
-                v:Destroy()
-            end
-        end
-
-        -- 4. Kembalikan Status Karakter & God Mode ke Default
-        local char = lp.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-            hum.MaxHealth = 100
-            hum.Health = 100
-        end
-
-        -- 5. Matikan Koneksi Prompt
-        if promptConnection then
-            promptConnection:Disconnect()
-            promptConnection = nil
-        end
-
-        print("[Virgoboy Hub] Script berhasil dimatikan dan di-reset total secara aman.")
-    end)
-end)
-
+-- Pemicu fungsi Player ESP untuk player yang sudah ada di room saat execute
 for _, p in pairs(Players:GetPlayers()) do createPlayerESP(p) end
 
 -- =============================================================================
 -- [[ BACKGROUND PROCESS LOOPING & RUNTIME ENGINE ]] --
 -- =============================================================================
-Players.PlayerAdded:Connect(function(p) if scriptAktif and playerEspActive then createPlayerESP(p) end end)
+Players.PlayerAdded:Connect(function(p) if playerEspActive then createPlayerESP(p) end end)
 lp.CharacterAdded:Connect(function(char)
-    if not scriptAktif then return end
     pelumpuhKematian(char)
     if cameraClassicActive then task.wait(0.2) lp.CameraMode = Enum.CameraMode.Classic lp.CameraMinZoomDistance = 5 lp.CameraMaxZoomDistance = 100 end
 end)
 
 RunService.PostSimulation:Connect(function(deltaTime)
-   if not scriptAktif then return end
    local char = lp.Character local hrp = char and char:FindFirstChild("HumanoidRootPart") local hum = char and char:FindFirstChild("Humanoid")
    if hum and hrp and currentSpeed > 20 and hum.MoveDirection.Magnitude > 0 then hrp.CFrame = hrp.CFrame + (hum.MoveDirection * ((currentSpeed - 20) * deltaTime)) end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not scriptAktif then return end
     if cameraClassicActive then
         if lp.CameraMode ~= Enum.CameraMode.Classic then lp.CameraMode = Enum.CameraMode.Classic end
         if lp.CameraMinZoomDistance ~= 5 then lp.CameraMinZoomDistance = 5 end
@@ -919,7 +867,6 @@ RunService.RenderStepped:Connect(function()
 end)
 
 RunService.Stepped:Connect(function()
-    if not scriptAktif then return end
     local char = lp.Character local hum = char and char:FindFirstChildOfClass("Humanoid")
     if char then
         if noclipActive then
@@ -932,12 +879,11 @@ RunService.Stepped:Connect(function()
 end)
 
 task.spawn(function()
-   while scriptAktif do
-       task.wait(0.5)
-       if scriptAktif and espActive then
+   while task.wait() do
+       if espActive then
            pcall(function()
                local patrol = workspace:FindFirstChild("Patrol")
-               if patrol then for _, v in ipairs(patrol:GetChildren()) do if not scriptAktif then break end createESP(v) task.wait(0.02) end end
+               if patrol then for _, v in ipairs(patrol:GetChildren()) do createESP(v) task.wait(0.02) end end
                local story = workspace:FindFirstChild("Story") local trolley = story and story:FindFirstChild("ActiveTrolley") local js = trolley and trolley:FindFirstChild("Jumpscare")
                if js then for _, child in ipairs(js:GetChildren()) do if child:IsA("Model") or child:IsA("BasePart") then createESP(child) end end end
            end)
@@ -946,14 +892,15 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while scriptAktif do
+    while true do
         task.wait(4)
-        if scriptAktif and autoCleanActive then
+        if autoCleanActive then
             pcall(function()
                 local folder = workspace:FindFirstChild("Stain")
                 local stains = folder and folder:GetChildren()
                 
                 if stains and #stains > 0 then
+                    -- Menggunakan math.random untuk memilih noda lantai secara acak
                     local randomIndex = math.random(1, #stains)
                     local target = stains[randomIndex]
                     
@@ -977,6 +924,7 @@ task.spawn(function()
                         end
                         local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
                         teleportTo(cf)
+                        -- Variabel stainIndex lama sudah tidak diperlukan lagi di sini
                     end
                 end
             end)
@@ -985,9 +933,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while scriptAktif do
-        task.wait(0.1)
-        if not scriptAktif then break end
+    while task.wait() do
         if godModeActive then
             if lp.Character then
                 pcall(function()
@@ -1024,9 +970,8 @@ task.spawn(function()
 end)
 
 local function buatWarningTengah(pesanUtama, subPesan, durasi)
-    if not scriptAktif then return end
     durasi = durasi or 3
-    local targetParent = targetGuiParent
+    local targetParent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
     
     local wGui = Instance.new("ScreenGui")
     wGui.Name = "VirgoWarningCenterGui"
@@ -1078,11 +1023,6 @@ local function buatWarningTengah(pesanUtama, subPesan, durasi)
 
     task.wait(durasi)
 
-    if not scriptAktif or not wGui.Parent then 
-        if wGui then wGui:Destroy() end
-        return 
-    end
-
     tweenService:Create(wFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     tweenService:Create(tUtama, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
     tweenService:Create(tSub, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
@@ -1095,7 +1035,6 @@ task.spawn(function()
     local folderStory = workspace:WaitForChild("Story", 5)
     if folderStory then
         folderStory.DescendantAdded:Connect(function(descendant)
-            if not scriptAktif then return end
             local trolley = folderStory:FindFirstChild("ActiveTrolley")
             local jumpscareFolder = trolley and trolley:FindFirstChild("Jumpscare")
             
