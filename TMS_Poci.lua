@@ -216,7 +216,7 @@ local targetPoci = nil
 -- [[ CORE LOGIC FUNCTIONS ]] --
 local function pelumpuhKematian(char)
     if not char then return end
-    task.wait()
+    task.wait(0.1)
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if godModeActive then
@@ -840,7 +840,42 @@ buatToggle("⚡ Mode Boost FPS", false, function(v)
         end
     end)
 end)
+buatTombol("🛑 Matikan Script & Reset", function()
+    pcall(function()
+        -- Hapus GUI Utama & Notifikasi
+        local gui = targetGuiParent:FindFirstChild("VirgoboyCustomHub")
+        local notif = targetGuiParent:FindFirstChild("VirgoboyNotifGui")
+        local intro = targetGuiParent:FindFirstChild("VirgoWarningCenterGui")
+        if gui then gui:Destroy() end
+        if not ifnotif then end -- safe check
+        if notif then notif:Destroy() end
+        if intro then intro:Destroy() end
 
+        -- Bersihkan semua ESP & Highlight
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "Virgo_ESP" or v.Name == "Virgo_Tag" or v.Name == "Player_ESP_Virgo" then
+                v:Destroy()
+            end
+        end
+
+        -- Kembalikan Status Karakter & God Mode
+        local char = lp.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            hum.MaxHealth = 100
+            hum.Health = 100
+        end
+
+        -- Matikan Koneksi Prompt jika ada
+        if promptConnection then
+            promptConnection:Disconnect()
+            promptConnection = nil
+        end
+
+        print("[Virgoboy Hub] Script berhasil dimatikan dan di-reset total.")
+    end)
+end)
 -- Pemicu fungsi Player ESP untuk player yang sudah ada di room saat execute
 for _, p in pairs(Players:GetPlayers()) do createPlayerESP(p) end
 
@@ -933,7 +968,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         if godModeActive then
             if lp.Character then
                 pcall(function()
