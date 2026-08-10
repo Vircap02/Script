@@ -727,66 +727,69 @@ buatTombol("🔄 Respawn Karakter Instan", function()
         task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
     end)
 end)
-buatToggle("Auto Poci", false, function(v)
-    local pociActive = v
-    if pociActive then
-        task.spawn(function()
-            while pociActive do
-                local player = game.Players.LocalPlayer
-                local character = player.Character or player.CharacterAdded:Wait()
-                local rootPart = character:WaitForChild("HumanoidRootPart")
+-- FUNGSI AMBIL TALI POCI SEKALI TEKAN (NON-LOOP)
+local function ambilTaliPociSekali()
+    pcall(function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local rootPart = character:WaitForChild("HumanoidRootPart")
 
-                -- Menjelajahi seluruh Workspace untuk mencari objek yang namanya mengandung "Poci"
-                for _, item in ipairs(workspace:GetDescendants()) do
-                    if not pociActive then break end
-                    
-                    if item.Name:match("Poci") then
-                        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-                            break
-                        end
+        local found = false
 
-                        local prompt = nil
-                        if item:IsA("ProximityPrompt") then
-                            prompt = item
-                        else
-                            prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        end
-
-                        if prompt then
-                            local parentPart = prompt.Parent
-                            local targetCFrame = nil
-
-                            if parentPart and (parentPart:IsA("BasePart") or parentPart:IsA("MeshPart")) then
-                                targetCFrame = parentPart.CFrame
-                            elseif parentPart and parentPart:IsA("Model") then
-                                local primary = parentPart.PrimaryPart or parentPart:FindFirstChildWhichIsA("BasePart", true)
-                                if primary then
-                                    targetCFrame = primary.CFrame
-                                end
-                            elseif item:IsA("BasePart") or item:IsA("MeshPart") then
-                                targetCFrame = item.CFrame
-                            end
-
-                            if targetCFrame then
-                                rootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
-                                task.wait(0.1)
-
-                                pcall(function()
-                                    prompt.MaxActivationDistance = 99999
-                                    prompt.HoldDuration = 0
-                                    fireproximityprompt(prompt)
-                                end)
-
-                                task.wait(0.15)
-                            end
-                        end
-                    end
+        for _, item in ipairs(workspace:GetDescendants()) do
+            if item.Name:match("Poci") then
+                local prompt = nil
+                if item:IsA("ProximityPrompt") then
+                    prompt = item
+                else
+                    prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
                 end
 
-                task.wait()
+                if prompt then
+                    local parentPart = prompt.Parent
+                    local targetCFrame = nil
+
+                    if parentPart and (parentPart:IsA("BasePart") or parentPart:IsA("MeshPart")) then
+                        targetCFrame = parentPart.CFrame
+                    elseif parentPart and parentPart:IsA("Model") then
+                        local primary = parentPart.PrimaryPart or parentPart:FindFirstChildWhichIsA("BasePart", true)
+                        if primary then
+                            targetCFrame = primary.CFrame
+                        end
+                    elseif item:IsA("BasePart") or item:IsA("MeshPart") then
+                        targetCFrame = item.CFrame
+                    end
+
+                    if targetCFrame then
+                        rootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+                        task.wait(0.05)
+
+                        pcall(function()
+                            prompt.MaxActivationDistance = 99999
+                            prompt.HoldDuration = 0
+                            fireproximityprompt(prompt)
+                        end)
+
+                        found = true
+                        task.spawn(function()
+                            buatNotifikasi("Tali Poci", "Berhasil mengambil Poci!", 2)
+                        end)
+                        break
+                    end
+                end
             end
-        end)
-    end
+        end
+
+        if not found then
+            task.spawn(function()
+                buatNotifikasi("Tali Poci", "Tidak ada Poci yang ditemukan di sekitar!", 2)
+            end)
+        end
+    end)
+end
+
+buatTombol("🎯 Ambil Tali Poci (Sekali Tekan)", function()
+    ambilTaliPociSekali()
 end)
 
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
