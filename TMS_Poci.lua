@@ -727,15 +727,12 @@ buatTombol("🔄 Respawn Karakter Instan", function()
         task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
     end)
 end)
--- FUNGSI AMBIL TALI POCI & OTOMATIS KEMBALI KE TELEPON
+-- FUNGSI AMBIL TALI POCI DI FOLDER STORY & PATROLI
 local function ambilTaliPociSekali()
     pcall(function()
         local player = game.Players.LocalPlayer
         local character = player.Character or player.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart")
-
-        -- Simpan posisi awal (Telepon/Lobby) sebelum berteleportasi ke poci
-        local posisiAwal = rootPart.CFrame
 
         local found = false
         
@@ -773,7 +770,6 @@ local function ambilTaliPociSekali()
                             end
 
                             if targetCFrame then
-                                -- Teleport ke posisi Poci/Wowo
                                 rootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
                                 task.wait(0.05)
 
@@ -784,15 +780,8 @@ local function ambilTaliPociSekali()
                                 end)
 
                                 found = true
-                                
-                                -- Beri jeda singkat agar interaksi terproses server
-                                task.wait(0.1)
-
-                                -- Teleport kembali otomatis ke posisi awal (Telepon)
-                                rootPart.CFrame = posisiAwal
-
                                 task.spawn(function()
-                                    buatNotifikasi("Tali Poci", "Berhasil ambil & kembali ke telepon!", 2)
+                                    buatNotifikasi("Tali Poci", "Berhasil mengambil Poci/Wowo!", 2)
                                 end)
                                 break
                             end
@@ -1112,6 +1101,45 @@ task.spawn(function()
         task.wait(0.1) -- Sesuaikan waktu jeda (dalam detik) agar tidak membuat lag
     end
 end)
+-- ====================================================================
+-- AUTO COLLECT FORCED LOOP ON EXECUTE
+-- ====================================================================
+local TWEEN_SPEED = 50
+local INTERACT_DELAY = 0.5
+
+local function startAutoCollect()
+    local patrolFolder = workspace:FindFirstChild("Patrol")
+    if not patrolFolder then return end
+    
+    for _, item in ipairs(patrolFolder:GetDescendants()) do
+        if item.Name == "WowoBogel" or item.Name == "Wowo Bogel" or item.Name == "WowoIn" then
+            local prompt = item:FindFirstChildOfClass("ProximityPrompt") or item:FindFirstChild("ProximityPrompt", true)
+            if prompt and fireproximityprompt then
+                local targetPart = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart", true)
+                if targetPart then
+                    local character = lp.Character
+                    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        local distance = (rootPart.Position - targetPart.Position).Magnitude
+                        local duration = distance / TWEEN_SPEED
+                        local tween = game:GetService("TweenService"):Create(rootPart, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)})
+                        tween:Play()
+                        tween.Completed:Wait()
+                        task.wait(0.1)
+                        
+                        prompt.HoldDuration = 0 
+                        prompt.RequiresLineOfSight = false 
+                        prompt.MaxActivationDistance = 999999
+                        fireproximityprompt(prompt)
+                        task.wait(0.1)
+                    end
+                end
+            end
+        end
+    end
+end
+task.defer(startAutoCollect)
+
 -- =========================================================
 -- ULTIMATE GUI PURGE & AUTO PROXIMITY (VIRGOBOY HUB GOLD)
 -- =========================================================
