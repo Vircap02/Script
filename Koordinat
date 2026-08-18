@@ -1,0 +1,208 @@
+-- Buat UI secara otomatis dengan fitur Copy
+local player = game.Players.LocalPlayer
+local pGui = player:WaitForChild("PlayerGui")
+
+-- Cek jika UI lama masih ada, hapus dulu agar tidak menumpuk
+if pGui:FindFirstChild("CoordPickerGui") then
+    pGui.CoordPickerGui:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CoordPickerGui"
+screenGui.ResetOnSpawn = false 
+screenGui.Parent = pGui
+
+-- FRAME UTAMA
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 320)
+frame.Position = UDim2.new(0.5, -160, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true 
+frame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = frame
+
+-- STROKE/BORDER HALUS UNTUK FRAME
+local frameStroke = Instance.new("UIStroke")
+frameStroke.Color = Color3.fromRGB(45, 45, 45)
+frameStroke.Thickness = 1.5
+frameStroke.Parent = frame
+
+-- TITLE BAR
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "  📍 Coordinate Logger"
+title.TextColor3 = Color3.fromRGB(240, 240, 240)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.BackgroundTransparency = 1
+title.Parent = frame
+
+-- TOMBOL CLOSE (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -34, 0, 6)
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamMedium
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = frame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeBtn
+
+-- TEXTBOX LOG (OUTPUT KOORDINAT)
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0.9, 0, 0.45, 0)
+textBox.Position = UDim2.new(0.05, 0, 0.15, 0)
+textBox.MultiLine = true
+textBox.ClearTextOnFocus = false
+textBox.Text = ""
+textBox.PlaceholderText = "Belum ada koordinat yang dicatat..."
+textBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+textBox.TextYAlignment = Enum.TextYAlignment.Top
+textBox.TextXAlignment = Enum.TextXAlignment.Left
+textBox.TextColor3 = Color3.fromRGB(200, 255, 200)
+textBox.Font = Enum.Font.Code
+textBox.TextSize = 12
+textBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+textBox.BorderSizePixel = 0
+textBox.ClipsDescendants = true
+textBox.Parent = frame
+
+local textPadding = Instance.new("UIPadding")
+textPadding.PaddingLeft = UDim.new(0, 8)
+textPadding.PaddingTop = UDim.new(0, 8)
+textPadding.PaddingRight = UDim.new(0, 8)
+textPadding.Parent = textBox
+
+local textCorner = Instance.new("UICorner")
+textCorner.CornerRadius = UDim.new(0, 8)
+textCorner.Parent = textBox
+
+-- TOMBOL AMBIL KOORDINAT
+local markBtn = Instance.new("TextButton")
+markBtn.Size = UDim2.new(0.9, 0, 0, 38)
+markBtn.Position = UDim2.new(0.05, 0, 0.65, 0)
+markBtn.Text = "RECORD CURRENT POSITION"
+markBtn.BackgroundColor3 = Color3.fromRGB(0, 136, 255)
+markBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+markBtn.Font = Enum.Font.GothamBold
+markBtn.TextSize = 12
+markBtn.BorderSizePixel = 0
+markBtn.Parent = frame
+
+local markCorner = Instance.new("UICorner")
+markCorner.CornerRadius = UDim.new(0, 8)
+markCorner.Parent = markBtn
+
+-- TOMBOL COPY ALL (Sebelah Kiri Bawah)
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(0.43, 0, 0, 32) -- Dibagi dua ukurannya
+copyBtn.Position = UDim2.new(0.05, 0, 0.81, 0)
+copyBtn.Text = "📋 Copy All"
+copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+copyBtn.TextColor3 = Color3.fromRGB(100, 200, 255) -- Warna biru soft
+copyBtn.Font = Enum.Font.GothamMedium
+copyBtn.TextSize = 12
+copyBtn.BorderSizePixel = 0
+copyBtn.Parent = frame
+
+local copyCorner = Instance.new("UICorner")
+copyCorner.CornerRadius = UDim.new(0, 8)
+copyCorner.Parent = copyBtn
+
+-- TOMBOL HAPUS ALL (Sebelah Kanan Bawah)
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(0.43, 0, 0, 32) -- Dibagi dua ukurannya
+clearBtn.Position = UDim2.new(0.52, 0, 0.81, 0) -- Digeser ke kanan
+clearBtn.Text = "🗑️ Clear All"
+clearBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+clearBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+clearBtn.Font = Enum.Font.GothamMedium
+clearBtn.TextSize = 12
+clearBtn.BorderSizePixel = 0
+clearBtn.Parent = frame
+
+local clearCorner = Instance.new("UICorner")
+clearCorner.CornerRadius = UDim.new(0, 8)
+clearCorner.Parent = clearBtn
+
+--- LOGIKA & ANIMASI INTERAKSI ---
+
+local TweenService = game:GetService("TweenService")
+local coordinates = {}
+
+-- Animasi hover tombol
+local function setButtonEffects(button, normalColor, hoverColor)
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = normalColor}):Play()
+    end)
+end
+
+setButtonEffects(closeBtn, Color3.fromRGB(40, 40, 40), Color3.fromRGB(200, 50, 50))
+setButtonEffects(markBtn, Color3.fromRGB(0, 136, 255), Color3.fromRGB(0, 110, 210))
+setButtonEffects(copyBtn, Color3.fromRGB(40, 40, 40), Color3.fromRGB(30, 45, 55))
+setButtonEffects(clearBtn, Color3.fromRGB(40, 40, 40), Color3.fromRGB(50, 30, 30))
+
+-- Fungsi Tutup UI
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- Fungsi Ambil Koordinat
+markBtn.MouseButton1Click:Connect(function()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if hrp then
+        local pos = hrp.Position
+        local formatted = string.format("Vector3.new(%.2f, %.2f, %.2f)", pos.X, pos.Y, pos.Z)
+        
+        table.insert(coordinates, formatted)
+        textBox.Text = table.concat(coordinates, "\n")
+        
+        -- Efek flash hijau sukses
+        local originalColor = markBtn.BackgroundColor3
+        markBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        TweenService:Create(markBtn, TweenInfo.new(0.3), {BackgroundColor3 = originalColor}):Play()
+    end
+end)
+
+-- Fungsi Copy All ke Clipboard PC/HP
+copyBtn.MouseButton1Click:Connect(function()
+    if #coordinates > 0 then
+        local allText = table.concat(coordinates, "\n")
+        
+        -- Menggunakan fungsi exploit universal untuk copy clipboard
+        if setclipboard then
+            setclipboard(allText)
+            
+            -- Efek teks berubah sementara jadi "Copied!" sebagai feedback
+            local oldText = copyBtn.Text
+            copyBtn.Text = "✅ Copied!"
+            task.wait(1)
+            copyBtn.Text = oldText
+        else
+            warn("Executor kamu tidak mendukung fungsi setclipboard().")
+        end
+    end
+end)
+
+-- Fungsi Hapus Log
+clearBtn.MouseButton1Click:Connect(function()
+    coordinates = {}
+    textBox.Text = ""
+end)
