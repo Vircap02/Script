@@ -21,7 +21,7 @@ local listMap = {
     },
     {
         Nama = "👻 The Morgue Shift",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/TMS_Suster.lua"))()]]
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS_Poci.lua"))()]]
     },
     {
         Nama = "🦁 BBC Wonder Chase",
