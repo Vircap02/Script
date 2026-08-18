@@ -21,7 +21,7 @@ local listMap = {
     },
     {
         Nama = "👻 The Morgue Shift",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS_Poci.lua"))()]]
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/TMS_Suster.lua"))()]]
     },
     {
         Nama = "🦁 BBC Wonder Chase",
@@ -675,6 +675,100 @@ end
 createToggle("📜 Enable Anti-AFK", 1, true, function(state) antiAfkEnabled = state end)
 createToggle("🔄 Auto Reconnect", 2, true, function(state) autoReconnectEnabled = state end)
 
+-- ====================================================
+--  FITUR TAMBAHAN DI MENU SETTING (SESUAI PERMINTAAN)
+-- ====================================================
+
+-- 1. Tombol Infinite Yield
+local iyBtn = Instance.new("TextButton")
+iyBtn.Size = UDim2.new(1, 0, 0, 32)
+iyBtn.BackgroundColor3 = COL_ACCENT 
+iyBtn.Text = "⚡ Infinite Yield"
+iyBtn.Font = Enum.Font.GothamBold
+iyBtn.TextSize = 11
+iyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+iyBtn.LayoutOrder = 2.1
+iyBtn.ZIndex = 2
+iyBtn.Parent = settingScroll
+Instance.new("UICorner", iyBtn).CornerRadius = UDim.new(0, 6)
+animStroke(iyBtn, 1)
+themeObjectsToUpdate[iyBtn] = "BackgroundColor3"
+
+iyBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Infinite Yield...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+    end)
+end)
+
+-- 2. Tombol Official Wyborn Script
+local wybornBtn = Instance.new("TextButton")
+wybornBtn.Size = UDim2.new(1, 0, 0, 32)
+wybornBtn.BackgroundColor3 = COL_ACCENT 
+wybornBtn.Text = "🛡️ Official Wyborn Script"
+wybornBtn.Font = Enum.Font.GothamBold
+wybornBtn.TextSize = 11
+wybornBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+wybornBtn.LayoutOrder = 2.2
+wybornBtn.ZIndex = 2
+wybornBtn.Parent = settingScroll
+Instance.new("UICorner", wybornBtn).CornerRadius = UDim.new(0, 6)
+animStroke(wybornBtn, 1)
+themeObjectsToUpdate[wybornBtn] = "BackgroundColor3"
+
+wybornBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Official Wyborn Script...", 2)
+    pcall(function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ckw69/Wyborn/main/wyborn', true))()
+    end)
+end)
+
+-- 3. Tombol Koordinat
+local koordinatBtn = Instance.new("TextButton")
+koordinatBtn.Size = UDim2.new(1, 0, 0, 32)
+koordinatBtn.BackgroundColor3 = COL_ACCENT 
+koordinatBtn.Text = "📍 Koordinat Script"
+koordinatBtn.Font = Enum.Font.GothamBold
+koordinatBtn.TextSize = 11
+koordinatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+koordinatBtn.LayoutOrder = 2.3
+koordinatBtn.ZIndex = 2
+koordinatBtn.Parent = settingScroll
+Instance.new("UICorner", koordinatBtn).CornerRadius = UDim.new(0, 6)
+animStroke(koordinatBtn, 1)
+themeObjectsToUpdate[koordinatBtn] = "BackgroundColor3"
+
+koordinatBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Script Koordinat...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Koordinat"))()
+    end)
+end)
+
+-- 4. Tombol Pencari Objek
+local pencariObjekBtn = Instance.new("TextButton")
+pencariObjekBtn.Size = UDim2.new(1, 0, 0, 32)
+pencariObjekBtn.BackgroundColor3 = COL_ACCENT 
+pencariObjekBtn.Text = "🔎 Pencari Objek"
+pencariObjekBtn.Font = Enum.Font.GothamBold
+pencariObjekBtn.TextSize = 11
+pencariObjekBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+pencariObjekBtn.LayoutOrder = 2.4
+pencariObjekBtn.ZIndex = 2
+pencariObjekBtn.Parent = settingScroll
+Instance.new("UICorner", pencariObjekBtn).CornerRadius = UDim.new(0, 6)
+animStroke(pencariObjekBtn, 1)
+themeObjectsToUpdate[pencariObjekBtn] = "BackgroundColor3"
+
+pencariObjekBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Pencari Objek...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/PencariObjek"))()
+    end)
+end)
+
+-- ====================================================
+
 -- Tombol Tambahan untuk Teleport
 local teleportBtn = Instance.new("TextButton")
 teleportBtn.Size = UDim2.new(1, 0, 0, 32)
@@ -782,7 +876,6 @@ themeObjectsToUpdate[fakePurchaseBtn] = "BackgroundColor3"
 fakePurchaseBtn.MouseButton1Click:Connect(function()
     showNotify("Fake Purchase", "Membuka menu Fake Purchase...", 2)
     
-    -- Membuka Frame / Menu Fake Purchase terpisah di dalam PlayerGui
     local fakeGui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
     fakeGui.Name = "AxoltaPurchaseFireIce"
     fakeGui.ResetOnSpawn = false
