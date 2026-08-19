@@ -1,0 +1,251 @@
+local CoreGui = game:GetService("CoreGui")
+if CoreGui:FindFirstChild("UGCBulkPurchaseUI") then
+    CoreGui.UGCBulkPurchaseUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UGCBulkPurchaseUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame dengan efek gradasi & border halus
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -180, 0.5, -115)
+MainFrame.Size = UDim2.new(0, 360, 0, 230)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Outer Glow / Stroke halus
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Color = Color3.fromRGB(60, 60, 80)
+MainStroke.Transparency = 0.5
+MainStroke.Thickness = 1.5
+
+-- Topbar (Header)
+local Topbar = Instance.new("Frame")
+Topbar.Name = "Topbar"
+Topbar.Parent = MainFrame
+Topbar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+Topbar.BorderSizePixel = 0
+Topbar.Size = UDim2.new(1, 0, 0, 38)
+
+local TopbarCorner = Instance.new("UICorner")
+TopbarCorner.CornerRadius = UDim.new(0, 10)
+TopbarCorner.Parent = Topbar
+
+local TopbarCover = Instance.new("Frame")
+TopbarCover.Name = "TopbarCover"
+TopbarCover.Parent = Topbar
+TopbarCover.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TopbarCover.BorderSizePixel = 0
+TopbarCover.Position = UDim2.new(0, 0, 1, -6)
+TopbarCover.Size = UDim2.new(1, 0, 0, 6)
+
+-- Indikator Aksesoris Kecil di Topbar
+local AccentDot = Instance.new("Frame")
+AccentDot.Parent = Topbar
+AccentDot.BackgroundColor3 = Color3.fromRGB(0, 220, 130)
+AccentDot.BorderSizePixel = 0
+AccentDot.Position = UDim2.new(0, 12, 0.5, -4)
+AccentDot.Size = UDim2.new(0, 8, 0, 8)
+local DotCorner = Instance.new("UICorner")
+DotCorner.CornerRadius = UDim.new(1, 0)
+DotCorner.Parent = AccentDot
+
+local Title = Instance.new("TextLabel")
+Title.Parent = Topbar
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 28, 0, 0)
+Title.Size = UDim2.new(0, 220, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "UGC Sniper & Bulk"
+Title.TextColor3 = Color3.fromRGB(240, 240, 255)
+Title.TextSize = 13
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Container Tombol (Close & Minimize)
+local ButtonContainer = Instance.new("Frame")
+ButtonContainer.Parent = Topbar
+ButtonContainer.BackgroundTransparency = 1
+ButtonContainer.Position = UDim2.new(1, -75, 0, 0)
+ButtonContainer.Size = UDim2.new(0, 75, 1, 0)
+
+-- Tombol Close (X)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = ButtonContainer
+CloseBtn.BackgroundColor3 = Color3.fromRGB(240, 70, 70)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Position = UDim2.new(1, -26, 0.5, -10)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 10
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseBtn
+
+-- Tombol Minimize (-)
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = ButtonContainer
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+MinimizeBtn.BorderSizePixel = 0
+MinimizeBtn.Position = UDim2.new(1, -52, 0.5, -10)
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 11
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 5)
+MinimizeCorner.Parent = MinimizeBtn
+
+-- Konten / Isi UI
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0, 0, 0, 38)
+Content.Size = UDim2.new(1, 0, 1, -38)
+
+-- Kotak Input (TextBox) ID
+local TextBox = Instance.new("TextBox")
+TextBox.Name = "IdInput"
+TextBox.Parent = Content
+TextBox.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+TextBox.BorderSizePixel = 0
+TextBox.Position = UDim2.new(0, 15, 0, 16)
+TextBox.Size = UDim2.new(1, -30, 0, 38)
+TextBox.Font = Enum.Font.GothamMedium
+TextBox.PlaceholderText = "Masukkan ID UGC..."
+TextBox.PlaceholderColor3 = Color3.fromRGB(90, 90, 110)
+TextBox.Text = ""
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.TextSize = 13
+TextBox.ClearTextOnFocus = false
+
+local TextBoxCorner = Instance.new("UICorner")
+TextBoxCorner.CornerRadius = UDim.new(0, 7)
+TextBoxCorner.Parent = TextBox
+
+local TextBoxStroke = Instance.new("UIStroke")
+TextBoxStroke.Parent = TextBox
+TextBoxStroke.Color = Color3.fromRGB(45, 45, 60)
+TextBoxStroke.Thickness = 1
+
+-- Tombol Toggle On/Off (Rebutan)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleBtn"
+ToggleBtn.Parent = Content
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Position = UDim2.new(0, 15, 0, 66)
+ToggleBtn.Size = UDim2.new(1, -30, 0, 34)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Text = "Auto Spam / Rebutan: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(160, 160, 180)
+ToggleBtn.TextSize = 12
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 7)
+ToggleCorner.Parent = ToggleBtn
+
+-- Tombol Eksekusi Manual
+local BuyButton = Instance.new("TextButton")
+BuyButton.Parent = Content
+BuyButton.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
+BuyButton.BorderSizePixel = 0
+BuyButton.Position = UDim2.new(0, 15, 0, 110)
+BuyButton.Size = UDim2.new(1, -30, 0, 42)
+BuyButton.Font = Enum.Font.GothamBold
+BuyButton.Text = "Fire Remote"
+BuyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuyButton.TextSize = 14
+
+local BuyCorner = Instance.new("UICorner")
+BuyCorner.CornerRadius = UDim.new(0, 7)
+BuyCorner.Parent = BuyButton
+
+-- Efek Gradient halus pada tombol utama
+local BuyGradient = Instance.new("UIGradient")
+BuyGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.0, Color3.fromRGB(0, 162, 255)),
+    ColorSequenceKeypoint.new(1.0, Color3.fromRGB(0, 100, 220))
+}
+BuyGradient.Rotation = 90
+BuyGradient.Parent = BuyButton
+
+-----------------------------------------------------------------
+-- Fungsionalitas Tombol UI & Logic Asli
+-----------------------------------------------------------------
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        Content.Visible = false
+        MainFrame:TweenSize(UDim2.new(0, 360, 0, 38), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+        MinimizeBtn.Text = "+"
+    else
+        MainFrame:TweenSize(UDim2.new(0, 360, 0, 230), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true, function()
+            Content.Visible = true
+        end)
+        MinimizeBtn.Text = "-"
+    end
+end)
+
+local toggleState = false
+ToggleBtn.MouseButton1Click:Connect(function()
+    toggleState = not toggleState
+    if toggleState then
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 150, 80)
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ToggleBtn.Text = "Auto Spam / Rebutan: ON"
+        
+        task.spawn(function()
+            while toggleState do
+                local args = {
+                    {
+                        {
+                            Id = TextBox.Text,
+                            Type = Enum.MarketplaceProductType.AvatarAsset
+                        }
+                    }
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("BulkPurchase"):FireServer(unpack(args))
+                task.wait()
+            end
+        end)
+    else
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+        ToggleBtn.TextColor3 = Color3.fromRGB(160, 160, 180)
+        ToggleBtn.Text = "Auto Spam / Rebutan: OFF"
+    end
+end)
+
+BuyButton.MouseButton1Click:Connect(function()
+    local args = {
+        {
+            {
+                Id = TextBox.Text,
+                Type = Enum.MarketplaceProductType.AvatarAsset
+            }
+        }
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("BulkPurchase"):FireServer(unpack(args))
+end)
