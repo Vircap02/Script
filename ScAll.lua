@@ -719,7 +719,7 @@ themeObjectsToUpdate[wybornBtn] = "BackgroundColor3"
 wybornBtn.MouseButton1Click:Connect(function()
     showNotify("Executing...", "Menjalankan Official Wyborn Script...", 2)
     pcall(function()
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/ckw69/Wyborn/main/wyborn', true))()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Script-Wevorn-For-Free-Gamepass-and-Dev-Products-and-Instant-240911"))()
     end)
 end)
 
@@ -855,7 +855,30 @@ hopBtn.MouseButton1Click:Connect(function()
     
     TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
 end)
+-- ====================================================
+--  TOMBOL AUTO REFUND (MENU SETTING)[cite: 1]
+-- ====================================================
+local autoRefundBtn = Instance.new("TextButton")
+autoRefundBtn.Size = UDim2.new(1, 0, 0, 32)
+autoRefundBtn.BackgroundColor3 = COL_ACCENT
+autoRefundBtn.Text = "💸 Auto Refund"
+autoRefundBtn.Font = Enum.Font.GothamBold
+autoRefundBtn.TextSize = 11
+autoRefundBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoRefundBtn.LayoutOrder = 2.75
+autoRefundBtn.ZIndex = 2
+autoRefundBtn.Parent = settingScroll
+Instance.new("UICorner", autoRefundBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoRefundBtn, 1)
+themeObjectsToUpdate[autoRefundBtn] = "BackgroundColor3"
 
+autoRefundBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Auto Refund...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
+    end)
+end)
+-- ====================================================
 -- ====================================================
 --  TOMBOL FAKE PURCHASE (MENU SETTING)
 -- ====================================================
