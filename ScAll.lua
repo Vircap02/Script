@@ -52,8 +52,8 @@ local listMap = {
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/LuckyBox.lua"))()]]
     },
     {
-        Nama = "🐠 Find The Seasouls",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/SeasoulsKadal.lua"))()]]
+        Nama = "🏠 Blow Everything Up",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/BlowEverythingUp"))()]]
     },
 }
 -- ====================================================
