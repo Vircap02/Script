@@ -1,0 +1,276 @@
+-- // Mobile Fly Script (Modern Minimalist GUI & Accurate Camera/Joystick)
+-- // Compatible with Mobile Executors (Arceus X, Delta, Hydrogen, etc.)
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Ambil kontrol modul Roblox untuk membaca analog mobile dengan akurat
+local playerScripts = player:WaitForChild("PlayerScripts")
+local playerModule = require(playerScripts:WaitForChild("PlayerModule"))
+local controls = playerModule:GetControls()
+
+-- Hapus GUI lama jika ada agar tidak menumpuk
+if game.CoreGui:FindFirstChild("MobileFlyGui") then
+    game.CoreGui:FindFirstChild("MobileFlyGui"):Destroy()
+end
+
+-- Buat ScreenGui di CoreGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MobileFlyGui"
+screenGui.Parent = game.CoreGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame (Menu Utama yang Estetik)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = screenGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+mainFrame.BorderSizePixel = 0
+mainFrame.Position = UDim2.new(0.5, -110, 0.3, 0)
+mainFrame.Size = UDim2.new(0, 220, 0, 235)
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+-- Judul / Header
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent = mainFrame
+titleLabel.BackgroundColor3 = Color3.fromRGB(34, 34, 40)
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Text = "  Mobile Fly"
+titleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+titleLabel.TextSize = 15
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleLabel
+
+-- Perbaikan sudut header agar bagian bawahnya tidak melengkung keluar frame
+local titleCover = Instance.new("Frame")
+titleCover.Parent = titleLabel
+titleCover.BackgroundColor3 = Color3.fromRGB(34, 34, 40)
+titleCover.BorderSizePixel = 0
+titleCover.Position = UDim2.new(0, 0, 1, -6)
+titleCover.Size = UDim2.new(1, 0, 0, 6)
+
+-- Tombol Close (X)
+local closeButton = Instance.new("TextButton")
+closeButton.Parent = titleLabel
+closeButton.BackgroundColor3 = Color3.fromRGB(235, 75, 75)
+closeButton.Position = UDim2.new(1, -32, 0.5, -12)
+closeButton.Size = UDim2.new(0, 24, 0, 24)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Text = "×"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 16
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeButton
+
+-- Tombol Minimize (-)
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Parent = titleLabel
+minimizeButton.BackgroundColor3 = Color3.fromRGB(235, 175, 55)
+minimizeButton.Position = UDim2.new(1, -62, 0.5, -12)
+minimizeButton.Size = UDim2.new(0, 24, 0, 24)
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextSize = 16
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 6)
+minCorner.Parent = minimizeButton
+
+-- Tombol Fly ON/OFF
+local flyButton = Instance.new("TextButton")
+flyButton.Parent = mainFrame
+flyButton.BackgroundColor3 = Color3.fromRGB(45, 160, 80)
+flyButton.Position = UDim2.new(0, 15, 0, 55)
+flyButton.Size = UDim2.new(0, 190, 0, 45)
+flyButton.Font = Enum.Font.GothamBold
+flyButton.Text = "Fly: OFF"
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.TextSize = 15
+
+local flyCorner = Instance.new("UICorner")
+flyCorner.CornerRadius = UDim.new(0, 8)
+flyCorner.Parent = flyButton
+
+-- Label Kecepatan
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Parent = mainFrame
+speedLabel.BackgroundTransparency = 1
+speedLabel.Position = UDim2.new(0, 15, 0, 110)
+speedLabel.Size = UDim2.new(0, 190, 0, 20)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.Text = "Speed: 50"
+speedLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+speedLabel.TextSize = 13
+speedLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- Tombol Tambah Kecepatan (+)
+local speedUpBtn = Instance.new("TextButton")
+speedUpBtn.Parent = mainFrame
+speedUpBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+speedUpBtn.Position = UDim2.new(0, 15, 0, 138)
+speedUpBtn.Size = UDim2.new(0, 90, 0, 35)
+speedUpBtn.Font = Enum.Font.GothamBold
+speedUpBtn.Text = "Speed +"
+speedUpBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+speedUpBtn.TextSize = 13
+
+local upCorner = Instance.new("UICorner")
+upCorner.CornerRadius = UDim.new(0, 8)
+upCorner.Parent = speedUpBtn
+
+-- Tombol Kurangi Kecepatan (-)
+local speedDownBtn = Instance.new("TextButton")
+speedDownBtn.Parent = mainFrame
+speedDownBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+speedDownBtn.Position = UDim2.new(0, 115, 0, 138)
+speedDownBtn.Size = UDim2.new(0, 90, 0, 35)
+speedDownBtn.Font = Enum.Font.GothamBold
+speedDownBtn.Text = "Speed -"
+speedDownBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+speedDownBtn.TextSize = 13
+
+local downCorner = Instance.new("UICorner")
+downCorner.CornerRadius = UDim.new(0, 8)
+downCorner.Parent = speedDownBtn
+
+-- Indikator Status Bawah (Kecil)
+local footerLabel = Instance.new("TextLabel")
+footerLabel.Parent = mainFrame
+footerLabel.BackgroundTransparency = 1
+footerLabel.Position = UDim2.new(0, 15, 0, 185)
+footerLabel.Size = UDim2.new(0, 190, 0, 30)
+footerLabel.Font = Enum.Font.Gotham
+footerLabel.Text = "Drag to move menu"
+footerLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+footerLabel.TextSize = 11
+
+-- Tombol Buka Kembali (Restore) saat di-minimize
+local openButton = Instance.new("TextButton")
+openButton.Parent = screenGui
+openButton.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+openButton.Position = UDim2.new(0, 15, 0, 15)
+openButton.Size = UDim2.new(0, 95, 0, 38)
+openButton.Font = Enum.Font.GothamBold
+openButton.Text = "Open Fly"
+openButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+openButton.TextSize = 13
+openButton.Visible = false
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 8)
+openCorner.Parent = openButton
+
+-- Variabel Logika Fly
+local flying = false
+local flySpeed = 50
+local bv, bg
+local runService = game:GetService("RunService")
+
+local function startFly()
+    character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    humanoidRootPart = character.HumanoidRootPart
+    
+    bv = Instance.new("BodyVelocity")
+    bv.Parent = humanoidRootPart
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    
+    bg = Instance.new("BodyGyro")
+    bg.Parent = humanoidRootPart
+    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bg.CFrame = humanoidRootPart.CFrame
+    
+    flying = true
+    flyButton.Text = "Fly: ON"
+    flyButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    
+    local cam = workspace.CurrentCamera
+    
+    runService.RenderStepped:Connect(function()
+        if not flying then return end
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = true
+            
+            local moveVector = controls:GetMoveVector()
+            
+            if moveVector.Magnitude > 0 then
+                local camCFrame = cam.CFrame
+                local flyDirection = (camCFrame.LookVector * -moveVector.Z + camCFrame.RightVector * moveVector.X).Unit
+                bv.Velocity = flyDirection * flySpeed
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+        
+        if cam and bg then
+            bg.CFrame = cam.CFrame
+        end
+    end)
+end
+
+local function stopFly()
+    flying = false
+    flyButton.Text = "Fly: OFF"
+    flyButton.BackgroundColor3 = Color3.fromRGB(45, 160, 80)
+    
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.PlatformStand = false
+    end
+    
+    if bv then bv:Destroy() end
+    if bg then bg:Destroy() end
+end
+
+-- Event Tombol Fly
+flyButton.MouseButton1Click:Connect(function()
+    if not flying then
+        startFly()
+    else
+        stopFly()
+    end
+end)
+
+-- Event Pengaturan Kecepatan
+speedUpBtn.MouseButton1Click:Connect(function()
+    flySpeed = flySpeed + 10
+    speedLabel.Text = "Speed: " .. flySpeed
+end)
+
+speedDownBtn.MouseButton1Click:Connect(function()
+    if flySpeed > 10 then
+        flySpeed = flySpeed - 10
+        speedLabel.Text = "Speed: " .. flySpeed
+    end
+end)
+
+-- Event Minimize & Open
+minimizeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openButton.Visible = true
+end)
+
+openButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    openButton.Visible = false
+end)
+
+-- Event Close
+closeButton.MouseButton1Click:Connect(function()
+    stopFly()
+    screenGui:Destroy()
+end)
