@@ -1,0 +1,273 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "ANIMO NEW UGC",
+   LoadingTitle = "Loading Ultimate Script...",
+   LoadingSubtitle = "by Virgoboy x YonoHub",
+   ConfigurationSaving = { Enabled = true, FolderName = "VirgoboyHub" },
+   KeySystem = false
+})
+
+getgenv().AntiAFK_Jump = true
+getgenv().AutoReconnect = true
+local stickyEnabled = false
+local espEnabled = false
+local selectedSpiritName = nil 
+local isAutoBuying = false
+local autoBuyItemName = ""
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local lp = Players.LocalPlayer
+
+-- FUNCTIONS
+local function cleanName(name)
+    local base = nil
+    if string.find(name, "Color") then base = string.match(name, "^(.*)Color")
+    elseif string.find(name, "_Roaming") then base = string.match(name, "^(.*)_Roaming")
+    elseif string.find(name, "Sound") then base = string.match(name, "^(.*)Sound") end
+    if base then base = string.gsub(base, "[%_%s]+$", "") end
+    return base
+end
+
+local function isAnomaly(spiritGroup)
+    for _, child in pairs(spiritGroup:GetDescendants()) do
+        local name = child.Name
+        if string.find(name, "Color") or string.find(name, "_Roaming") or string.find(name, "Sound") then return false end
+    end
+    return true
+end
+
+local function getUniqueSpiritList()
+    local spirits = {}
+    local seenNames = {}
+    local folder = workspace:FindFirstChild("ActiveSpirits")
+    if folder then
+        for _, item in pairs(folder:GetDescendants()) do
+            local baseName = cleanName(item.Name)
+            if baseName and baseName ~= "" and not seenNames[baseName] then
+                table.insert(spirits, baseName)
+                seenNames[baseName] = true
+            end
+        end
+    end
+    table.sort(spirits)
+    if #spirits == 0 then return {"Tidak ada Animo di map"} end
+    return spirits
+end
+
+local function clearAnomalyESP()
+    local folder = workspace:FindFirstChild("ActiveSpirits")
+    if folder then
+        for _, v in pairs(folder:GetDescendants()) do
+            if v.Name == "Anomaly_ESP" then v:Destroy() end
+        end
+    end
+end
+
+-- TABS
+local MainTab = Window:CreateTab("Main Actions", 4483362458)
+local MiscTab = Window:CreateTab("Misc/Server", 4483362458)
+
+-- MAIN TAB
+MainTab:CreateSection("Character Tweaks")
+MainTab:CreateSlider({
+   Name = "WalkSpeed (Kecepatan Lari)",
+   Range = {16, 250}, Increment = 1, Suffix = " Speed", CurrentValue = 16, Flag = "WS_Slider",
+   Callback = function(Value) if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.WalkSpeed = Value end end,
+})
+
+MainTab:CreateSection("Animo Collector")
+local SpiritDropdown = MainTab:CreateDropdown({
+   Name = "LIST ANIMO TARGET", Options = getUniqueSpiritList(), CurrentOption = {"Pilih Animo"}, MultipleOptions = false, Flag = "SpiritDropdown",
+   Callback = function(Option)
+       selectedSpiritName = Option[1]
+       if selectedSpiritName == "Tidak ada Animo di map" or selectedSpiritName == "Pilih Animo" then selectedSpiritName = nil return end
+       task.spawn(function()
+           while selectedSpiritName == Option[1] do
+               local folder = workspace:FindFirstChild("ActiveSpirits")
+               local char = lp.Character
+               if folder and char and char:FindFirstChild("HumanoidRootPart") then
+                   local targetPos = char.HumanoidRootPart.CFrame
+                   for _, spiritGroup in pairs(folder:GetChildren()) do
+                       local shouldBring = false
+                       for _, child in pairs(spiritGroup:GetDescendants()) do
+                           if string.find(child.Name, selectedSpiritName) then shouldBring = true break end
+                       end
+                       if shouldBring then
+                           local offset = CFrame.new(0, 2, 0)
+                           if spiritGroup:IsA("Model") then spiritGroup:PivotTo(targetPos * offset)
+                           elseif spiritGroup:IsA("BasePart") then spiritGroup.CFrame = targetPos * offset spiritGroup.CanCollide = false
+                           else local root = spiritGroup:FindFirstChild("HumanoidRootPart") or spiritGroup:FindFirstChildWhichIsA("BasePart")
+                               if root then if root:IsA("Model") then root:PivotTo(targetPos * offset) else root.CFrame = targetPos * offset end end
+                           end
+                       end
+                   end
+               end
+               task.wait(0.01)
+           end
+       end)
+   end,
+})
+
+MainTab:CreateButton({ Name = "Refresh Animo List", Callback = function() SpiritDropdown:Refresh(getUniqueSpiritList()) end })
+MainTab:CreateButton({ Name = "Stop Target Animo", Callback = function() selectedSpiritName = nil end })
+
+MainTab:CreateToggle({
+   Name = "TARIK SEMUA ANIMO SEKALIGUS", CurrentValue = false, Flag = "StickyToggle",
+   Callback = function(Value)
+       stickyEnabled = Value
+       task.spawn(function()
+           while stickyEnabled do
+               local spiritFolder = workspace:FindFirstChild("ActiveSpirits")
+               local char = lp.Character
+               if spiritFolder and char and char:FindFirstChild("HumanoidRootPart") then
+                   local targetPos = char.HumanoidRootPart.CFrame
+                   for _, item in pairs(spiritFolder:GetChildren()) do
+                       local offset = CFrame.new(0, 2, 0) 
+                       if item:IsA("Model") then item:PivotTo(targetPos * offset)
+                       elseif item:IsA("BasePart") then item.CFrame = targetPos * offset item.CanCollide = false end
+                   end
+               end
+               task.wait(0.01)
+           end
+       end)
+   end,
+})
+
+MainTab:CreateSection("Auto Buy Item (UGC)")
+MainTab:CreateInput({
+   Name = "Nama Item (Exact Name)", PlaceholderText = "Contoh: VioletYukibunHatUGC", RemoveTextAfterFocusLost = false,
+   Callback = function(Text) autoBuyItemName = Text end,
+})
+MainTab:CreateToggle({
+   Name = "Aktifkan Auto Buy", CurrentValue = false,
+   Callback = function(Value)
+      isAutoBuying = Value
+      if isAutoBuying then
+         task.spawn(function()
+            while isAutoBuying do
+               if autoBuyItemName ~= "Yukibun" then
+                  for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+                     if v:IsA("RemoteFunction") then
+                        task.spawn(function() pcall(function() v:InvokeServer(autoBuyItemName) end) end)
+                     end
+                  end
+               end
+               task.wait(0.1)
+            end
+         end)
+      end
+   end,
+})
+
+MainTab:CreateSection("Visuals / Tracker")
+MainTab:CreateToggle({ Name = "ESP Special Animo", CurrentValue = false, Flag = "EspToggle", Callback = function(Value) espEnabled = Value if not espEnabled then clearAnomalyESP() end end })
+
+-- MISC TAB
+MiscTab:CreateSection("Anti-AFK & Reconnect")
+MiscTab:CreateToggle({ Name = "ANTI AFK (JUMP)", CurrentValue = true, Callback = function(Value) getgenv().AntiAFK_Jump = Value end })
+MiscTab:CreateToggle({ Name = "Auto Reconnect", CurrentValue = true, Callback = function(Value) getgenv().AutoReconnect = Value end })
+MiscTab:CreateButton({ Name = "GANTI SERVER", Callback = function()
+    local HttpService = game:GetService("HttpService")
+    local PlaceId = game.PlaceId
+    local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    local success, result = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+    if success and result.data then
+        for i = 1, 10 do
+            local server = result.data[i]
+            if server and server.playing < server.maxPlayers and server.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(PlaceId, server.id) break end
+        end
+    end
+end })
+
+MiscTab:CreateButton({ Name = "HENTIKAN SCRIPT", Callback = function() Rayfield:Destroy() end })
+
+-- INITIALIZERS
+lp.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    local hum = char:WaitForChild("Humanoid")
+    hum.WalkSpeed = Rayfield.Flags["WS_Slider"] and Rayfield.Flags["WS_Slider"].CurrentValue or 16
+end)
+
+for _, v in pairs(getconnections(lp.Idled)) do v:Disable() end
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if espEnabled then
+            local folder = workspace:FindFirstChild("ActiveSpirits")
+            local char = lp.Character
+            if folder and char and char:FindFirstChild("HumanoidRootPart") then
+                local myPos = char.HumanoidRootPart.Position
+                for _, spiritGroup in pairs(folder:GetChildren()) do
+                    if isAnomaly(spiritGroup) then
+                        local root = spiritGroup:FindFirstChild("HumanoidRootPart") or spiritGroup:FindFirstChildWhichIsA("BasePart")
+                        if root then
+                            local esp = root:FindFirstChild("Anomaly_ESP")
+                            if not esp then
+                                esp = Instance.new("BillboardGui")
+                                esp.Name = "Anomaly_ESP"
+                                esp.Size = UDim2.new(0, 260, 0, 70)
+                                esp.AlwaysOnTop = true
+                                esp.StudsOffset = Vector3.new(0, 4, 0)
+                                esp.MaxDistance = 100000
+                                esp.LightInfluence = 0
+
+                                local bg = Instance.new("Frame")
+                                bg.Name = "Background"
+                                bg.Size = UDim2.new(1, 0, 1, 0)
+                                bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                                bg.BackgroundTransparency = 0.4
+                                bg.BorderSizePixel = 0
+                                bg.Parent = esp
+
+                                local corner = Instance.new("UICorner")
+                                corner.CornerRadius = UDim.new(0, 8)
+                                corner.Parent = bg
+
+                                local stroke = Instance.new("UIStroke")
+                                stroke.Color = Color3.fromRGB(255, 50, 50)
+                                stroke.Thickness = 2
+                                stroke.Parent = bg
+
+                                local label = Instance.new("TextLabel")
+                                label.Name = "TextLabel"
+                                label.Size = UDim2.new(1, -10, 1, -10)
+                                label.Position = UDim2.new(0, 5, 0, 5)
+                                label.BackgroundTransparency = 1
+                                label.TextColor3 = Color3.fromRGB(255, 60, 60)
+                                label.TextSize = 28
+                                label.Font = Enum.Font.SourceSansBold
+                                label.TextStrokeTransparency = 0
+                                label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                                label.TextScaled = true
+                                label.TextWrapped = true
+                                label.Parent = bg
+
+                                esp.Parent = root
+                            end
+                            local distance = math.floor((root.Position - myPos).Magnitude)
+                            esp.Background.TextLabel.Text = "⚠ ANOMALY\n[" .. distance .. " Studs]"
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(10)
+        if getgenv().AntiAFK_Jump then
+            pcall(function() if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.Jump = true end end)
+        end
+    end
+end)
+
+GuiService.ErrorMessageChanged:Connect(function()
+    if getgenv().AutoReconnect then task.wait(5) TeleportService:Teleport(game.PlaceId, lp) end
+end)
