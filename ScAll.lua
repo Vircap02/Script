@@ -25,7 +25,7 @@ local listMap = {
     },
     {
         Nama = "🦁 BBC Wonder Chase",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/WonderChase.lua"))()"))()]]
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/WonderChase.lua"))()]]
     },
     {
         Nama = "🎲 Roll For UGC",
