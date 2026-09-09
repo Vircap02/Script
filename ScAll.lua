@@ -55,6 +55,10 @@ local listMap = {
         Nama = "🏠 Blow Everything Up",
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/BlowEverythingUp"))()]]
     },
+    {
+        Nama = "Animoco",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Animoco"))()]]
+    },
 }
 -- ====================================================
 
