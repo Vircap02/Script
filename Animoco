@@ -16,6 +16,9 @@ local selectedSpiritName = nil
 local isAutoBuying = false
 local autoBuyItemName = ""
 
+-- Variabel untuk melacak urutan TP Chest
+local chestIndex = 1
+
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
@@ -134,6 +137,50 @@ MainTab:CreateToggle({
                task.wait(0.01)
            end
        end)
+   end,
+})
+
+-- FITUR BARU: TELEPORT KE NEXT CHEST (ONCE / BUTTON KLIK)
+MainTab:CreateSection("Teleport Chest")
+MainTab:CreateButton({
+   Name = "TP ke Next Chest (1x Klik = 1 Chest Lain)",
+   Callback = function()
+       local levelsFolder = workspace:FindFirstChild("ActiveLevels")
+       local char = lp.Character
+       if not levelsFolder or not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+       -- Kumpulkan semua chest yang ada di ActiveLevels beserta subfoldernya
+       local chests = {}
+       for _, obj in pairs(levelsFolder:GetDescendants()) do
+           if string.find(string.lower(obj.Name), "chest") then
+               local targetPart = nil
+               if obj:IsA("Model") then
+                   targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+               elseif obj:IsA("BasePart") then
+                   targetPart = obj
+               end
+               
+               if targetPart then
+                   table.insert(chests, targetPart)
+               end
+           end
+       end
+
+       if #chests > 0 then
+           -- Jika index melebihi jumlah total chest, kembalikan ke 1 (putar dari awal lagi)
+           if chestIndex > #chests then
+               chestIndex = 1
+           end
+
+           -- Teleport ke chest sesuai urutan index saat ini
+           local chosenChest = chests[chestIndex]
+           if chosenChest then
+               char.HumanoidRootPart.CFrame = chosenChest.CFrame + Vector3.new(0, 3, 0)
+           end
+
+           -- Pindahkan index ke chest berikutnya untuk klik selanjutnya
+           chestIndex = chestIndex + 1
+       end
    end,
 })
 
