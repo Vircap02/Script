@@ -20,8 +20,12 @@ local listMap = {
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/Guiby.lua"))()]]
     },
     {
-        Nama = "👻 The Morgue Shift",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS_Poci.lua"))()]]
+        Nama = "👻 The Morgue Shift (Solo)",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS_Kugel_Solo"))()]]
+    },
+    {
+        Nama = "👻 The Morgue Shift (Rame)",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS_Kugel"))()]]
     },
     {
         Nama = "🦁 BBC Wonder Chase",
