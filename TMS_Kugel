@@ -768,45 +768,47 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
         end
     end)
 end)
--- Tombol 1 Aksi Saja (Auto Bersih Lantai)
+local deb = false
 buatTombol("🧹 Auto Bersih Lantai", function()
+    if deb then return end
+    deb = true
+
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart")
+        local rightFoot = character:FindFirstChild("RightFoot") or character:FindFirstChild("HumanoidRootPart")
 
-        -- Sesuaikan folder/path target lantai kotor di game kamu
-        local lantaiFolder = workspace:FindFirstChild("Story") 
-            and workspace.Story:FindFirstChild("Cleaning") -- Ganti nama folder sesuai game jika perlu
-
+        local stainFolder = workspace:FindFirstChild("Stain")
         local success = false
-        if lantaiFolder then
-            for _, child in ipairs(lantaiFolder:GetDescendants()) do
-                if child:IsA("ProximityPrompt") then
-                    local targetPart = child.Parent
-                    if targetPart and targetPart:IsA("BasePart") then
-                        -- Teleport & Arahkan pandangan ke objek pembersih
-                        local targetPos = targetPart.Position
-                        rootPart.CFrame = CFrame.lookAt(targetPos + Vector3.new(0, 3, 3), targetPos)
-                        task.wait(0.15)
-                    end
-                    
-                    -- Eksekusi prompt pembersihan
-                    fireproximityprompt(child)
+
+        if stainFolder then
+            for _, child in ipairs(stainFolder:GetChildren()) do
+                -- Pastikan objek berupa Part dan memiliki Handle/TouchInterest
+                if child:IsA("BasePart") then
+                    -- Teleport karakter ke dekat objek noda
+                    rootPart.CFrame = CFrame.new(child.Position + Vector3.new(0, 3, 0))
+                    task.wait(0.1)
+
+                    -- Simulasi sentuhan menggunakan firetouchinterest
+                    firetouchinterest(rightFoot, child, 0)
                     task.wait(0.05)
-                    fireproximityprompt(child)
+                    firetouchinterest(rightFoot, child, 1)
                     
                     success = true
-                    task.wait(0.1)
+                    break -- Berhenti setelah membersihkan 1 objek per klik
                 end
             end
         end
 
         if success then
-            buatNotifikasi("Auto Bersih Lantai", "Berhasil membersihkan lantai!", 2.5)
+            buatNotifikasi("Auto Bersih Lantai", "Berhasil membersihkan 1 objek lantai!", 2.5)
         else
-            buatNotifikasi("Auto Bersih Lantai", "Target pembersihan tidak ditemukan!", 2.5)
+            buatNotifikasi("Auto Bersih Lantai", "Tidak ada noda di workspace.Stain!", 2.5)
         end
     end)
+    
+    task.wait(0.3)
+    deb = false
 end)
 
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
