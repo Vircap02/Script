@@ -1,5 +1,5 @@
 -- =============================================================================
---  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED AUTO KUNTI BOGEL)
+--  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED AUTO KUNTI BOGEL + AUTO TASK)
 -- =============================================================================
 
 local targetGuiParent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -205,6 +205,7 @@ local noclipActive = true          -- AUTO ON
 local autoCleanActive = true       -- AUTO ON
 local godModeActive = true         -- AUTO ON
 local autoPatrolTPActive = true    -- AUTO ON (Toggle Event Patrol TP)
+local autoTaskActive = false       -- AUTO OFF (Toggle Auto Task Ruangan)
 local cameraClassicActive = false  -- TETAP OFF (Sesuai Permintaan)
 local currentSpeed = 30            -- Walkspeed langsung di-boost seimbang
 local stainIndex = 1
@@ -815,11 +816,21 @@ buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.4
 buatSection("Automation Core Matrix")
 buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPrompts() managePromptListener() end)
 buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)
+
+-- TOGGLE AUTO TASK RUANGAN
+buatToggle("Auto Task Ruangan", false, function(v)
+    autoTaskActive = v
+    if v then 
+        task.spawn(buatNotifikasi, "Auto Task", "Auto Task Ruangan Diaktifkan!", 2) 
+    end
+end)
+
 -- TOGGLE EVENT PATROL TP
 buatToggle("Auto Collect Event", true, function(v) 
     autoPatrolTPActive = v 
     if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
 end)
+
 buatSection("Movement & Defensive Visuals")
 buatToggle("🛡️ Mode God", true, function(v)
     godModeActive = v 
@@ -891,6 +902,38 @@ RunService.Stepped:Connect(function()
         else
             for _, part in ipairs(char:GetChildren()) do if part:IsA("BasePart") then if part.Name ~= "HumanoidRootPart" then part.CanCollide = true end end end
             if hum then hum:ChangeState(Enum.HumanoidStateType.Running) end
+        end
+    end
+end)
+
+-- LOOPING AUTO TASK RUANGAN
+local function fireAllPrompts()
+    local folderNames = {
+        "RuangArsip", "RuangDokter", "RuangDuka", "RuangElektrikal", 
+        "RuangKM", "RuangKremasi", "RuangMandi", "RuangMayat", 
+        "RuangMusholla", "RuangPasien", "RuangPenyiapan", "RuangPenyimpanan"
+    }
+
+    for _, name in pairs(folderNames) do
+        local folder = game.Workspace:FindFirstChild(name)
+        if folder then
+            for _, item in pairs(folder:GetDescendants()) do
+                if item:IsA("ProximityPrompt") then
+                    item:InputHoldBegin()
+                    item:InputHoldEnd()
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if autoTaskActive then
+            pcall(function()
+                fireAllPrompts()
+            end)
         end
     end
 end)
@@ -1045,6 +1088,7 @@ local function buatWarningTengah(pesanUtama, subPesan, durasi)
     tSub.TextColor3 = Color3.fromRGB(230, 230, 230)
     tSub.TextSize = 16
     tSub.Font = Enum.Font.GothamMedium
+    tSub.TextTransparency = tSub.TextTransparency -- fixed
     tSub.TextTransparency = 1
     tSub.ZIndex = 101
     tSub.Parent = wFrame
@@ -1091,76 +1135,6 @@ task.spawn(function()
 end)
 
 mainFrame.Visible = true
--- ====================================================================
--- AUTO TASK
--- ====================================================================
--- Fungsi untuk menelusuri dan memicu prompt
-local function fireAllPrompts()
-    local folderNames = {
-        "RuangArsip", "RuangDokter", "RuangDuka", "RuangElektrikal", 
-        "RuangKM", "RuangKremasi", "RuangMandi", "RuangMayat", 
-        "RuangMusholla", "RuangPasien", "RuangPenyiapan", "RuangPenyimpanan"
-    }
-
-    for _, name in pairs(folderNames) do
-        local folder = game.Workspace:FindFirstChild(name)
-        if folder then
-            for _, item in pairs(folder:GetDescendants()) do
-                if item:IsA("ProximityPrompt") then
-                    -- Memicu prompt
-                    item:InputHoldBegin()
-                    item:InputHoldEnd()
-                end
-            end
-        end
-    end
-end
-
--- Loop utama untuk menjalankan fungsi setiap sekian detik
-task.spawn(function()
-    while true do
-        fireAllPrompts()
-        task.wait(0.1) -- Sesuaikan waktu jeda (dalam detik) agar tidak membuat lag
-    end
-end)
--- ====================================================================
--- AUTO COLLECT FORCED LOOP ON EXECUTE
--- ====================================================================
-local TWEEN_SPEED = 50
-local INTERACT_DELAY = 0.5
-
-local function startAutoCollect()
-    local patrolFolder = workspace:FindFirstChild("Patrol")
-    if not patrolFolder then return end
-    
-    for _, item in ipairs(patrolFolder:GetDescendants()) do
-        if item.Name == "WowoBogel" or item.Name == "Wowo Bogel" or item.Name == "WowoIn" then
-            local prompt = item:FindFirstChildOfClass("ProximityPrompt") or item:FindFirstChild("ProximityPrompt", true)
-            if prompt and fireproximityprompt then
-                local targetPart = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart", true)
-                if targetPart then
-                    local character = lp.Character
-                    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                    if rootPart then
-                        local distance = (rootPart.Position - targetPart.Position).Magnitude
-                        local duration = distance / TWEEN_SPEED
-                        local tween = game:GetService("TweenService"):Create(rootPart, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetPart.CFrame * CFrame.new(0, 3, 0)})
-                        tween:Play()
-                        tween.Completed:Wait()
-                        task.wait(0.1)
-                        
-                        prompt.HoldDuration = 0 
-                        prompt.RequiresLineOfSight = false 
-                        prompt.MaxActivationDistance = 999999
-                        fireproximityprompt(prompt)
-                        task.wait(0.1)
-                    end
-                end
-            end
-        end
-    end
-end
-task.defer(startAutoCollect)
 
 -- =========================================================
 -- ULTIMATE GUI PURGE & AUTO PROXIMITY (VIRGOBOY HUB GOLD)
