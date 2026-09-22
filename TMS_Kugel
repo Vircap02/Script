@@ -202,7 +202,7 @@ local promptConnection = nil
 local espActive = true             -- AUTO ON
 local playerEspActive = true       -- AUTO ON
 local noclipActive = true          -- AUTO ON
-local autoCleanActive = true       -- AUTO ON
+local autoCleanActive = false       -- AUTO ON
 local godModeActive = true         -- AUTO ON
 local autoPatrolTPActive = true    -- AUTO ON (Toggle Event Patrol TP)
 local autoTaskActive = false       -- AUTO OFF (Toggle Auto Task Ruangan)
@@ -768,48 +768,6 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
         end
     end)
 end)
-local deb = false
-buatTombol("🧹 Auto Bersih Lantai", function()
-    if deb then return end
-    deb = true
-
-    pcall(function()
-        local character = lp.Character or lp.CharacterAdded:Wait()
-        local rootPart = character:WaitForChild("HumanoidRootPart")
-        local rightFoot = character:FindFirstChild("RightFoot") or character:FindFirstChild("HumanoidRootPart")
-
-        local stainFolder = workspace:FindFirstChild("Stain")
-        local success = false
-
-        if stainFolder then
-            for _, child in ipairs(stainFolder:GetChildren()) do
-                -- Pastikan objek berupa Part dan memiliki Handle/TouchInterest
-                if child:IsA("BasePart") then
-                    -- Teleport karakter ke dekat objek noda
-                    rootPart.CFrame = CFrame.new(child.Position + Vector3.new(0, 3, 0))
-                    task.wait(0.1)
-
-                    -- Simulasi sentuhan menggunakan firetouchinterest
-                    firetouchinterest(rightFoot, child, 0)
-                    task.wait(0.05)
-                    firetouchinterest(rightFoot, child, 1)
-                    
-                    success = true
-                    break -- Berhenti setelah membersihkan 1 objek per klik
-                end
-            end
-        end
-
-        if success then
-            buatNotifikasi("Auto Bersih Lantai", "Berhasil membersihkan 1 objek lantai!", 2.5)
-        else
-            buatNotifikasi("Auto Bersih Lantai", "Tidak ada noda di workspace.Stain!", 2.5)
-        end
-    end)
-    
-    task.wait(0.3)
-    deb = false
-end)
 
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
 buatTombol("Ruang Listrik (Lantai 2)", function() teleportTo(CFrame.new(25.66, 17.65, -59.71)) end)
@@ -818,6 +776,7 @@ buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.4
 buatSection("Automation Core Matrix")
 buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPrompts() managePromptListener() end)
 buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)
+buatToggle("Bersihkan Lantai", false, function(v) autoCleanActive = v end)
 
 -- TOGGLE AUTO TASK RUANGAN
 buatToggle("Auto Task Ruangan", false, function(v)
@@ -1008,6 +967,59 @@ task.spawn(function()
            end)
        end
    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5) -- Jeda kecil untuk pengecekan folder agar tidak membebani CPU
+        if autoCleanActive then
+            pcall(function()
+                local folder = workspace:FindFirstChild("Stain")
+                local stains = folder and folder:GetChildren()
+                
+                if stains and #stains > 0 then
+                    -- Pilih noda pertama atau secara acak
+                    local target = stains[math.random(1, #stains)]
+                    
+                    if target and target.Parent then
+                        local Player = game.Players.LocalPlayer
+                        local Character = Player.Character
+                        local Backpack = Player:FindFirstChild("Backpack")
+                        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+                        
+                        -- Ambil dan gunakan alat pembersih
+                        if Backpack and Character and Humanoid and Humanoid.Health > 0 then
+                            local tool = Backpack:GetChildren()[1]
+                            if tool and tool:IsA("Tool") then
+                                Humanoid:EquipTool(tool)
+                                task.wait()
+                                tool:Activate()
+                                if tool:FindFirstChild("RemoteEvent") then 
+                                    tool.RemoteEvent:FireServer() 
+                                end
+                            end
+                        end
+                        
+                        -- Teleport ke posisi noda
+                        local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
+                        teleportTo(cf)
+                        
+                        -- Loop ini akan menahan karakter di noda tersebut SAMPAI nodanya benar-benar hancur/hilang
+                        while target and target.Parent == folder do
+                            task.wait(0.2)
+                            -- Opsional: Terus aktifkan tool atau remote event jika pembersihan butuh waktu beberapa detik
+                            if tool and tool.Parent == Character then
+                                tool:Activate()
+                                if tool:FindFirstChild("RemoteEvent") then 
+                                    tool.RemoteEvent:FireServer() 
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
 end)
 
 task.spawn(function()
