@@ -725,7 +725,7 @@ buatTombol("🔄 Respawn Karakter Instan", function()
     end)
 end)
 
--- Tombol 1 Aksi Saja (Auto Kunti Bogel -> Aim/CFrame ke Prompt -> Ambil -> Balik ke Telepon)
+-- Tombol 1 Aksi Saja (Auto Kunti Bogel -> Aim & Paksa Ambil Prompt -> Balik ke Telepon)
 buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
@@ -741,12 +741,17 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
                 if child:IsA("ProximityPrompt") then
                     local targetPart = child.Parent
                     if targetPart and targetPart:IsA("BasePart") then
-                        -- Teleport sekaligus langsung mengarahkan hadap (CFrame.lookAt) ke posisi target
+                        -- Teleport & Arahkan pandangan ke target
                         local targetPos = targetPart.Position + Vector3.new(0, 3, 0)
                         rootPart.CFrame = CFrame.lookAt(targetPos + Vector3.new(0, 0, 3), targetPos)
-                        task.wait(0.15)
+                        task.wait(0.2) -- Beri waktu sebentar agar game merender posisi baru
                     end
+                    
+                    -- Panggil beberapa kali atau gunakan event hold jika fungsi biasa terlewat
                     fireproximityprompt(child)
+                    task.wait(0.05)
+                    fireproximityprompt(child) -- Eksekusi kedua sebagai cadangan
+                    
                     success = true
                     task.wait(0.1)
                 end
@@ -754,19 +759,53 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
         end
 
         if success then
-            task.wait(0.1)
+            task.wait(0.2)
             teleportTo("Spawn")
-            buatNotifikasi("Auto Kunti Bogel", "Berhasil aim, ambil prompt, & balik ke telepon!", 2.5)
+            buatNotifikasi("Auto Kunti Bogel", "Berhasil ambil prompt & kembali ke telepon!", 2.5)
         else
             buatNotifikasi("Auto Kunti Bogel", "ProximityPrompt jumpscare tidak ditemukan!", 2.5)
         end
     end)
 end)
+-- Tombol 1 Aksi Saja (Auto Bersih Lantai)
+buatTombol("🧹 Auto Bersih Lantai", function()
+    pcall(function()
+        local character = lp.Character or lp.CharacterAdded:Wait()
+        local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- TOGGLE EVENT PATROL TP
-buatToggle("Auto Collect Event", true, function(v) 
-    autoPatrolTPActive = v 
-    if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
+        -- Sesuaikan folder/path target lantai kotor di game kamu
+        local lantaiFolder = workspace:FindFirstChild("Story") 
+            and workspace.Story:FindFirstChild("Cleaning") -- Ganti nama folder sesuai game jika perlu
+
+        local success = false
+        if lantaiFolder then
+            for _, child in ipairs(lantaiFolder:GetDescendants()) do
+                if child:IsA("ProximityPrompt") then
+                    local targetPart = child.Parent
+                    if targetPart and targetPart:IsA("BasePart") then
+                        -- Teleport & Arahkan pandangan ke objek pembersih
+                        local targetPos = targetPart.Position
+                        rootPart.CFrame = CFrame.lookAt(targetPos + Vector3.new(0, 3, 3), targetPos)
+                        task.wait(0.15)
+                    end
+                    
+                    -- Eksekusi prompt pembersihan
+                    fireproximityprompt(child)
+                    task.wait(0.05)
+                    fireproximityprompt(child)
+                    
+                    success = true
+                    task.wait(0.1)
+                end
+            end
+        end
+
+        if success then
+            buatNotifikasi("Auto Bersih Lantai", "Berhasil membersihkan lantai!", 2.5)
+        else
+            buatNotifikasi("Auto Bersih Lantai", "Target pembersihan tidak ditemukan!", 2.5)
+        end
+    end)
 end)
 
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
@@ -776,8 +815,11 @@ buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.4
 buatSection("Automation Core Matrix")
 buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPrompts() managePromptListener() end)
 buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)
-buatToggle("Bersihkan Lantai", true, function(v) autoCleanActive = v end)
-
+-- TOGGLE EVENT PATROL TP
+buatToggle("Auto Collect Event", true, function(v) 
+    autoPatrolTPActive = v 
+    if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
+end)
 buatSection("Movement & Defensive Visuals")
 buatToggle("🛡️ Mode God", true, function(v)
     godModeActive = v 
@@ -866,7 +908,7 @@ task.spawn(function()
                 if patrolFolder then
                     local count = 0
                     for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-                        if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                        if not character or not character:FindFirstChild("Humanoid") or character.Health <= 0 then
                             break
                         end
 
@@ -883,9 +925,11 @@ task.spawn(function()
                             end
 
                             if targetCFrame then
+                                -- 1. Teleport ke target item/event patrol
                                 humanoidRootPart.CFrame = targetCFrame
                                 task.wait(0.15)
                                 
+                                -- 2. Eksekusi proximity prompt
                                 if fireproximityprompt then
                                     fireproximityprompt(descendant)
                                 else
@@ -893,8 +937,12 @@ task.spawn(function()
                                     descendant:InputHoldEnd()
                                 end
                                 
-                                count = count + 1
+                                -- 3. Langsung kembali ke telepon/Spawn setelah prompt dieksekusi
                                 task.wait(0.1)
+                                teleportTo("Spawn")
+                                task.wait(0.2) -- Jeda sebentar sebelum lanjut ke target patrol berikutnya (jika ada)
+                                
+                                count = count + 1
                             end
                         end
                     end
@@ -915,45 +963,6 @@ task.spawn(function()
            end)
        end
    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(4)
-        if autoCleanActive then
-            pcall(function()
-                local folder = workspace:FindFirstChild("Stain")
-                local stains = folder and folder:GetChildren()
-                
-                if stains and #stains > 0 then
-                    local randomIndex = math.random(1, #stains)
-                    local target = stains[randomIndex]
-                    
-                    if target and target.Parent then
-                        local Player = game.Players.LocalPlayer
-                        local Character = Player.Character
-                        local Backpack = Player:FindFirstChild("Backpack")
-                        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-                        
-                        if Backpack and Character and Humanoid and Humanoid.Health > 0 then
-                            local tool = Backpack:GetChildren()[1]
-                            if tool and tool:IsA("Tool") then
-                                Humanoid:EquipTool(tool)
-                                task.wait()
-                                tool:Activate()
-                                if tool:FindFirstChild("RemoteEvent") then 
-                                    tool.RemoteEvent:FireServer() 
-                                end
-                                task.wait()
-                            end
-                        end
-                        local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
-                        teleportTo(cf)
-                    end
-                end
-            end)
-        end
-    end
 end)
 
 task.spawn(function()
