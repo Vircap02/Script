@@ -971,15 +971,14 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.5) -- Jeda kecil untuk pengecekan folder agar tidak membebani CPU
+        task.wait(0.5)
         if autoCleanActive then
             pcall(function()
                 local folder = workspace:FindFirstChild("Stain")
                 local stains = folder and folder:GetChildren()
                 
                 if stains and #stains > 0 then
-                    -- Pilih noda pertama atau secara acak
-                    local target = stains[math.random(1, #stains)]
+                    local target = stains[1]
                     
                     if target and target.Parent then
                         local Player = game.Players.LocalPlayer
@@ -987,12 +986,27 @@ task.spawn(function()
                         local Backpack = Player:FindFirstChild("Backpack")
                         local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
                         
+                        -- Hapus objek api/damage (Fire & TouchInterest) agar aman
+                        pcall(function()
+                            for _, obj in ipairs(target:GetDescendants()) do
+                                if obj.Name == "Fire" or obj.Name == "TouchInterest" or obj:IsA("Fire") then
+                                    obj:Destroy()
+                                end
+                            end
+                            if target.Name == "Fire" or target.Name == "TouchInterest" then
+                                target:Destroy()
+                            end
+                        end)
+                        
                         -- Ambil dan gunakan alat pembersih
                         if Backpack and Character and Humanoid and Humanoid.Health > 0 then
-                            local tool = Backpack:GetChildren()[1]
+                            local tool = Character:FindFirstChildOfClass("Tool") or Backpack:GetChildren()[1]
                             if tool and tool:IsA("Tool") then
-                                Humanoid:EquipTool(tool)
-                                task.wait()
+                                if tool.Parent == Backpack then
+                                    Humanoid:EquipTool(tool)
+                                    task.wait(0.1)
+                                end
+                                
                                 tool:Activate()
                                 if tool:FindFirstChild("RemoteEvent") then 
                                     tool.RemoteEvent:FireServer() 
@@ -1000,20 +1014,92 @@ task.spawn(function()
                             end
                         end
                         
-                        -- Teleport ke posisi noda
+                        -- Teleport aman ke sisi samping objek noda
                         local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
-                        teleportTo(cf)
+                        local safeSideCFrame = cf * CFrame.new(3, 2, 3) 
+                        teleportTo(safeSideCFrame)
                         
-                        -- Loop ini akan menahan karakter di noda tersebut SAMPAI nodanya benar-benar hancur/hilang
+                        -- Menahan karakter sampai noda benar-benar hilang/bersih
                         while target and target.Parent == folder do
-                            task.wait(0.2)
-                            -- Opsional: Terus aktifkan tool atau remote event jika pembersihan butuh waktu beberapa detik
-                            if tool and tool.Parent == Character then
-                                tool:Activate()
-                                if tool:FindFirstChild("RemoteEvent") then 
-                                    tool.RemoteEvent:FireServer() 
+                            task.wait(0.3)
+                            if Character and Character:FindFirstChildOfClass("Humanoid") then
+                                local activeTool = Character:FindFirstChildOfClass("Tool")
+                                if activeTool then
+                                    activeTool:Activate()
+                                    if activeTool:FindFirstChild("RemoteEvent") then
+                                        activeTool.RemoteEvent:FireServer()
+                                    end
                                 end
                             end
+                        end
+                        
+                        task.wait(0.2)
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if espActive then
+            pcall(function()
+                local folder = workspace:FindFirstChild("Stain")
+                local lp = game:GetService("Players").LocalPlayer
+                
+                if folder then
+                    for _, stainObj in ipairs(folder:GetChildren()) do
+                        if not stainObj:FindFirstChild("Virgo_ESP") then
+                            
+                            -- Highlight Objek Oranye
+                            local hl = Instance.new("Highlight")
+                            hl.Name = "Virgo_ESP"
+                            hl.FillColor = Color3.fromRGB(255, 165, 0)
+                            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                            hl.FillTransparency = 0.4
+                            hl.OutlineTransparency = 0
+                            hl.Adornee = stainObj
+                            hl.Parent = stainObj
+                            
+                            -- Billboard Text Nama + Jarak (Studs)
+                            local bill = Instance.new("BillboardGui")
+                            bill.Name = "Virgo_Tag"
+                            bill.AlwaysOnTop = true
+                            bill.Size = UDim2.new(0, 120, 0, 50)
+                            bill.StudsOffset = Vector3.new(0, 2, 0)
+                            bill.Adornee = stainObj
+                            bill.Parent = stainObj
+                            
+                            local label = Instance.new("TextLabel")
+                            label.Name = "DistanceLabel"
+                            label.BackgroundTransparency = 1
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            label.TextSize = 11
+                            label.Font = Enum.Font.SourceSansBold
+                            label.Parent = bill
+                            
+                            -- Update jarak studs secara real-time
+                            task.spawn(function()
+                                while bill and bill.Parent and stainObj and stainObj.Parent do
+                                    pcall(function()
+                                        local char = lp.Character
+                                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                                        local targetPart = stainObj:IsA("Model") and (stainObj.PrimaryPart or stainObj:FindFirstChildWhichIsA("BasePart")) or stainObj
+                                        
+                                        if hrp and targetPart and targetPart:IsA("BasePart") then
+                                            local distance = math.floor((hrp.Position - targetPart.Position).Magnitude)
+                                            label.Text = "[ " .. stainObj.Name .. " ]\n(" .. distance .. " studs)"
+                                        else
+                                            label.Text = "[ " .. stainObj.Name .. " ]"
+                                        end
+                                    end)
+                                    task.wait(0.5)
+                                end
+                            end)
+                            
+                            table.insert(espObjects, {hl = hl, gui = bill})
                         end
                     end
                 end
