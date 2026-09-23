@@ -1,5 +1,5 @@
 -- =============================================================================
---  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED AUTO KUNTI BOGEL + AUTO TASK)
+--  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED + KUNTI COUNTER)
 -- =============================================================================
 
 local targetGuiParent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -196,21 +196,26 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local autoAcceptPhone = true
-local interactActive = true        -- AUTO ON
-local remoteInteractActive = true  -- AUTO ON
+local interactActive = true        
+local remoteInteractActive = true  
 local promptConnection = nil 
-local espActive = true             -- AUTO ON
-local playerEspActive = true       -- AUTO ON
-local noclipActive = true          -- AUTO ON
-local autoCleanActive = false       -- AUTO ON
-local godModeActive = true         -- AUTO ON
-local autoPatrolTPActive = true    -- AUTO ON (Toggle Event Patrol TP)
-local autoTaskActive = false       -- AUTO OFF (Toggle Auto Task Ruangan)
-local cameraClassicActive = false  -- TETAP OFF (Sesuai Permintaan)
-local currentSpeed = 30            -- Walkspeed langsung di-boost seimbang
+local autoKuntiBogelActive = false
+local espActive = true             
+local playerEspActive = true       
+local noclipActive = true          
+local autoCleanActive = false       
+local godModeActive = true         
+local autoPatrolTPActive = true    
+local autoTaskActive = false       
+local cameraClassicActive = false  
+local currentSpeed = 30            
 local stainIndex = 1
 local espObjects = {}
 local playerEspTable = {} 
+
+-- VARIABEL PENGHITUNG KUNTI BOGEL
+local kuntiSpawnCount = 0
+local kuntiCounterLabel = nil -- Akan di-link ke TextLabel GUI nanti
 
 -- [[ CORE LOGIC FUNCTIONS ]] --
 local function pelumpuhKematian(char)
@@ -288,7 +293,6 @@ end
 refreshAllPrompts()
 managePromptListener()
 
--- [[ SYSTEM VISUAL ESP ]] --
 local function createPlayerESP(player)
     if player == lp then return end
     player.CharacterAdded:Connect(function(char)
@@ -441,27 +445,40 @@ local avStroke = Instance.new("UIStroke") avStroke.Color = Color3.fromRGB(255, 2
 
 local nameLabel = Instance.new("TextLabel")
 nameLabel.Size = UDim2.new(0.65, 0, 0, 20)
-nameLabel.Position = UDim2.new(0, 62, 0, 10)
+nameLabel.Position = UDim2.new(0, 62, 0, 6)
 nameLabel.BackgroundTransparency = 1
-nameLabel.Text = "Welcome, " .. lp.DisplayName .. " (@" .. lp.Name .. ")"
+nameLabel.Text = "Welcome, " .. lp.DisplayName
 nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-nameLabel.TextSize = 12
+nameLabel.TextSize = 11
 nameLabel.Font = Enum.Font.GothamBold
 nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 nameLabel.ZIndex = 4
 nameLabel.Parent = profileFrame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.65, 0, 0, 18)
-statusLabel.Position = UDim2.new(0, 62, 0, 28)
+statusLabel.Size = UDim2.new(0.65, 0, 0, 16)
+statusLabel.Position = UDim2.new(0, 62, 0, 22)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Script: Active • BY: VIRGOBOY"
+statusLabel.Text = "Script: Active • VIRGOBOY"
 statusLabel.TextColor3 = Color3.fromRGB(0, 230, 115)
-statusLabel.TextSize = 11
+statusLabel.TextSize = 10
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.ZIndex = 4
 statusLabel.Parent = profileFrame
+
+-- Keterangan Jumlah Kemunculan Kunti Bogel (Counter Label) di dalam Profil Card
+kuntiCounterLabel = Instance.new("TextLabel")
+kuntiCounterLabel.Size = UDim2.new(0.65, 0, 0, 18)
+kuntiCounterLabel.Position = UDim2.new(0, 62, 0, 38)
+kuntiCounterLabel.BackgroundTransparency = 1
+kuntiCounterLabel.Text = "Kunti Bogel Muncul: 0x"
+kuntiCounterLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+kuntiCounterLabel.TextSize = 10
+kuntiCounterLabel.Font = Enum.Font.GothamBold
+kuntiCounterLabel.TextXAlignment = Enum.TextXAlignment.Left
+kuntiCounterLabel.ZIndex = 4
+kuntiCounterLabel.Parent = profileFrame
 
 local contentContainer = Instance.new("ScrollingFrame")
 contentContainer.Size = UDim2.new(1, -24, 1, -112)
@@ -726,7 +743,6 @@ buatTombol("🔄 Respawn Karakter Instan", function()
     end)
 end)
 
--- Tombol 1 Aksi Saja (Auto Kunti Bogel -> Aim & Paksa Ambil Prompt -> Balik ke Telepon)
 buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
@@ -742,16 +758,14 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
                 if child:IsA("ProximityPrompt") then
                     local targetPart = child.Parent
                     if targetPart and targetPart:IsA("BasePart") then
-                        -- Teleport & Arahkan pandangan ke target
                         local targetPos = targetPart.Position + Vector3.new(0, 3, 0)
                         rootPart.CFrame = CFrame.lookAt(targetPos + Vector3.new(0, 0, 3), targetPos)
-                        task.wait(0.2) -- Beri waktu sebentar agar game merender posisi baru
+                        task.wait(0.2) 
                     end
                     
-                    -- Panggil beberapa kali atau gunakan event hold jika fungsi biasa terlewat
                     fireproximityprompt(child)
                     task.wait(0.05)
-                    fireproximityprompt(child) -- Eksekusi kedua sebagai cadangan
+                    fireproximityprompt(child) 
                     
                     success = true
                     task.wait(0.1)
@@ -778,7 +792,6 @@ buatToggle("Instant Interact", true, function(v) interactActive = v refreshAllPr
 buatToggle("Remote Interact", true, function(v) remoteInteractActive = v refreshAllPrompts() managePromptListener() end)
 buatToggle("Bersihkan Lantai", false, function(v) autoCleanActive = v end)
 
--- TOGGLE AUTO TASK RUANGAN
 buatToggle("Auto Task Ruangan", false, function(v)
     autoTaskActive = v
     if v then 
@@ -786,7 +799,6 @@ buatToggle("Auto Task Ruangan", false, function(v)
     end
 end)
 
--- TOGGLE EVENT PATROL TP
 buatToggle("Auto Collect Event", true, function(v) 
     autoPatrolTPActive = v 
     if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
@@ -867,7 +879,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- LOOPING AUTO TASK RUANGAN
 local function fireAllPrompts()
     local folderNames = {
         "RuangArsip", "RuangDokter", "RuangDuka", "RuangElektrikal", 
@@ -899,32 +910,20 @@ task.spawn(function()
     end
 end)
 
--- Salin dan jalankan script ini di executor kamu (berjalan looping)
-
-local players = game:GetService("Players")
-local workspace = game:GetService("Workspace")
-
-local player = players.LocalPlayer
-
--- Menggunakan task.spawn agar loop berjalan di latar belakang tanpa nge-freeze game
 task.spawn(function()
     while true do
-        local character = player.Character or player.CharacterAdded:Wait()
+        local character = lp.Character or lp.CharacterAdded:Wait()
         local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
         local patrolFolder = workspace:FindFirstChild("Patrol")
 
         if not patrolFolder then
-            warn("Folder 'Patrol' tidak ditemukan di dalam Workspace!")
-            task.wait(2) -- Coba lagi setelah 2 detik jika foldernya belum dimuat
+            task.wait(1) 
             continue
         end
 
         local count = 0
-
-        -- Jelajahi semua objek di dalam folder Patrol
         for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-            -- Cek apakah karakter masih hidup sebelum melanjutkan
             if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
                 break
             end
@@ -940,11 +939,9 @@ task.spawn(function()
                 end
 
                 if targetCFrame then
-                    -- Teleport ke posisi prompt
                     humanoidRootPart.CFrame = targetCFrame
-                    task.wait(0.15) -- Jeda agar posisi tersinkronisasi
+                    task.wait(0.15) 
                     
-                    -- Trigger ProximityPrompt
                     if fireproximityprompt then
                         fireproximityprompt(descendant)
                     else
@@ -957,11 +954,7 @@ task.spawn(function()
                 end
             end
         end
-
-        print("Satu siklus selesai! Berhasil men-trigger " .. count .. " prompt. Mengulang kembali...")
-        
-        -- Jeda sebelum memulai loop berikutnya (bisa diubah sesuai kebutuhan)
-        task.wait(3)
+        task.wait()
     end
 end)
 
@@ -995,19 +988,14 @@ task.spawn(function()
                         local Backpack = Player:FindFirstChild("Backpack")
                         local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
                         
-                        -- Hapus objek api/damage (Fire & TouchInterest) agar aman
                         pcall(function()
                             for _, obj in ipairs(target:GetDescendants()) do
-                                if obj.Name == "Fire" or obj.Name == "TouchInterest" or obj:IsA("Fire") then
+                                if obj:IsA("TouchTransmitter") or obj.Name == "TouchInterest" then
                                     obj:Destroy()
                                 end
                             end
-                            if target.Name == "Fire" or target.Name == "TouchInterest" then
-                                target:Destroy()
-                            end
                         end)
                         
-                        -- Ambil dan gunakan alat pembersih
                         if Backpack and Character and Humanoid and Humanoid.Health > 0 then
                             local tool = Character:FindFirstChildOfClass("Tool") or Backpack:GetChildren()[1]
                             if tool and tool:IsA("Tool") then
@@ -1023,14 +1011,16 @@ task.spawn(function()
                             end
                         end
                         
-                        -- Teleport aman ke sisi samping objek noda
                         local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
                         local safeSideCFrame = cf * CFrame.new(3, 2, 3) 
                         teleportTo(safeSideCFrame)
                         
-                        -- Menahan karakter sampai noda benar-benar hilang/bersih
                         while target and target.Parent == folder do
                             task.wait(0.3)
+                            if Humanoid then
+                                Humanoid.Health = Humanoid.MaxHealth
+                            end
+                            
                             if Character and Character:FindFirstChildOfClass("Humanoid") then
                                 local activeTool = Character:FindFirstChildOfClass("Tool")
                                 if activeTool then
@@ -1041,7 +1031,6 @@ task.spawn(function()
                                 end
                             end
                         end
-                        
                         task.wait(0.2)
                     end
                 end
@@ -1060,8 +1049,6 @@ task.spawn(function()
                 if folder then
                     for _, stainObj in ipairs(folder:GetChildren()) do
                         if not stainObj:FindFirstChild("Virgo_ESP") then
-                            
-                            -- Highlight Objek Oranye
                             local hl = Instance.new("Highlight")
                             hl.Name = "Virgo_ESP"
                             hl.FillColor = Color3.fromRGB(255, 165, 0)
@@ -1071,7 +1058,6 @@ task.spawn(function()
                             hl.Adornee = stainObj
                             hl.Parent = stainObj
                             
-                            -- Billboard Text Nama + Jarak (Studs)
                             local bill = Instance.new("BillboardGui")
                             bill.Name = "Virgo_Tag"
                             bill.AlwaysOnTop = true
@@ -1089,7 +1075,6 @@ task.spawn(function()
                             label.Font = Enum.Font.SourceSansBold
                             label.Parent = bill
                             
-                            -- Update jarak studs secara real-time
                             task.spawn(function()
                                 while bill and bill.Parent and stainObj and stainObj.Parent do
                                     pcall(function()
@@ -1107,7 +1092,6 @@ task.spawn(function()
                                     task.wait(0.5)
                                 end
                             end)
-                            
                             table.insert(espObjects, {hl = hl, gui = bill})
                         end
                     end
@@ -1197,7 +1181,6 @@ local function buatWarningTengah(pesanUtama, subPesan, durasi)
     tSub.TextColor3 = Color3.fromRGB(230, 230, 230)
     tSub.TextSize = 16
     tSub.Font = Enum.Font.GothamMedium
-    tSub.TextTransparency = tSub.TextTransparency -- fixed
     tSub.TextTransparency = 1
     tSub.ZIndex = 101
     tSub.Parent = wFrame
@@ -1227,6 +1210,12 @@ task.spawn(function()
             if jumpscareFolder then
                 if descendant:IsDescendantOf(jumpscareFolder) then
                     if string.find(descendant.Name, "SusterAdminIn") or string.find(descendant.Name, "SusterAdmin") or string.find(descendant.Name, "SusterAdmin ") then
+                        -- TAMBAH COUNTER SETIAP KALI MUNCUL
+                        kuntiSpawnCount = kuntiSpawnCount + 1
+                        if kuntiCounterLabel then
+                            kuntiCounterLabel.Text = "Kunti Bogel Muncul: " .. kuntiSpawnCount .. "x"
+                        end
+
                         local namaHantu = descendant.Name
                         task.spawn(buatWarningTengah, "⚠️ AWAS ADA SUSTER ADMIN  ⚠️", "Terdeteksi: " .. namaHantu .. " telah muncul!", 3.5)
                         
