@@ -899,60 +899,69 @@ task.spawn(function()
     end
 end)
 
--- LOOPING EVENT PATROL TP
+-- Salin dan jalankan script ini di executor kamu (berjalan looping)
+
+local players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+
+local player = players.LocalPlayer
+
+-- Menggunakan task.spawn agar loop berjalan di latar belakang tanpa nge-freeze game
 task.spawn(function()
     while true do
-        task.wait()
-        if autoPatrolTPActive then
-            pcall(function()
-                local character = lp.Character or lp.CharacterAdded:Wait()
-                local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-                local patrolFolder = workspace:FindFirstChild("Patrol")
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-                if patrolFolder then
-                    local count = 0
-                    for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-                        if not character or not character:FindFirstChild("Humanoid") or character.Health <= 0 then
-                            break
-                        end
+        local patrolFolder = workspace:FindFirstChild("Patrol")
 
-                        if not autoPatrolTPActive then break end
-
-                        if descendant:IsA("ProximityPrompt") then
-                            local parentPart = descendant.Parent
-                            local targetCFrame = nil
-
-                            if parentPart and parentPart:IsA("BasePart") then
-                                targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
-                            elseif parentPart and parentPart:IsA("Model") and parentPart.PrimaryPart then
-                                targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
-                            end
-
-                            if targetCFrame then
-                                -- 1. Teleport ke target item/event patrol
-                                humanoidRootPart.CFrame = targetCFrame
-                                task.wait(0.15)
-                                
-                                -- 2. Eksekusi proximity prompt
-                                if fireproximityprompt then
-                                    fireproximityprompt(descendant)
-                                else
-                                    descendant:InputHoldBegin()
-                                    descendant:InputHoldEnd()
-                                end
-                                
-                                -- 3. Langsung kembali ke telepon/Spawn setelah prompt dieksekusi
-                                task.wait(0.1)
-                                teleportTo("Spawn")
-                                task.wait(0.2) -- Jeda sebentar sebelum lanjut ke target patrol berikutnya (jika ada)
-                                
-                                count = count + 1
-                            end
-                        end
-                    end
-                end
-            end)
+        if not patrolFolder then
+            warn("Folder 'Patrol' tidak ditemukan di dalam Workspace!")
+            task.wait(2) -- Coba lagi setelah 2 detik jika foldernya belum dimuat
+            continue
         end
+
+        local count = 0
+
+        -- Jelajahi semua objek di dalam folder Patrol
+        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
+            -- Cek apakah karakter masih hidup sebelum melanjutkan
+            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                break
+            end
+
+            if descendant:IsA("ProximityPrompt") then
+                local parentPart = descendant.Parent
+                local targetCFrame = nil
+
+                if parentPart:IsA("BasePart") then
+                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
+                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
+                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                if targetCFrame then
+                    -- Teleport ke posisi prompt
+                    humanoidRootPart.CFrame = targetCFrame
+                    task.wait(0.15) -- Jeda agar posisi tersinkronisasi
+                    
+                    -- Trigger ProximityPrompt
+                    if fireproximityprompt then
+                        fireproximityprompt(descendant)
+                    else
+                        descendant:InputHoldBegin()
+                        descendant:InputHoldEnd()
+                    end
+                    
+                    count = count + 1
+                    task.wait(0.1)
+                end
+            end
+        end
+
+        print("Satu siklus selesai! Berhasil men-trigger " .. count .. " prompt. Mengulang kembali...")
+        
+        -- Jeda sebelum memulai loop berikutnya (bisa diubah sesuai kebutuhan)
+        task.wait(3)
     end
 end)
 
