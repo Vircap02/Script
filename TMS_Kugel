@@ -912,49 +912,52 @@ end)
 
 task.spawn(function()
     while true do
-        local character = lp.Character or lp.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        task.wait(0.5) -- Jeda sejenak agar tidak membuat lag/crash server
+        
+        if autoPatrolTPActive then
+            pcall(function()
+                local character = lp.Character or lp.CharacterAdded:Wait()
+                local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-        local patrolFolder = workspace:FindFirstChild("Patrol")
+                local patrolFolder = workspace:FindFirstChild("Patrol")
+                if not patrolFolder then return end
 
-        if not patrolFolder then
-            task.wait(1) 
-            continue
-        end
-
-        local count = 0
-        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
-                break
-            end
-
-            if descendant:IsA("ProximityPrompt") then
-                local parentPart = descendant.Parent
-                local targetCFrame = nil
-
-                if parentPart:IsA("BasePart") then
-                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
-                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
-                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
-                end
-
-                if targetCFrame then
-                    humanoidRootPart.CFrame = targetCFrame
-                    task.wait(0.15) 
+                -- Loop akan terus mengambil daftar terbaru di dalam folder Patrol
+                for _, descendant in ipairs(patrolFolder:GetDescendants()) do
+                    if not autoPatrolTPActive then break end
                     
-                    if fireproximityprompt then
-                        fireproximityprompt(descendant)
-                    else
-                        descendant:InputHoldBegin()
-                        descendant:InputHoldEnd()
+                    if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                        break
                     end
-                    
-                    count = count + 1
-                    task.wait(0.1)
+
+                    -- Pastikan prompt masih valid (belum hancur/hilang dari game)
+                    if descendant and descendant.Parent and descendant:IsA("ProximityPrompt") then
+                        local parentPart = descendant.Parent
+                        local targetCFrame = nil
+
+                        if parentPart:IsA("BasePart") then
+                            targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
+                        elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
+                            targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
+                        end
+
+                        if targetCFrame then
+                            humanoidRootPart.CFrame = targetCFrame
+                            task.wait(0.15) 
+                            
+                            if fireproximityprompt then
+                                fireproximityprompt(descendant)
+                            else
+                                descendant:InputHoldBegin()
+                                descendant:InputHoldEnd()
+                            end
+                            
+                            task.wait(0.2) -- Berikan sedikit waktu agar interaksi terproses oleh game
+                        end
+                    end
                 end
-            end
+            end)
         end
-        task.wait()
     end
 end)
 
@@ -1324,3 +1327,50 @@ task.spawn(function()
 end)
 
 mainFrame.Visible = true
+
+-- Pastikan game sudah sepenuhnya memuat sebelum script dijalankan
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local GuiService = game:GetService("GuiService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ==========================================
+-- 1. FITUR ANTI-AFK
+-- ==========================================
+print("[Script] Anti-AFK diaktifkan.")
+
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new(0, 0))
+    print("[Script] Mencegah AFK dengan mensimulasikan klik mouse.")
+end)
+
+-- ==========================================
+-- 2. FITUR AUTO-RECONNECT
+-- ==========================================
+print("[Script] Auto-Reconnect diaktifkan.")
+
+-- Menangkap pesan error/disconnect dari UI Roblox
+GuiService.ErrorMessageChanged:Connect(function()
+    task.wait(1)
+    print("[Script] Terdeteksi terputus dari server. Mencoba melakukan reconnect...")
+    
+    -- Coba teleport kembali ke tempat/game yang sama
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end)
+
+-- Cadangan: Jika player dipindahkan ke menu/lobi karena terputus
+Players.PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+    end
+end)
