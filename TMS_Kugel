@@ -1100,7 +1100,98 @@ task.spawn(function()
         end
     end
 end)
+local workspace = game:GetService("Workspace")
+local players = game:GetService("Players")
+local runService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
+local localPlayer = players.LocalPlayer
 
+-- Tabel untuk menyimpan objek visual drawing agar tidak duplikat
+local espTable = {}
+
+local function removeESP(item)
+    if espTable[item] then
+        for _, drawing in pairs(espTable[item]) do
+            drawing:Remove()
+        end
+        espTable[item] = nil
+    end
+end
+
+local function createESP(item)
+    if not espTable[item] then
+        local box = Drawing.new("Square")
+        box.Visible = false
+        box.Color = Color3.fromRGB(0, 255, 255) -- Warna Cyan terang
+        box.Thickness = 1.5
+        box.Filled = false
+        box.Transparency = 1
+
+        local text = Drawing.new("Text")
+        text.Visible = false
+        text.Color = Color3.fromRGB(255, 255, 255)
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Text = "Stain"
+
+        espTable[item] = {Box = box, Text = text}
+    end
+end
+
+-- Update posisi visual ESP setiap frame
+local connection
+connection = runService.RenderStepped:Connect(function()
+    local targetFolder = workspace:FindFirstChild("Stain")
+
+    if not targetFolder then
+        -- Bersihkan semua jika folder tidak ada
+        for item, drawings in pairs(espTable) do
+            removeESP(item)
+        end
+        return
+    end
+
+    -- Cek item yang ada di dalam folder workspace.Stain
+    local activeItems = {}
+    for _, item in ipairs(targetFolder:GetChildren()) do
+        if item:IsA("BasePart") then
+            activeItems[item] = true
+            if not espTable[item] then
+                createESP(item)
+            end
+
+            local drawings = espTable[item]
+            local vector, onScreen = camera:WorldToViewportPoint(item.Position)
+
+            if onScreen then
+                -- Hitung ukuran kotak berdasarkan jarak kamera
+                local scale = 1 / (vector.Z * math.tan(math.rad(camera.FieldOfView / 2)) * 2) * 1000
+                local width = math.clamp(scale * 2, 20, 300)
+                local height = math.clamp(scale * 3, 30, 400)
+
+                drawings.Box.Size = Vector2.new(width, height)
+                drawings.Box.Position = Vector2.new(vector.X - width / 2, vector.Y - height / 2)
+                drawings.Box.Visible = true
+
+                drawings.Text.Position = Vector2.new(vector.X, vector.Y - height / 2 - 18)
+                drawings.Text.Visible = true
+            else
+                drawings.Box.Visible = false
+                drawings.Text.Visible = false
+            end
+        end
+    end
+
+    -- Hapus ESP jika part sudah hilang dari folder
+    for item, _ in pairs(espTable) do
+        if not activeItems[item] then
+            removeESP(item)
+        end
+    end
+end)
+
+print("Visual ESP workspace.Stain Berhasil Dijalankan!")
 task.spawn(function()
     while task.wait() do
         if godModeActive then
