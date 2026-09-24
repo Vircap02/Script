@@ -1030,7 +1030,7 @@ task.spawn(function()
                         end
                         
                         local cf = target:IsA("Model") and target:GetModelCFrame() or target.CFrame
-                        local safeSideCFrame = cf * CFrame.new(3, 2, 3) 
+                        local safeSideCFrame = cf * CFrame.new(0, 2, 0) 
                         teleportTo(safeSideCFrame)
                         
                         while target and target.Parent == folder do
@@ -1389,7 +1389,6 @@ Players.PlayerRemoving:Connect(function(player)
         end)
     end
 end)
-
 -- =========================================================
 -- ULTIMATE GUI PURGE & AUTO PROXIMITY (VIRGOBOY HUB GOLD)
 -- =========================================================
