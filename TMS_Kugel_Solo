@@ -783,6 +783,54 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     end)
 end)
 
+buatTombol("Auto Collect Event (Once)", function()
+    pcall(function()
+        local character = lp.Character or lp.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local patrolFolder = workspace:FindFirstChild("Patrol")
+
+        if not patrolFolder then
+            buatNotifikasi("Event", "Folder Patrol tidak ditemukan!", 2.5)
+            return
+        end
+
+        local count = 0
+        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
+            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                break
+            end
+
+            if descendant:IsA("ProximityPrompt") then
+                local parentPart = descendant.Parent
+                local targetCFrame = nil
+
+                if parentPart:IsA("BasePart") then
+                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
+                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
+                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
+                end
+
+                if targetCFrame then
+                    humanoidRootPart.CFrame = targetCFrame
+                    task.wait(0.15) 
+                    
+                    if fireproximityprompt then
+                        fireproximityprompt(descendant)
+                    else
+                        descendant:InputHoldBegin()
+                        descendant:InputHoldEnd()
+                    end
+                    
+                    count = count + 1
+                    task.wait(0.1)
+                end
+            end
+        end
+
+        buatNotifikasi("Auto Collect", "Selesai! Berhasil mengumpulkan " .. count .. " event item.", 3)
+    end)
+end)
+
 buatTombol("Lobby / Area Telepon", function() teleportTo("Spawn") end)
 buatTombol("Ruang Listrik (Lantai 2)", function() teleportTo(CFrame.new(25.66, 17.65, -59.71)) end)
 buatTombol("Pintu Penyimpanan (Lantai 2)", function() teleportTo(CFrame.new(73.40, 17.78, -49.91)) end)
@@ -797,11 +845,6 @@ buatToggle("Auto Task Ruangan", false, function(v)
     if v then 
         task.spawn(buatNotifikasi, "Auto Task", "Auto Task Ruangan Diaktifkan!", 2) 
     end
-end)
-
-buatToggle("Auto Collect Event", true, function(v) 
-    autoPatrolTPActive = v 
-    if v then task.spawn(buatNotifikasi, "Event", "Auto Collect diaktifkan!", 2) end
 end)
 
 buatSection("Movement & Defensive Visuals")
@@ -907,72 +950,6 @@ task.spawn(function()
                 fireAllPrompts()
             end)
         end
-    end
-end)
-
--- Salin dan jalankan script ini di executor kamu (berjalan looping)
-
-local players = game:GetService("Players")
-local workspace = game:GetService("Workspace")
-
-local player = players.LocalPlayer
-
--- Menggunakan task.spawn agar loop berjalan di latar belakang tanpa nge-freeze game
-task.spawn(function()
-    while true do
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-
-        local patrolFolder = workspace:FindFirstChild("Patrol")
-
-        if not patrolFolder then
-            warn("Folder 'Patrol' tidak ditemukan di dalam Workspace!")
-            task.wait(2) -- Coba lagi setelah 2 detik jika foldernya belum dimuat
-            continue
-        end
-
-        local count = 0
-
-        -- Jelajahi semua objek di dalam folder Patrol
-        for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-            -- Cek apakah karakter masih hidup sebelum melanjutkan
-            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
-                break
-            end
-
-            if descendant:IsA("ProximityPrompt") then
-                local parentPart = descendant.Parent
-                local targetCFrame = nil
-
-                if parentPart:IsA("BasePart") then
-                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
-                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
-                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
-                end
-
-                if targetCFrame then
-                    -- Teleport ke posisi prompt
-                    humanoidRootPart.CFrame = targetCFrame
-                    task.wait(0.15) -- Jeda agar posisi tersinkronisasi
-                    
-                    -- Trigger ProximityPrompt
-                    if fireproximityprompt then
-                        fireproximityprompt(descendant)
-                    else
-                        descendant:InputHoldBegin()
-                        descendant:InputHoldEnd()
-                    end
-                    
-                    count = count + 1
-                    task.wait(0.1)
-                end
-            end
-        end
-
-        print("Satu siklus selesai! Berhasil men-trigger " .. count .. " prompt. Mengulang kembali...")
-        
-        -- Jeda sebelum memulai loop berikutnya (bisa diubah sesuai kebutuhan)
-        task.wait(1)
     end
 end)
 
