@@ -713,36 +713,6 @@ end
 -- [[ INTEGRASI MASTER FITUR GAMEPLAY KE MENU KONTEN ]] --
 -- =============================================================================
 
-buatSection("Quick Actions & Lobby")
-buatTombol("🏆 Ending Aja Kuntinya Ga Ada", function()
-    pcall(function()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local Gameplay = ReplicatedStorage:WaitForChild("Gameplay")
-        local SecretEndingHandler = Gameplay:WaitForChild("SecretEndingHandler")
-        local EndingHandler = Gameplay:WaitForChild("EndingHandler")
-        local RespawnHandler = Gameplay:FindFirstChild("RespawnHandler")
-
-        local secretEndings = {"Truth Ending", "Invitation Ending", "Missing Ending", "Collab1 Ending", "CultInvitation Ending", "CultSacrifice Ending"}
-        local mainEndings = {"Truth", "True", "Quiet", "Missing", "Invitation", "Invisible", "Incomplete", "Good", "Failed", "Bad", "Dead", "CultSacrifice", "CultInvitation", "Collab1"}
-
-        task.spawn(function() for _, name in ipairs(secretEndings) do SecretEndingHandler:FireServer(name) task.wait(0.4) end end)
-        task.spawn(function() for _, name in ipairs(mainEndings) do EndingHandler:FireServer(name) task.wait(0.4) end EndingHandler:FireServer("Leave") end)
-        if RespawnHandler then task.spawn(function() RespawnHandler:FireServer() end) end
-        task.spawn(function()
-            local character = lp.Character or lp.CharacterAdded:Wait()
-            local root = character:WaitForChild("HumanoidRootPart", 5)
-            local tpPart = workspace:FindFirstChild("Tp")
-            if root and tpPart and tpPart:IsA("BasePart") then root.CFrame = tpPart.CFrame end
-        end)
-    end)
-end)
-buatTombol("🔄 Respawn Karakter Instan", function()
-    pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Gameplay"):WaitForChild("RespawnHandler"):FireServer()
-        task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
-    end)
-end)
-
 buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
@@ -828,6 +798,36 @@ buatTombol("Auto Collect Event (Once)", function()
         end
 
         buatNotifikasi("Auto Collect", "Selesai! Berhasil mengumpulkan " .. count .. " event item.", 3)
+    end)
+end)
+
+buatSection("Quick Actions & Lobby")
+buatTombol("🏆 Ending Aja Kuntinya Ga Ada", function()
+    pcall(function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local Gameplay = ReplicatedStorage:WaitForChild("Gameplay")
+        local SecretEndingHandler = Gameplay:WaitForChild("SecretEndingHandler")
+        local EndingHandler = Gameplay:WaitForChild("EndingHandler")
+        local RespawnHandler = Gameplay:FindFirstChild("RespawnHandler")
+
+        local secretEndings = {"Truth Ending", "Invitation Ending", "Missing Ending", "Collab1 Ending", "CultInvitation Ending", "CultSacrifice Ending"}
+        local mainEndings = {"Truth", "True", "Quiet", "Missing", "Invitation", "Invisible", "Incomplete", "Good", "Failed", "Bad", "Dead", "CultSacrifice", "CultInvitation", "Collab1"}
+
+        task.spawn(function() for _, name in ipairs(secretEndings) do SecretEndingHandler:FireServer(name) task.wait(0.4) end end)
+        task.spawn(function() for _, name in ipairs(mainEndings) do EndingHandler:FireServer(name) task.wait(0.4) end EndingHandler:FireServer("Leave") end)
+        if RespawnHandler then task.spawn(function() RespawnHandler:FireServer() end) end
+        task.spawn(function()
+            local character = lp.Character or lp.CharacterAdded:Wait()
+            local root = character:WaitForChild("HumanoidRootPart", 5)
+            local tpPart = workspace:FindFirstChild("Tp")
+            if root and tpPart and tpPart:IsA("BasePart") then root.CFrame = tpPart.CFrame end
+        end)
+    end)
+end)
+buatTombol("🔄 Respawn Karakter Instan", function()
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Gameplay"):WaitForChild("RespawnHandler"):FireServer()
+        task.spawn(buatNotifikasi, "Respawn", "Sinyal respawn berhasil dikirim!", 2)
     end)
 end)
 
