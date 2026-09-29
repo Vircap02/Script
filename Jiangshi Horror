@@ -682,7 +682,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- 8. AUTO REVIVE / HELP PLAYER (Tunggu Player Minta Tolong Baru Cari Medkit, Revive, Lalu TP Acak)
+-- 8. AUTO REVIVE / HELP PLAYER (Tunggu Player Minta Tolong, Jeda 5 Detik, Cari Medkit, Revive, Lalu TP Acak)
 local helpCooldown = 0
 local isHelping = false
 local lastHelpRandomIndex = 0
@@ -720,69 +720,80 @@ RunService.Heartbeat:Connect(function()
     if targetPlayerPrompt and targetPlayerHrp then
         isHelping = true
 
-        -- 1. Cek apakah sudah punya medkit
-        local medkitTool = getItemByName("medkit")
+        -- BERIKAN DELAY / JEDA 5 DETIK SEBELUM MULAI CARI MEDKIT & REVIVE
+        task.wait(5)
 
-        -- 2. Jika belum punya medkit, cari dan ambil medkit terlebih dahulu secara cepat
-        if not medkitTool then
-            local medkitRings = getMatchedHaloRings("MedkitSpawnPoints")
-            local startTime = tick()
-            
-            -- Loop kilat teleport ke spawn medkit sampai medkit didapat atau timeout 4 detik
-            while not medkitTool and (tick() - startTime < 4) do
-                for _, ringPart in ipairs(medkitRings) do
-                    if ringPart and hrp then
-                        pcall(function()
-                            hrp.CFrame = ringPart.CFrame + Vector3.new(0, 3, 0)
-                            firePromptNearCharacter()
-                        end)
-                        task.wait(0.2)
-                        medkitTool = getItemByName("medkit")
-                        if medkitTool then break end
-                    end
-                end
-                task.wait(0.1)
-            end
-        end
-
-        -- 3. Jika medkit sudah ada, teleport ke player dan lakukan revive
+        -- Pastikan karakter masih hidup setelah jeda 5 detik
         local currentCharacter = lp.Character
         local currentHrp = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
         local currentHum = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
-        local finalMedkit = getItemByName("medkit")
+        
+        if currentHrp and currentHum then
+            -- 1. Cek apakah sudah punya medkit
+            local medkitTool = getItemByName("medkit")
 
-        if currentHrp and currentHum and finalMedkit then
-            if finalMedkit.Parent ~= currentCharacter then
-                currentHum:EquipTool(finalMedkit)
-            end
-
-            pcall(function()
-                currentHrp.CFrame = targetPlayerHrp.CFrame + Vector3.new(0, 3, 0)
-                fireproximityprompt(targetPlayerPrompt)
-            end)
-
-            if finalMedkit.Parent == currentCharacter then
-                pcall(function() finalMedkit:Activate() end)
-            end
-            
-            -- Jeda sejenak untuk memastikan prompt/revive tereksekusi server
-            task.wait(0.3)
-
-            -- 4. TELEPORT ACAK KE TEMPAT JAUH SETELAH SELESAI REVIVE
-            local freshChar = lp.Character
-            local freshHrp = freshChar and freshChar:FindFirstChild("HumanoidRootPart")
-            if freshHrp and #guiLocations > 0 then
-                local randomIndex
-                repeat
-                    randomIndex = math.random(1, #guiLocations)
-                until randomIndex ~= lastHelpRandomIndex or #guiLocations == 1
+            -- 2. Jika belum punya medkit, cari dan ambil medkit terlebih dahulu secara cepat
+            if not medkitTool then
+                local medkitRings = getMatchedHaloRings("MedkitSpawnPoints")
+                local startTime = tick()
                 
-                lastHelpRandomIndex = randomIndex
-                local randomTargetPos = guiLocations[randomIndex]
+                -- Loop kilat teleport ke spawn medkit sampai medkit didapat atau timeout 4 detik
+                while not medkitTool and (tick() - startTime < 4) do
+                    for _, ringPart in ipairs(medkitRings) do
+                        if ringPart and currentHrp then
+                            pcall(function()
+                                currentHrp.CFrame = ringPart.CFrame + Vector3.new(0, 3, 0)
+                                firePromptNearCharacter()
+                            end)
+                            task.wait(0.2)
+                            medkitTool = getItemByName("medkit")
+                            if medkitTool then break end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end
+
+            -- Refresh ulang referensi karakter & medkit
+            currentCharacter = lp.Character
+            currentHrp = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+            currentHum = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+            local finalMedkit = getItemByName("medkit")
+
+            -- 3. Jika medkit sudah ada, teleport ke player dan lakukan revive
+            if currentHrp and currentHum and finalMedkit and targetPlayerPrompt and targetPlayerHrp.Parent then
+                if finalMedkit.Parent ~= currentCharacter then
+                    currentHum:EquipTool(finalMedkit)
+                end
 
                 pcall(function()
-                    freshHrp.CFrame = CFrame.new(randomTargetPos) + Vector3.new(0, 3, 0)
+                    currentHrp.CFrame = targetPlayerHrp.CFrame + Vector3.new(0, 3, 0)
+                    fireproximityprompt(targetPlayerPrompt)
                 end)
+
+                if finalMedkit.Parent == currentCharacter then
+                    pcall(function() finalMedkit:Activate() end)
+                end
+                
+                -- Jeda sejenak untuk memastikan prompt/revive tereksekusi server
+                task.wait(0.3)
+
+                -- 4. TELEPORT ACAK KE TEMPAT JAUH SETELAH SELESAI REVIVE
+                local freshChar = lp.Character
+                local freshHrp = freshChar and freshChar:FindFirstChild("HumanoidRootPart")
+                if freshHrp and #guiLocations > 0 then
+                    local randomIndex
+                    repeat
+                        randomIndex = math.random(1, #guiLocations)
+                    until randomIndex ~= lastHelpRandomIndex or #guiLocations == 1
+                    
+                    lastHelpRandomIndex = randomIndex
+                    local randomTargetPos = guiLocations[randomIndex]
+
+                    pcall(function()
+                        freshHrp.CFrame = CFrame.new(randomTargetPos) + Vector3.new(0, 3, 0)
+                    end)
+                end
             end
         end
 
