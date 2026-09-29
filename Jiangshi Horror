@@ -1,0 +1,881 @@
+-- Load the library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau"))()
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TeleportService = game:GetService("TeleportService")
+local Camera = Workspace.CurrentCamera
+
+local lp = Players.LocalPlayer
+
+-- ==========================================
+-- 0. MEMBUAT CUSTOM CURSOR (KURSOR TIRUAN)
+-- ==========================================
+local cursorGui = Instance.new("ScreenGui")
+cursorGui.Name = "CustomCursorGui"
+cursorGui.IgnoreGuiInset = true
+cursorGui.DisplayOrder = 999999
+cursorGui.Parent = CoreGui
+
+local cursorDot = Instance.new("Frame")
+cursorDot.Name = "CursorDot"
+cursorDot.Size = UDim2.new(0, 10, 0, 10)
+cursorDot.Position = UDim2.new(0, 0, 0, 0)
+cursorDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+cursorDot.BorderSizePixel = 0
+cursorDot.Visible = false
+cursorDot.Parent = cursorGui
+
+local cursorCorner = Instance.new("UICorner")
+cursorCorner.CornerRadius = UDim.new(1, 0)
+cursorCorner.Parent = cursorDot
+
+RunService.RenderStepped:Connect(function()
+	if cursorDot.Visible then
+		local mousePos = UserInputService:GetMouseLocation()
+		cursorDot.Position = UDim2.new(0, mousePos.X - 5, 0, mousePos.Y - 5)
+	end
+end)
+
+
+-- ==========================================
+-- BUAT WINDOW UTAMA AROD UI
+-- ==========================================
+Window = Library:CreateWindow("JIANGSHI HORROR", "ghost")
+
+-- ==========================================
+-- FUNGSI TRIGGER / PROXIMITY UTAMA
+-- ==========================================
+local function firePromptNearCharacter()
+    task.spawn(function()
+        task.wait(0.1)
+        local character = lp.Character
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            for _, v in ipairs(Workspace:GetDescendants()) do
+                if v:IsA("ProximityPrompt") then
+                    local parentPart = v.Parent
+                    if parentPart and parentPart:IsA("BasePart") then
+                        if (parentPart.Position - hrp.Position).Magnitude <= 15 then
+                            pcall(function()
+                                fireproximityprompt(v)
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function teleportToCoord(position)
+	local character = lp.Character or lp.CharacterAdded:Wait()
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	
+	if humanoidRootPart then
+		humanoidRootPart.CFrame = CFrame.new(position) + Vector3.new(0, 3, 0)
+        firePromptNearCharacter()
+	end
+end
+
+-- ==========================================
+-- 1. TELEPORT KORDINAT KHUSUS
+-- ==========================================
+Window:Section("─── Kordinat Khusus ───")
+
+local guiLocations = {
+    Vector3.new(-3.83, 25.24, -26.42),   -- TP ke Ritual
+    Vector3.new(-119.14, 32.92, 115.50), -- TP ke Rangkai Mantra
+    Vector3.new(113.84, 32.86, 114.81)   -- TP ke Perpustakaan
+}
+
+Window:Button("TP ke Ritual", function()
+	teleportToCoord(guiLocations[1])
+end, "compass")
+
+Window:Button("TP ke Rangkai Mantra", function()
+	teleportToCoord(guiLocations[2])
+end, "compass")
+
+Window:Button("TP ke Perpustakaan", function()
+	teleportToCoord(guiLocations[3])
+end, "compass")
+
+Window:Button("TP ke workspace.PapersRitual", function()
+    local papersRitual = Workspace:FindFirstChild("PapersRitual")
+    if papersRitual then
+        local targetPart = papersRitual:IsA("BasePart") and papersRitual or (papersRitual:IsA("Model") and (papersRitual.PrimaryPart or papersRitual:FindFirstChildWhichIsA("BasePart")))
+        if targetPart then
+            local character = lp.Character or lp.CharacterAdded:Wait()
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                pcall(function()
+                    hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                    firePromptNearCharacter()
+                end)
+            end
+        end
+    end
+end, "file-text")
+
+Window:Button("To Lobby", function()
+    --// 「 Credits to Remote Detector 」
+    TeleportService:Teleport(121633088386019)
+end, "home")
+
+
+-- ==========================================
+-- FUNGSI PENCARIAN VAMPIRE
+-- ==========================================
+local function getVampireTarget()
+    local direct = Workspace:FindFirstChild("Vampire China (Feriac)") or Workspace:FindFirstChild("Vampire China Rage (Feriac)")
+    if direct then return direct end
+
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        local name = obj.Name
+        if string.find(name, "Vampire") or string.find(name, "Feriac") or string.find(name, "Jiangshi") then
+            if obj:IsA("Model") or obj:IsA("BasePart") then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
+
+-- ==========================================
+-- 1.5 FITUR TELEPORT PLAYER & VAMPIRE + SPECTATE
+-- ==========================================
+Window:Section("─── Teleport & Spectate Tambahan ───")
+
+Window:Button("TP ke Vampire", function()
+    local character = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    local vTarget = getVampireTarget()
+    
+    if hrp and vTarget then
+        local vPart = nil
+        if vTarget:IsA("BasePart") then
+            vPart = vTarget
+        elseif vTarget:IsA("Model") then
+            vPart = vTarget.PrimaryPart or vTarget:FindFirstChildWhichIsA("BasePart") or vTarget:FindFirstChildOfClass("BasePart")
+        end
+        
+        if vPart then
+            pcall(function()
+                hrp.CFrame = vPart.CFrame * CFrame.new(0, 0, 10)
+                firePromptNearCharacter()
+            end)
+        end
+    end
+end, "skull")
+
+-- Dropdown Teleport ke Player
+local playerNames = {}
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= lp then table.insert(playerNames, p.Name) end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    if p ~= lp then table.insert(playerNames, p.Name) end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    for i, name in ipairs(playerNames) do
+        if name == p.Name then
+            table.remove(playerNames, i)
+            break
+        end
+    end
+end)
+
+Window:Dropdown("Teleport ke Player", playerNames, function(selectedPlayerName)
+    local targetPlayer = Players:FindFirstChild(selectedPlayerName)
+    if targetPlayer and targetPlayer.Character then
+        local tHrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local character = lp.Character or lp.CharacterAdded:Wait()
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if hrp and tHrp then
+            pcall(function()
+                hrp.CFrame = tHrp.CFrame + Vector3.new(0, 3, 0)
+                firePromptNearCharacter()
+            end)
+        end
+    end
+end, "user")
+
+-- Fitur Spectate Player
+local spectatingPlayer = nil
+
+Window:Dropdown("Spectate Player", playerNames, function(selectedPlayerName)
+    local targetPlayer = Players:FindFirstChild(selectedPlayerName)
+    if targetPlayer then
+        spectatingPlayer = targetPlayer
+    end
+end, "eye")
+
+Window:Button("Stop Spectate", function()
+    spectatingPlayer = nil
+    Camera.CameraSubject = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+end, "eye-off")
+
+RunService.RenderStepped:Connect(function()
+    if spectatingPlayer and spectatingPlayer.Character then
+        local humanoid = spectatingPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            Camera.CameraSubject = humanoid
+        end
+    end
+end)
+
+
+-- ==========================================
+-- HELPER PENCARIAN SPAWN & TELEPORT
+-- ==========================================
+local function teleportToPart(targetPart)
+	local character = lp.Character or lp.CharacterAdded:Wait()
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	
+	if humanoidRootPart and targetPart then
+		local targetCFrame = targetPart:IsA("Model") and (targetPart.PrimaryPart or targetPart:FindFirstChildWhichIsA("BasePart")).CFrame or targetPart.CFrame
+		humanoidRootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+        firePromptNearCharacter()
+	end
+end
+
+-- Helper khusus mencari SpawnHaloRing presisi berdasarkan Folder & Posisi Radius
+local function getMatchedHaloRings(folderName)
+    local matchedRings = {}
+    local folder = Workspace:FindFirstChild(folderName)
+    if not folder then return matchedRings end
+
+    -- 1. PENCARIAN HIRARKI DIRECT: Cek apakah SpawnHaloRing berada di dalam folder tersebut
+    for _, item in ipairs(folder:GetDescendants()) do
+        if item.Name == "SpawnHaloRing" then
+            local haloPart = item:IsA("BasePart") and item or (item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")))
+            if haloPart then
+                table.insert(matchedRings, haloPart)
+            end
+        end
+    end
+
+    -- Jika SpawnHaloRing berada langsung di dalam folder, gunakan hasil ini
+    if #matchedRings > 0 then
+        return matchedRings
+    end
+
+    -- 2. PENCARIAN JIKA SpawnHaloRing DI LUAR FOLDER (Pencocokan Posisi Jarak Terdekat)
+    local spawnPositions = {}
+    for _, item in ipairs(folder:GetDescendants()) do
+        if item:IsA("BasePart") then
+            table.insert(spawnPositions, item.Position)
+        end
+    end
+
+    if #spawnPositions == 0 then return matchedRings end
+
+    for _, item in ipairs(Workspace:GetDescendants()) do
+        if item.Name == "SpawnHaloRing" then
+            local haloPart = item:IsA("BasePart") and item or (item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")))
+            if haloPart then
+                for _, spawnPos in ipairs(spawnPositions) do
+                    -- Memperketat toleransi jarak radius menjadi max 4 stud agar tidak salah ambil
+                    if (haloPart.Position - spawnPos).Magnitude <= 4 then
+                        table.insert(matchedRings, haloPart)
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    return matchedRings
+end
+
+-- Helper khusus mencari SEMUA objek yang berawalan nama "Teared" (Mantra) di Workspace
+local function getMantraObjects()
+    local mantraList = {}
+    for _, item in ipairs(Workspace:GetDescendants()) do
+        -- Deteksi semua nama objek yang berawalan "Teared"
+        if string.sub(item.Name, 1, 6) == "Teared" then
+            if item:IsA("BasePart") then
+                table.insert(mantraList, item)
+            elseif item:IsA("Model") then
+                local mainPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+                if mainPart then
+                    table.insert(mantraList, mainPart)
+                end
+            end
+        end
+    end
+    return mantraList
+end
+
+
+-- ==========================================
+-- 2. SAFE ZONE (Room101Zone)
+-- ==========================================
+Window:Section("─── Safe Zone ───")
+Window:Button("Teleport ke Room101Zone", function()
+	local safeZonesFolder = Workspace:FindFirstChild("SafeZones")
+	if safeZonesFolder then
+		local room101 = safeZonesFolder:FindFirstChild("Room101Zone")
+		if room101 and room101:IsA("BasePart") then
+			teleportToPart(room101)
+		end
+	end
+end, "shield")
+
+
+-- ==========================================
+-- 3. PENGATURAN & FITUR TOGGLE
+-- ==========================================
+Window:Section("─── Pengaturan & Fitur Toggle ───")
+
+-- WalkSpeed Booster (Slider)
+local currentSpeed = 30
+Window:Slider("WalkSpeed Booster", 16, 120, 30, function(v) 
+    currentSpeed = v 
+end, "activity")
+
+RunService.PostSimulation:Connect(function(deltaTime)
+    local char = lp.Character 
+    local hrp = char and char:FindFirstChild("HumanoidRootPart") 
+    local hum = char and char:FindFirstChild("Humanoid")
+    
+    if hum and hrp and currentSpeed > 20 and hum.MoveDirection.Magnitude > 0 then 
+        hrp.CFrame = hrp.CFrame + (hum.MoveDirection * ((currentSpeed - 20) * deltaTime)) 
+    end
+end)
+
+-- Variabel Status Toggle Navigasi Spawn
+local loopHuActive = false
+local loopMantraActive = false
+local loopMedkitActive = false
+
+-- Variabel Status Toggle Tambahan
+local cameraClassicActive = true
+local instantInteractActive = true
+local remoteInteractActive = true
+local autoFireCandlesActive = false
+local autoEscapeActive = false
+local espEnabled = false
+local autoFireVampireActive = true
+local autoFirePlayersActive = true
+local autoNempelVampireActive = false
+local autoRevivePlayerActive = false
+
+-- FUNGSI FILTER ITEM SPECIFIC (HU & MEDKIT)
+local function getItemByName(keyword)
+    local bp = lp:FindFirstChild("Backpack")
+    local char = lp.Character
+
+    -- Cek jika sudah dipegang di karakter
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and string.find(string.lower(tool.Name), string.lower(keyword)) then
+                return tool
+            end
+        end
+    end
+
+    -- Cek dari Backpack
+    if bp then
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") and string.find(string.lower(tool.Name), string.lower(keyword)) then
+                return tool
+            end
+        end
+    end
+
+    return nil
+end
+
+-- ==========================================
+-- LOOP TOGGLE NEXT SPAWN (BERULANG BERURUTAN)
+-- ==========================================
+
+-- A. LOOP NEXT HU (Mencari SpawnHaloRing khusus di HuSpawnPoints)
+local huIndex = 1
+local huCooldown = 0
+RunService.Heartbeat:Connect(function()
+    local hasHu = getItemByName("hu") ~= nil
+    local shouldLoopHu = loopHuActive or (autoNempelVampireActive and not hasHu)
+
+    if not shouldLoopHu then return end
+    if tick() < huCooldown then return end
+
+    local huRings = getMatchedHaloRings("HuSpawnPoints")
+    if #huRings > 0 then
+        if huIndex > #huRings then huIndex = 1 end
+        teleportToPart(huRings[huIndex])
+        huIndex = huIndex + 1
+        huCooldown = tick() + 0.8
+    end
+end)
+
+-- B. LOOP NEXT TEARED MANTRA (Otomatis Mendeteksi Semua jenis Teared Mantra)
+local mantraIndex = 1
+local mantraCooldown = 0
+RunService.Heartbeat:Connect(function()
+    if not loopMantraActive then return end
+    if tick() < mantraCooldown then return end
+
+    local mantraParts = getMantraObjects()
+    if #mantraParts > 0 then
+        if mantraIndex > #mantraParts then mantraIndex = 1 end
+        teleportToPart(mantraParts[mantraIndex])
+        mantraIndex = mantraIndex + 1
+        mantraCooldown = tick() + 0.8
+    end
+end)
+
+-- C. LOOP NEXT MEDKIT (Mencari SpawnHaloRing khusus di MedkitSpawnPoints)
+local medkitIndex = 1
+local medkitCooldown = 0
+RunService.Heartbeat:Connect(function()
+    -- Medkit hanya diloop jika tombol Loop Medkit Spawn dinyalakan secara manual
+    if not loopMedkitActive then return end
+    if tick() < medkitCooldown then return end
+
+    local medkitRings = getMatchedHaloRings("MedkitSpawnPoints")
+    if #medkitRings > 0 then
+        if medkitIndex > #medkitRings then medkitIndex = 1 end
+        teleportToPart(medkitRings[medkitIndex])
+        medkitIndex = medkitIndex + 1
+        medkitCooldown = tick() + 0.8
+    end
+end)
+
+
+-- ==========================================
+-- FITUR TOGGLE LAINNYA
+-- ==========================================
+
+-- 1. LOOP KAMERA CLASSIC
+RunService.RenderStepped:Connect(function()
+    if cameraClassicActive then
+        pcall(function()
+            lp.CameraMode = Enum.CameraMode.Classic
+            lp.CameraMinZoomDistance = 5
+            lp.CameraMaxZoomDistance = 100
+        end)
+    end
+end)
+
+-- 2. LOOP INSTANT & REMOTE INTERACT
+RunService.Heartbeat:Connect(function()
+    if not instantInteractActive and not remoteInteractActive then return end
+    
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            if instantInteractActive then
+                v.HoldDuration = 0
+            end
+            if remoteInteractActive then
+                v.MaxActivationDistance = 100
+                v.RequiresLineOfSight = false
+            end
+        end
+    end
+end)
+
+-- 3. LOOP AUTO FIRE & TELEPORT RITUAL CANDLES
+local targetCandles = {
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle1"),
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle2"),
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle3"),
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle4"),
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle5"),
+    Workspace:WaitForChild("DESAIN", 5) and Workspace.DESAIN:FindFirstChild("RitualCandle6"),
+}
+
+RunService.Heartbeat:Connect(function()
+    if not autoFireCandlesActive then return end
+    
+    for _, candle in ipairs(targetCandles) do
+        if candle then
+            local prompt = candle:FindFirstChildOfClass("ProximityPrompt") or candle:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and prompt.Enabled then
+                local part = candle:IsA("BasePart") and candle or candle:FindFirstChildWhichIsA("BasePart")
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if part and hrp then
+                    pcall(function()
+                        hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+                        fireproximityprompt(prompt)
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+-- 4. LOOP AUTO FIRE PROXIMITY PROMPT (VAMPIRE & PLAYERS)
+RunService.Heartbeat:Connect(function()
+    if not autoFireVampireActive and not autoFirePlayersActive then return end
+
+    if autoFireVampireActive then
+        local vTarget = getVampireTarget()
+        if vTarget then
+            for _, prompt in ipairs(vTarget:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                    pcall(function() fireproximityprompt(prompt) end)
+                end
+            end
+        end
+    end
+
+    if autoFirePlayersActive then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= lp and player.Character then
+                for _, prompt in ipairs(player.Character:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                        pcall(function() fireproximityprompt(prompt) end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- 5. LOOP AUTO KABUR ACAK KETIKA VAMPIRE DEKAT (< 50 STUD)
+local escapeCooldown = 0
+local lastRandomIndex = 0
+
+RunService.Heartbeat:Connect(function()
+    if not autoEscapeActive then return end
+    if tick() < escapeCooldown then return end
+
+    local char = lp.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local vTarget = getVampireTarget()
+    if vTarget then
+        local vPart = vTarget:IsA("BasePart") and vTarget or (vTarget:IsA("Model") and (vTarget.PrimaryPart or vTarget:FindFirstChildWhichIsA("BasePart")))
+
+        if vPart then
+            local distance = (vPart.Position - hrp.Position).Magnitude
+            if distance <= 50 then
+                local randomIndex
+                repeat
+                    randomIndex = math.random(1, #guiLocations)
+                until randomIndex ~= lastRandomIndex or #guiLocations == 1
+                
+                lastRandomIndex = randomIndex
+                local randomTargetPos = guiLocations[randomIndex]
+
+                pcall(function()
+                    hrp.CFrame = CFrame.new(randomTargetPos) + Vector3.new(0, 3, 0)
+                    escapeCooldown = tick() + 2.5
+                end)
+            end
+        end
+    end
+end)
+
+-- 6. LOOP ESP VAMPIRE
+local espCache = {}
+
+local function removeESP(item)
+	if espCache[item] then
+		if espCache[item].billboard then espCache[item].billboard:Destroy() end
+		if espCache[item].highlight then espCache[item].highlight:Destroy() end
+		espCache[item] = nil
+	end
+end
+
+local function addESP(item)
+	if not espCache[item] and (item:IsA("Model") or item:IsA("BasePart")) then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "VampireESP_Highlight"
+		highlight.Adornee = item
+		highlight.FillColor = Color3.fromRGB(150, 0, 255)
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+		highlight.FillTransparency = 0.5
+		highlight.Parent = item
+
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "VampireESP_Text"
+		billboard.Size = UDim2.new(0, 100, 0, 40)
+		billboard.StudsOffset = Vector3.new(0, 3, 0)
+		billboard.AlwaysOnTop = true
+		
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1, 0, 1, 0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Text = "Vampire (Feriac)"
+		textLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+		textLabel.TextSize = 14
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.Parent = billboard
+
+		local targetPart = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart") or item:FindFirstChildOfClass("BasePart")
+		if targetPart then
+			billboard.Adornee = targetPart
+			billboard.Parent = targetPart
+		end
+
+		espCache[item] = {highlight = highlight, billboard = billboard}
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	if not espEnabled then
+		for item, _ in pairs(espCache) do removeESP(item) end
+		return
+	end
+	
+	local vTarget = getVampireTarget()
+	local activeItems = {}
+
+	if vTarget then
+		activeItems[vTarget] = true
+		addESP(vTarget)
+	end
+
+	for item, _ in pairs(espCache) do
+		if not activeItems[item] then removeESP(item) end
+	end
+end)
+
+-- 7. NEMPEL VAMPIRE
+RunService.Heartbeat:Connect(function()
+    if not autoNempelVampireActive then return end
+
+    local huTool = getItemByName("hu")
+    if not huTool then return end
+
+    local char = lp.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp or not hum then return end
+
+    if huTool.Parent ~= char then
+        hum:EquipTool(huTool)
+    end
+
+    local vTarget = getVampireTarget()
+    if vTarget then
+        local vPart = vTarget:IsA("BasePart") and vTarget or (vTarget:IsA("Model") and (vTarget.PrimaryPart or vTarget:FindFirstChildWhichIsA("BasePart")))
+        if vPart then
+            pcall(function()
+                hrp.CFrame = vPart.CFrame * CFrame.new(0, 0, 11)
+            end)
+            
+            for _, prompt in ipairs(vTarget:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                    pcall(function() fireproximityprompt(prompt) end)
+                end
+            end
+
+            if huTool.Parent == char then
+                pcall(function() huTool:Activate() end)
+            end
+        end
+    end
+end)
+
+-- 8. AUTO REVIVE / HELP PLAYER (Tunggu Player Minta Tolong Baru Cari Medkit, Revive, Lalu TP Acak)
+local helpCooldown = 0
+local isHelping = false
+local lastHelpRandomIndex = 0
+
+RunService.Heartbeat:Connect(function()
+    if not autoRevivePlayerActive or isHelping then return end
+    if tick() < helpCooldown then return end
+
+    local char = lp.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp or not hum then return end
+
+    -- Deteksi apakah ada player lain yang butuh bantuan (memiliki proximity prompt aktif)
+    local targetPlayerPrompt = nil
+    local targetPlayerHrp = nil
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= lp and player.Character then
+            local tHrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if tHrp then
+                for _, prompt in ipairs(player.Character:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                        targetPlayerPrompt = prompt
+                        targetPlayerHrp = tHrp
+                        break
+                    end
+                end
+            end
+        end
+        if targetPlayerPrompt then break end
+    end
+
+    -- Jika ada player yang minta tolong, baru jalankan aksi
+    if targetPlayerPrompt and targetPlayerHrp then
+        isHelping = true
+
+        -- 1. Cek apakah sudah punya medkit
+        local medkitTool = getItemByName("medkit")
+
+        -- 2. Jika belum punya medkit, cari dan ambil medkit terlebih dahulu secara cepat
+        if not medkitTool then
+            local medkitRings = getMatchedHaloRings("MedkitSpawnPoints")
+            local startTime = tick()
+            
+            -- Loop kilat teleport ke spawn medkit sampai medkit didapat atau timeout 4 detik
+            while not medkitTool and (tick() - startTime < 4) do
+                for _, ringPart in ipairs(medkitRings) do
+                    if ringPart and hrp then
+                        pcall(function()
+                            hrp.CFrame = ringPart.CFrame + Vector3.new(0, 3, 0)
+                            firePromptNearCharacter()
+                        end)
+                        task.wait(0.2)
+                        medkitTool = getItemByName("medkit")
+                        if medkitTool then break end
+                    end
+                end
+                task.wait(0.1)
+            end
+        end
+
+        -- 3. Jika medkit sudah ada, teleport ke player dan lakukan revive
+        local currentCharacter = lp.Character
+        local currentHrp = currentCharacter and currentCharacter:FindFirstChild("HumanoidRootPart")
+        local currentHum = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+        local finalMedkit = getItemByName("medkit")
+
+        if currentHrp and currentHum and finalMedkit then
+            if finalMedkit.Parent ~= currentCharacter then
+                currentHum:EquipTool(finalMedkit)
+            end
+
+            pcall(function()
+                currentHrp.CFrame = targetPlayerHrp.CFrame + Vector3.new(0, 3, 0)
+                fireproximityprompt(targetPlayerPrompt)
+            end)
+
+            if finalMedkit.Parent == currentCharacter then
+                pcall(function() finalMedkit:Activate() end)
+            end
+            
+            -- Jeda sejenak untuk memastikan prompt/revive tereksekusi server
+            task.wait(0.3)
+
+            -- 4. TELEPORT ACAK KE TEMPAT JAUH SETELAH SELESAI REVIVE
+            local freshChar = lp.Character
+            local freshHrp = freshChar and freshChar:FindFirstChild("HumanoidRootPart")
+            if freshHrp and #guiLocations > 0 then
+                local randomIndex
+                repeat
+                    randomIndex = math.random(1, #guiLocations)
+                until randomIndex ~= lastHelpRandomIndex or #guiLocations == 1
+                
+                lastHelpRandomIndex = randomIndex
+                local randomTargetPos = guiLocations[randomIndex]
+
+                pcall(function()
+                    freshHrp.CFrame = CFrame.new(randomTargetPos) + Vector3.new(0, 3, 0)
+                end)
+            end
+        end
+
+        helpCooldown = tick() + 2
+        isHelping = false
+    end
+end)
+
+
+-- ==========================================
+-- SEKSI TOGGLE SPOTS & AUTO PLAY
+-- ==========================================
+Window:Section("─── Auto Teleport Spawn ───")
+
+Window:Toggle("📜 Loop Next HuSpawn", false, function(v)
+    loopHuActive = v
+end, "navigation")
+
+Window:Toggle("⚡ Loop Teared Mantra", false, function(v)
+    loopMantraActive = v
+end, "zap")
+
+Window:Toggle("💊 Loop Next Medkit Spawn", false, function(v)
+    loopMedkitActive = v
+end, "plus-circle")
+
+Window:Section("─── Auto Play Categories ───")
+
+Window:Toggle("🧛 Nempel & Serang Vampire", false, function(v)
+    autoNempelVampireActive = v
+end, "skull")
+
+Window:Toggle("👥 Auto Help / Revive Player", false, function(v)
+    autoRevivePlayerActive = v
+end, "user-check")
+
+Window:Section("─── Fitur Tambahan ───")
+
+Window:Toggle("🎥 Kamera Classic", true, function(v)
+    cameraClassicActive = v
+end, "video")
+
+-- Toggle Kursor Tiruan + Keybind X
+local function setCursorState(v)
+    cursorDot.Visible = v
+    pcall(function()
+        if v then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        else
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        end
+    end)
+end
+
+Window:Toggle("🖱️ Kursor Tiruan (Custom)", true, function(v)
+    setCursorState(v)
+end, "mouse-pointer")
+
+-- Keybind X untuk Toggle Kursor (On/Off)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.X then
+        local newState = not cursorDot.Visible
+        setCursorState(newState)
+    end
+end)
+
+Window:Toggle("Instant Interact", true, function(v) 
+    instantInteractActive = v 
+end, "zap")
+
+Window:Toggle("Remote Interact", true, function(v) 
+    remoteInteractActive = v 
+end, "radio")
+
+Window:Toggle("Auto Fire Prompt Vampire", true, function(v)
+    autoFireVampireActive = v
+end, "skull")
+
+Window:Toggle("Auto Fire Prompt Player", true, function(v)
+    autoFirePlayersActive = v
+end, "user-check")
+
+Window:Toggle("Auto Fire Ritual Candles", false, function(v)
+    autoFireCandlesActive = v
+end, "flame")
+
+Window:Toggle("🏃 Auto Kabur (Acak Lokasi)", false, function(v)
+    autoEscapeActive = v
+end, "run")
+
+Window:Toggle("Aktifkan ESP Vampire", false, function(state)
+	espEnabled = state
+end, "eye")
+
+-- Jalankan UI
+Library:Start()
