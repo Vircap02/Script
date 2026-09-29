@@ -890,3 +890,41 @@ end, "eye")
 
 -- Jalankan UI
 Library:Start()
+
+-- Pastikan game sudah sepenuhnya memuat sebelum script dijalankan
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local GuiService = game:GetService("GuiService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ==========================================
+-- 1. FITUR ANTI-AFK
+-- ==========================================
+print("[Script] Anti-AFK diaktifkan.")
+
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new(0, 0))
+    print("[Script] Mencegah AFK dengan mensimulasikan klik mouse.")
+end)
+
+-- ==========================================
+-- 2. FITUR AUTO-RECONNECT
+-- ==========================================
+print("[Script] Auto-Reconnect diaktifkan.")
+
+-- Menangkap pesan error/disconnect dari UI Roblox
+GuiService.ErrorMessageChanged:Connect(function()
+    task.wait(1)
+    print("[Script] Terdeteksi terputus dari server. Mencoba melakukan reconnect...")
+    
+    -- Coba teleport kembali ke tempat/game yang sama
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end)
