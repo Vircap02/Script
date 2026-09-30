@@ -737,14 +737,14 @@ RunService.Heartbeat:Connect(function()
                 local startTime = tick()
                 
                 -- Loop kilat teleport ke spawn medkit sampai medkit didapat atau timeout 4 detik
-                while not medkitTool and (tick() - startTime < 4) do
+                while not medkitTool and (tick() - startTime < 8) do
                     for _, ringPart in ipairs(medkitRings) do
                         if ringPart and currentHrp then
                             pcall(function()
                                 currentHrp.CFrame = ringPart.CFrame + Vector3.new(0, 3, 0)
                                 firePromptNearCharacter()
                             end)
-                            task.wait(0.2)
+                            task.wait(0.1)
                             medkitTool = getItemByName("medkit")
                             if medkitTool then break end
                         end
