@@ -666,7 +666,7 @@ RunService.Heartbeat:Connect(function()
         local vPart = vTarget:IsA("BasePart") and vTarget or (vTarget:IsA("Model") and (vTarget.PrimaryPart or vTarget:FindFirstChildWhichIsA("BasePart")))
         if vPart then
             pcall(function()
-                hrp.CFrame = vPart.CFrame * CFrame.new(0, 0, 11)
+                hrp.CFrame = vPart.CFrame * CFrame.new(0, 0, 12)
             end)
             
             for _, prompt in ipairs(vTarget:GetDescendants()) do
