@@ -712,7 +712,12 @@ end
 -- =============================================================================
 -- [[ INTEGRASI MASTER FITUR GAMEPLAY KE MENU KONTEN ]] --
 -- =============================================================================
-
+buatTombol("🎃 Event Halloween", function()
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/TMS%20Halloween"))()
+        buatNotifikasi("Event Halloween", "Script Event Halloween berhasil dimuat!", 2.5)
+    end)
+end)
 buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
@@ -760,44 +765,59 @@ buatTombol("Auto Collect Event (Once)", function()
         local patrolFolder = workspace:FindFirstChild("Patrol")
 
         if not patrolFolder then
-            buatNotifikasi("Event", "Folder Patrol tidak ditemukan!", 2.5)
+            buatNotifikasi("Event", "Folder 'Patrol' tidak ditemukan di dalam Workspace!", 2.5)
             return
         end
 
         local count = 0
+
         for _, descendant in ipairs(patrolFolder:GetDescendants()) do
-            if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
-                break
+            -- Cek apakah objek merupakan bagian dari PociRed
+            local isPociRed = false
+            local currentObj = descendant
+            while currentObj and currentObj ~= patrolFolder do
+                if currentObj.Name == "PociRed" then
+                    isPociRed = true
+                    break
+                end
+                currentObj = currentObj.Parent
             end
 
-            if descendant:IsA("ProximityPrompt") then
-                local parentPart = descendant.Parent
-                local targetCFrame = nil
-
-                if parentPart:IsA("BasePart") then
-                    targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
-                elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
-                    targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
+            -- Lewati jika objek berada di dalam PociRed
+            if not isPociRed then
+                if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then
+                    break
                 end
 
-                if targetCFrame then
-                    humanoidRootPart.CFrame = targetCFrame
-                    task.wait(0.15) 
-                    
-                    if fireproximityprompt then
-                        fireproximityprompt(descendant)
-                    else
-                        descendant:InputHoldBegin()
-                        descendant:InputHoldEnd()
+                if descendant:IsA("ProximityPrompt") then
+                    local parentPart = descendant.Parent
+                    local targetCFrame = nil
+
+                    if parentPart:IsA("BasePart") then
+                        targetCFrame = parentPart.CFrame + Vector3.new(0, 3, 0)
+                    elseif parentPart:IsA("Model") and parentPart.PrimaryPart then
+                        targetCFrame = parentPart.PrimaryPart.CFrame + Vector3.new(0, 3, 0)
                     end
-                    
-                    count = count + 1
-                    task.wait(0.1)
+
+                    if targetCFrame then
+                        humanoidRootPart.CFrame = targetCFrame
+                        task.wait(0.15)
+                        
+                        if fireproximityprompt then
+                            fireproximityprompt(descendant)
+                        else
+                            descendant:InputHoldBegin()
+                            descendant:InputHoldEnd()
+                        end
+                        
+                        count = count + 1
+                        task.wait(0.1)
+                    end
                 end
             end
         end
 
-        buatNotifikasi("Auto Collect", "Selesai! Berhasil mengumpulkan " .. count .. " event item.", 3)
+        buatNotifikasi("Auto Collect", "Selesai! Berhasil men-trigger " .. count .. " prompt (PociRed dikecualikan).", 3)
     end)
 end)
 
