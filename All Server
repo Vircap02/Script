@@ -1,0 +1,369 @@
+--[[
+    SERVER BROWSER - Roblox Executor
+    Fitur: list server, filter min/max player, mode Sepi/Rame, join, minimize, close
+]]
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local UIS = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local MAX_PAGES = 5 -- 5 x 100 = maks 500 server
+
+-- ========== PARENT GUI ==========
+local parentGui = (gethui and gethui()) or game:GetService("CoreGui")
+local old = parentGui:FindFirstChild("ServerBrowserUI")
+if old then old:Destroy() end
+
+-- ========== HTTP (anti rate limit) ==========
+local HOSTS = {"games.roblox.com", "games.roproxy.com"} -- fallback otomatis
+
+local function httpGet(url)
+    local req = (syn and syn.request) or request or http_request or (http and http.request)
+    if req then
+        local ok, r = pcall(function() return req({Url = url, Method = "GET"}) end)
+        if ok and r then return r.Body, r.StatusCode end
+    end
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if ok and res then return res, 200 end
+    return nil, tostring(res):find("429") and 429 or 0
+end
+
+local function fetchPage(order, cursor, onWait)
+    for attempt = 1, 6 do
+        local host = HOSTS[(attempt - 1) % #HOSTS + 1]
+        local url = ("https://%s/v1/games/%d/servers/Public?sortOrder=%s&limit=100%s")
+            :format(host, PlaceId, order, cursor and ("&cursor=" .. cursor) or "")
+        local body, code = httpGet(url)
+        if body and (code == 200 or code == nil) then
+            local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+            if ok and type(data) == "table" and data.data then return data end
+        end
+        local delay = attempt * 2 -- backoff: 2s, 4s, 6s, ...
+        if onWait then onWait(attempt, delay) end
+        task.wait(delay)
+    end
+    return nil
+end
+
+local function fetchServers(order, onProgress, onWait)
+    local result, cursor = {}, nil
+    for page = 1, MAX_PAGES do
+        local data = fetchPage(order, cursor, onWait)
+        if not data then return result, "Gagal memuat (rate limit). Coba lagi nanti." end
+        for _, s in ipairs(data.data) do table.insert(result, s) end
+        if onProgress then onProgress(#result, page) end
+        cursor = data.nextPageCursor
+        if not cursor then break end
+        task.wait(1) -- jeda antar halaman
+    end
+    return result, nil
+end
+
+-- ========== UI HELPERS ==========
+local C = {
+    bg = Color3.fromRGB(24, 24, 32),
+    bar = Color3.fromRGB(32, 32, 44),
+    item = Color3.fromRGB(36, 36, 50),
+    accent = Color3.fromRGB(88, 101, 242),
+    green = Color3.fromRGB(46, 160, 90),
+    red = Color3.fromRGB(220, 60, 60),
+    text = Color3.fromRGB(235, 235, 245),
+    sub = Color3.fromRGB(150, 150, 170),
+}
+
+local function new(class, props, parent)
+    local o = Instance.new(class)
+    for k, v in pairs(props) do o[k] = v end
+    if parent then o.Parent = parent end
+    return o
+end
+
+local function corner(o, r)
+    new("UICorner", {CornerRadius = UDim.new(0, r or 8)}, o)
+end
+
+local function button(text, color, parent, props)
+    local b = new("TextButton", {
+        Text = text, Font = Enum.Font.GothamBold, TextSize = 13,
+        TextColor3 = C.text, BackgroundColor3 = color, AutoButtonColor = true,
+        BorderSizePixel = 0,
+    }, parent)
+    for k, v in pairs(props or {}) do b[k] = v end
+    corner(b, 6)
+    return b
+end
+
+-- ========== MAIN FRAME ==========
+local gui = new("ScreenGui", {
+    Name = "ServerBrowserUI", ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, parentGui)
+
+local FULL_SIZE = UDim2.new(0, 430, 0, 420)
+local MINI_SIZE = UDim2.new(0, 430, 0, 38)
+
+local main = new("Frame", {
+    Name = "Main", Size = FULL_SIZE, Position = UDim2.new(0.5, -215, 0.5, -210),
+    BackgroundColor3 = C.bg, BorderSizePixel = 0, ClipsDescendants = true,
+}, gui)
+corner(main, 10)
+new("UIStroke", {Color = C.accent, Thickness = 1.2, Transparency = 0.3}, main)
+
+-- Title bar
+local bar = new("Frame", {
+    Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = C.bar, BorderSizePixel = 0,
+}, main)
+corner(bar, 10)
+
+new("TextLabel", {
+    Text = "🌐  ALL SERVER", Font = Enum.Font.GothamBold, TextSize = 14,
+    TextColor3 = C.text, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+    Position = UDim2.new(0, 14, 0, 0), Size = UDim2.new(1, -90, 1, 0),
+}, bar)
+
+local btnMin = button("–", C.item, bar, {
+    Size = UDim2.new(0, 28, 0, 24), Position = UDim2.new(1, -66, 0.5, -12), TextSize = 16,
+})
+local btnClose = button("X", C.red, bar, {
+    Size = UDim2.new(0, 28, 0, 24), Position = UDim2.new(1, -34, 0.5, -12),
+})
+
+-- Drag
+do
+    local dragging, dragStart, startPos
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging, dragStart, startPos = true, i.Position, main.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+end
+
+-- Body
+local body = new("Frame", {
+    Position = UDim2.new(0, 0, 0, 38), Size = UDim2.new(1, 0, 1, -38),
+    BackgroundTransparency = 1,
+}, main)
+
+-- Row 1: filter min/max + refresh
+local function label(text, pos, w)
+    return new("TextLabel", {
+        Text = text, Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = C.sub,
+        BackgroundTransparency = 1, Position = pos, Size = UDim2.new(0, w, 0, 28),
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, body)
+end
+
+local function box(default, pos)
+    local t = new("TextBox", {
+        Text = default, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = C.text,
+        PlaceholderText = "0", BackgroundColor3 = C.item, BorderSizePixel = 0,
+        Position = pos, Size = UDim2.new(0, 56, 0, 28), ClearTextOnFocus = false,
+    }, body)
+    corner(t, 6)
+    return t
+end
+
+label("Min", UDim2.new(0, 14, 0, 10), 28)
+local boxMin = box("0", UDim2.new(0, 44, 0, 10))
+label("Max", UDim2.new(0, 112, 0, 10), 28)
+local boxMax = box("100", UDim2.new(0, 144, 0, 10))
+
+local btnRefresh = button("⟳ Refresh", C.accent, body, {
+    Position = UDim2.new(1, -104, 0, 10), Size = UDim2.new(0, 90, 0, 28),
+})
+
+-- Row 2: mode
+local modes = {}
+local currentMode = "Semua"
+local function modeBtn(name, x)
+    local b = button(name, C.item, body, {
+        Position = UDim2.new(0, x, 0, 48), Size = UDim2.new(0, 128, 0, 28),
+    })
+    modes[name] = b
+    return b
+end
+modeBtn("Semua", 14)
+modeBtn("Sepi", 151)
+modeBtn("Rame", 288)
+
+-- Status
+local status = new("TextLabel", {
+    Text = "Klik Refresh untuk memuat server.", Font = Enum.Font.Gotham, TextSize = 12,
+    TextColor3 = C.sub, BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+    Position = UDim2.new(0, 14, 0, 82), Size = UDim2.new(1, -28, 0, 18),
+}, body)
+
+-- List
+local list = new("ScrollingFrame", {
+    Position = UDim2.new(0, 10, 0, 106), Size = UDim2.new(1, -20, 1, -116),
+    BackgroundColor3 = C.bar, BorderSizePixel = 0, ScrollBarThickness = 4,
+    CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, body)
+corner(list, 8)
+new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, list)
+new("UIPadding", {
+    PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+    PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+}, list)
+
+-- ========== LOGIC ==========
+local cache = {}
+local store = {Asc = {t = 0, data = {}}, Desc = {t = 0, data = {}}}
+local TTL = 90       -- detik data dianggap segar (tidak request ulang)
+local COOLDOWN = 8   -- detik minimal antar tekan Refresh
+local lastForce = 0
+local busy = false
+
+local function setStatus(t, color)
+    status.Text = t
+    status.TextColor3 = color or C.sub
+end
+
+local function highlightModes()
+    for name, b in pairs(modes) do
+        b.BackgroundColor3 = (name == currentMode) and C.accent or C.item
+    end
+end
+
+local function join(server)
+    setStatus("Teleport ke server " .. server.id:sub(1, 8) .. "...", C.green)
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+    end)
+    if not ok then setStatus("Gagal join: " .. tostring(err), C.red) end
+end
+
+local function render()
+    for _, c in ipairs(list:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+
+    local mn = tonumber(boxMin.Text) or 0
+    local mx = tonumber(boxMax.Text) or math.huge
+
+    local filtered = {}
+    for _, s in ipairs(cache) do
+        local p = s.playing or 0
+        if p >= mn and p <= mx then table.insert(filtered, s) end
+    end
+
+    table.sort(filtered, function(a, b)
+        if currentMode == "Rame" then return (a.playing or 0) > (b.playing or 0) end
+        return (a.playing or 0) < (b.playing or 0)
+    end)
+
+    for i, s in ipairs(filtered) do
+        local isCurrent = (s.id == game.JobId)
+        local row = new("Frame", {
+            Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = C.item,
+            BorderSizePixel = 0, LayoutOrder = i,
+        }, list)
+        corner(row, 6)
+
+        local playing, maxP = s.playing or 0, s.maxPlayers or 0
+        local ratio = (maxP > 0) and (playing / maxP) or 0
+        local dot = ratio >= 0.8 and "🔴" or (ratio >= 0.4 and "🟡" or "🟢")
+
+        new("TextLabel", {
+            Text = ("%s  %d/%d players   •   Ping %s"):format(dot, playing, maxP, s.ping and (s.ping .. "ms") or "-"),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = C.text,
+            BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+            Position = UDim2.new(0, 10, 0, 3), Size = UDim2.new(1, -90, 0, 18),
+        }, row)
+        new("TextLabel", {
+            Text = "ID: " .. s.id:sub(1, 18) .. "..." .. (isCurrent and "  (server ini)" or ""),
+            Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = C.sub,
+            BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left,
+            Position = UDim2.new(0, 10, 0, 21), Size = UDim2.new(1, -90, 0, 14),
+        }, row)
+
+        local j = button(isCurrent and "Here" or "Join", isCurrent and C.item or C.green, row, {
+            Position = UDim2.new(1, -66, 0.5, -13), Size = UDim2.new(0, 58, 0, 26),
+            Active = not isCurrent, AutoButtonColor = not isCurrent,
+        })
+        if not isCurrent then
+            j.MouseButton1Click:Connect(function() join(s) end)
+        end
+    end
+
+    setStatus(("Menampilkan %d dari %d server  |  Mode: %s"):format(#filtered, #cache, currentMode),
+        C.text)
+end
+
+local function refresh(force)
+    if busy then return end
+    local order = (currentMode == "Rame") and "Desc" or "Asc"
+    local slot = store[order]
+
+    if force then
+        local left = COOLDOWN - (os.clock() - lastForce)
+        if left > 0 then
+            setStatus(("Tunggu %ds sebelum refresh lagi."):format(math.ceil(left)), C.red)
+            return
+        end
+        lastForce = os.clock()
+    elseif #slot.data > 0 and (os.clock() - slot.t) < TTL then
+        cache = slot.data -- pakai cache, tanpa request
+        render()
+        return
+    end
+
+    busy = true
+    btnRefresh.Text = "..."
+    setStatus("Memuat server...", C.sub)
+
+    task.spawn(function()
+        local servers, err = fetchServers(order,
+            function(n, p) setStatus(("Memuat... %d server (hal. %d)"):format(n, p), C.sub) end,
+            function(a, d) setStatus(("Rate limit, retry %d/6 dalam %ds..."):format(a, d), C.red) end
+        )
+        if #servers > 0 then slot.data, slot.t = servers, os.clock() end
+        cache = (#servers > 0) and servers or slot.data
+        render()
+        if err then setStatus(err, C.red) end
+        btnRefresh.Text = "⟳ Refresh"
+        busy = false
+
+        -- mode berubah saat loading -> sinkronkan
+        local want = (currentMode == "Rame") and "Desc" or "Asc"
+        if want ~= order then refresh(false) end
+    end)
+end
+
+-- ========== EVENTS ==========
+for name, b in pairs(modes) do
+    b.MouseButton1Click:Connect(function()
+        currentMode = name
+        highlightModes()
+        refresh()
+    end)
+end
+
+btnRefresh.MouseButton1Click:Connect(function() refresh(true) end)
+boxMin.FocusLost:Connect(function() if #cache > 0 then render() end end)
+boxMax.FocusLost:Connect(function() if #cache > 0 then render() end end)
+
+local minimized = false
+btnMin.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    body.Visible = not minimized
+    main.Size = minimized and MINI_SIZE or FULL_SIZE
+    btnMin.Text = minimized and "+" or "–"
+end)
+
+btnClose.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+highlightModes()
+refresh()
