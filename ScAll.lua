@@ -63,6 +63,14 @@ local listMap = {
         Nama = "Animoco",
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Animoco"))()]]
     },
+    {
+        Nama = "NAMD AFK",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/NAMD%20AFK"))()]]
+    },
+    {
+        Nama = "BATTLE FOR UGC",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/NAMD%20AFK"))()]]
+    },
 }
 -- ====================================================
 
