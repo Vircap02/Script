@@ -1,0 +1,323 @@
+-- Load the library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau"))()
+
+-- Services & Variables
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Update HumanoidRootPart jika karakter respawn
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- ============================================================
+-- PEMBUATAN BRIDGE / PLATFORM PERMANEN
+-- ============================================================
+task.spawn(function()
+    pcall(function()
+        -- Cek apakah bridge sudah ada sebelumnya agar tidak menumpuk
+        if not Workspace:FindFirstChild("AutoBridgePlatform") then
+            local bridge = Instance.new("Part")
+            bridge.Name = "AutoBridgePlatform"
+            bridge.Size = Vector3.new(20, 1, 20) -- Ukuran platform (lebar 20x20 stud)
+            bridge.Position = Vector3.new(-104.14, -159.18 - 3, 4.30) -- Sedikit di bawah koordinat agar karakter berdiri tepat di atasnya
+            bridge.Anchored = true
+            bridge.CanCollide = true
+            bridge.Transparency = 0.5 -- Set jadi 0 jika ingin tidak terlihat (transparan penuh)
+            bridge.Material = Enum.Material.Neon
+            bridge.BrickColor = BrickColor.new("Bright blue")
+            bridge.Parent = Workspace
+        end
+    end)
+end)
+
+-- ============================================================
+-- FITUR LATAR BELAKANG: ANTI AFK & AUTO RECONNECT
+-- ============================================================
+
+-- 1. Anti AFK (Mencegah ter-kick karena diam)
+task.spawn(function()
+    pcall(function()
+        local vu = game:GetService("VirtualUser")
+        player.Idled:Connect(function()
+            vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        end)
+    end)
+end)
+
+-- 2. Auto Reconnect (Otomatis rejoin saat disconnect / error)
+task.spawn(function()
+    pcall(function()
+        local promptOverlay = CoreGui:FindFirstChild("PromptOverlay")
+        if promptOverlay then
+            promptOverlay.ChildAdded:Connect(function(child)
+                if child.Name == "ErrorPrompt" then
+                    task.wait(2)
+                    TeleportService:Teleport(game.PlaceId, player)
+                end
+            end)
+        end
+    end)
+end)
+
+-- ============================================================
+-- PEMBUATAN UI (AROD UI)
+-- ============================================================
+local Window = Library:CreateWindow("NAMD AFK", "shield")
+
+-- ============================================================
+-- SECTION: AUTO COIN & BRING ITEM
+-- ============================================================
+Window:Section("─── Auto Coin Farm ───")
+
+local autoCoinActive = false
+
+Window:Toggle("Auto Coin (Teleport ke Jembatan)", false, function(v)
+    autoCoinActive = v
+    if autoCoinActive then
+        print("Auto Coin diaktifkan!")
+    else
+        print("Auto Coin dimatikan!")
+    end
+end, "zap")
+
+-- Tombol Once untuk Bring Object (+100 Coins) ke Karakter
+Window:Button("Bring +100 Coins (Once)", function()
+    pcall(function()
+        if humanoidRootPart then
+            local targetObject = Workspace:FindFirstChild("Obbys") and Workspace.Obbys:FindFirstChild("+100 Coins")
+
+            if targetObject then
+                if targetObject:IsA("Model") and targetObject.PrimaryPart then
+                    targetObject:SetPrimaryPartCFrame(humanoidRootPart.CFrame)
+                    print("Berhasil membawa Obbys['+100 Coins'] ke karakter!")
+                elseif targetObject:IsA("BasePart") then
+                    targetObject.CFrame = humanoidRootPart.CFrame
+                    print("Berhasil membawa Obbys['+100 Coins'] ke karakter!")
+                else
+                    for _, part in ipairs(targetObject:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CFrame = humanoidRootPart.CFrame
+                        end
+                    end
+                    print("Berhasil membawa seluruh part Obbys['+100 Coins'] ke karakter!")
+                end
+            else
+                warn("Objek Obbys['+100 Coins'] tidak ditemukan di Workspace!")
+            end
+        end
+    end)
+end, "navigation")
+
+-- Loop Auto Coin (Hanya Teleport ke koordinat jembatan)
+task.spawn(function()
+    while true do
+        if autoCoinActive then
+            pcall(function()
+                if humanoidRootPart then
+                    -- Teleport ke koordinat jembatan secara kontinu
+                    humanoidRootPart.CFrame = CFrame.new(-104.14, -159.18, 4.30)
+                end
+            end)
+            task.wait(0.5) 
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- ============================================================
+-- SECTION: AUTO SPIN
+-- ============================================================
+Window:Section("─── Auto Spin ───")
+
+local autoSpinActive = false
+
+Window:Toggle("Auto Spin Ruleta", false, function(v)
+    autoSpinActive = v
+    if autoSpinActive then
+        print("Auto Spin diaktifkan!")
+    else
+        print("Auto Spin dimatikan!")
+    end
+end, "rotate-cw")
+
+-- Loop Auto Spin
+task.spawn(function()
+    while true do
+        if autoSpinActive then
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("SistemaRuleta"):WaitForChild("Girar"):InvokeServer()
+            end)
+            task.wait(1)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
+-- ============================================================
+-- SECTION: CLAIM REWARD
+-- ============================================================
+Window:Section("─── Claim Reward ───")
+
+local autoRewardActive = false
+
+Window:Toggle("Auto Claim Reward Time", false, function(v)
+    autoRewardActive = v
+end, "gift")
+
+-- ============================================================
+-- SECTION: AUTO BUY STANDSFREE
+-- ============================================================
+Window:Section("─── Auto Buy StandsFree ───")
+
+local autoBuy1Active = false
+local autoBuy2Active = false
+local autoBuy3Active = false
+local autoBuy4Active = false
+
+Window:Toggle("Auto Buy [1] - Kuning", false, function(v)
+    autoBuy1Active = v
+end, "shopping-bag")
+
+Window:Toggle("Auto Buy [2] - Biru", false, function(v)
+    autoBuy2Active = v
+end, "shopping-bag")
+
+Window:Toggle("Auto Buy [3] - Hitam Putih", false, function(v)
+    autoBuy3Active = v
+end, "shopping-bag")
+
+Window:Toggle("Auto Buy [4] - Merah", false, function(v)
+    autoBuy4Active = v
+end, "shopping-bag")
+
+-- ============================================================
+-- BACKGROUND THREADS (Loop untuk StandsFree & Reward)
+-- ============================================================
+
+-- Loop Item [1]
+task.spawn(function()
+    while true do
+        if autoBuy1Active then
+            pcall(function()
+                local stands = Workspace:FindFirstChild("StandsFree")
+                if stands then
+                    local item1 = stands:FindFirstChild("1")
+                    if item1 then
+                        local buyItem = item1:FindFirstChild("BuyItem")
+                        if buyItem then
+                            local prompt = buyItem:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                fireproximityprompt(prompt)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait()
+    end
+end)
+
+-- Loop Item [2] (Biru)
+task.spawn(function()
+    while true do
+        if autoBuy2Active then
+            pcall(function()
+                local stands = Workspace:FindFirstChild("StandsFree")
+                if stands then
+                    local item2 = stands:FindFirstChild("2")
+                    if item2 then
+                        local buyItem = item2:FindFirstChild("BuyItem")
+                        if buyItem then
+                            local prompt = buyItem:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                fireproximityprompt(prompt)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait()
+    end
+end)
+
+-- Loop Item [3]
+task.spawn(function()
+    while true do
+        if autoBuy3Active then
+            pcall(function()
+                local stands = Workspace:FindFirstChild("StandsFree")
+                if stands then
+                    local item3 = stands:FindFirstChild("3")
+                    if item3 then
+                        local buyItem = item3:FindFirstChild("BuyItem")
+                        if buyItem then
+                            local prompt = buyItem:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                fireproximityprompt(prompt)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait()
+    end
+end)
+
+-- Loop Item [4] (Merah)
+task.spawn(function()
+    while true do
+        if autoBuy4Active then
+            pcall(function()
+                local stands = Workspace:FindFirstChild("StandsFree")
+                if stands then
+                    local item4 = stands:FindFirstChild("4")
+                    if item4 then
+                        local buyItem = item4:FindFirstChild("BuyItem")
+                        if buyItem then
+                            local prompt = buyItem:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then
+                                fireproximityprompt(prompt)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait()
+    end
+end)
+
+-- Loop Auto Claim Reward Time (RemoteEvent)
+task.spawn(function()
+    while true do
+        if autoRewardActive then
+            pcall(function()
+                ReplicatedStorage:WaitForChild("SistemaRegalos"):WaitForChild("ReclamarRegalo"):FireServer()
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+-- ============================================================
+-- START UI
+-- ============================================================
+Library:Start()
