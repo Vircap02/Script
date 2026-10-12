@@ -1,5 +1,5 @@
 -- =============================================================================
---  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED + KUNTI COUNTER)
+--  VIRGOBOY HUB GOLD V20 — THE MORGUE SHIFT (MODIFIED + Candy COUNTER)
 -- =============================================================================
 
 local targetGuiParent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -94,7 +94,7 @@ local daftarFitur = {
     "Memuat System Core Framework...",
     "Mengaktifkan Otomatis Semua Fitur Utama...",
     "Sinkronisasi Remote & Instant Interact...",
-    "Menyiapkan Auto Culik Kunti Bogel...",
+    "Menyiapkan Auto Ambil Candy ...",
     "Menyiapkan Auto Bersihkan Lantai (Stain)...",
     "Membangun Custom Glassmorphic GUI Engine...",
     "Menyuntikkan Gambar Arlun Background & Logo...",
@@ -135,7 +135,7 @@ local function jalankanIntro()
     title.Size = UDim2.new(1, 0, 0, 50)
     title.Position = UDim2.new(0, 0, 0.35, 0)
     title.BackgroundTransparency = 1
-    title.Text = "THE MORGUE SHIFT | KUNTI BOGEL "
+    title.Text = "THE MORGUE SHIFT | CANDY  "
     title.TextColor3 = Color3.fromRGB(255, 50, 50)
     title.TextSize = 24
     title.Font = Enum.Font.GothamBold
@@ -199,7 +199,7 @@ local autoAcceptPhone = true
 local interactActive = true        
 local remoteInteractActive = true  
 local promptConnection = nil 
-local autoKuntiBogelActive = false
+local autoCandyActive = false
 local espActive = true             
 local playerEspActive = true       
 local noclipActive = true          
@@ -213,9 +213,9 @@ local stainIndex = 1
 local espObjects = {}
 local playerEspTable = {} 
 
--- VARIABEL PENGHITUNG KUNTI BOGEL
-local kuntiSpawnCount = 0
-local kuntiCounterLabel = nil -- Akan di-link ke TextLabel GUI nanti
+-- VARIABEL PENGHITUNG Candy 
+local CandySpawnCount = 0
+local CandyCounterLabel = nil -- Akan di-link ke TextLabel GUI nanti
 
 -- [[ CORE LOGIC FUNCTIONS ]] --
 local function pelumpuhKematian(char)
@@ -411,7 +411,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -20, 0, 35)
 titleLabel.Position = UDim2.new(0, 15, 0, 5)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "KUNTI BOGEL  — THE MORGUE SHIFT"
+titleLabel.Text = "Candy   — THE MORGUE SHIFT"
 titleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
 titleLabel.TextSize = 13
 titleLabel.Font = Enum.Font.GothamBold
@@ -467,18 +467,18 @@ statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.ZIndex = 4
 statusLabel.Parent = profileFrame
 
--- Keterangan Jumlah Kemunculan Kunti Bogel (Counter Label) di dalam Profil Card
-kuntiCounterLabel = Instance.new("TextLabel")
-kuntiCounterLabel.Size = UDim2.new(0.65, 0, 0, 18)
-kuntiCounterLabel.Position = UDim2.new(0, 62, 0, 38)
-kuntiCounterLabel.BackgroundTransparency = 1
-kuntiCounterLabel.Text = "Kunti Bogel Muncul: 0x"
-kuntiCounterLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-kuntiCounterLabel.TextSize = 10
-kuntiCounterLabel.Font = Enum.Font.GothamBold
-kuntiCounterLabel.TextXAlignment = Enum.TextXAlignment.Left
-kuntiCounterLabel.ZIndex = 4
-kuntiCounterLabel.Parent = profileFrame
+-- Keterangan Jumlah Kemunculan Candy  (Counter Label) di dalam Profil Card
+CandyCounterLabel = Instance.new("TextLabel")
+CandyCounterLabel.Size = UDim2.new(0.65, 0, 0, 18)
+CandyCounterLabel.Position = UDim2.new(0, 62, 0, 38)
+CandyCounterLabel.BackgroundTransparency = 1
+CandyCounterLabel.Text = "Candy  Muncul: 0x"
+CandyCounterLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+CandyCounterLabel.TextSize = 10
+CandyCounterLabel.Font = Enum.Font.GothamBold
+CandyCounterLabel.TextXAlignment = Enum.TextXAlignment.Left
+CandyCounterLabel.ZIndex = 4
+CandyCounterLabel.Parent = profileFrame
 
 local contentContainer = Instance.new("ScrollingFrame")
 contentContainer.Size = UDim2.new(1, -24, 1, -112)
@@ -718,7 +718,7 @@ buatTombol("🎃 Event Halloween", function()
         buatNotifikasi("Event Halloween", "Script Event Halloween berhasil dimuat!", 2.5)
     end)
 end)
-buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
+buatTombol("⚡ Auto Candy  (Aim & Ambil)", function()
     pcall(function()
         local character = lp.Character or lp.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart")
@@ -751,9 +751,9 @@ buatTombol("⚡ Auto Kunti Bogel (Aim & Ambil)", function()
         if success then
             task.wait(0.2)
             teleportTo("Spawn")
-            buatNotifikasi("Auto Kunti Bogel", "Berhasil ambil prompt & kembali ke telepon!", 2.5)
+            buatNotifikasi("Auto Candy ", "Berhasil ambil prompt & kembali ke telepon!", 2.5)
         else
-            buatNotifikasi("Auto Kunti Bogel", "ProximityPrompt jumpscare tidak ditemukan!", 2.5)
+            buatNotifikasi("Auto Candy ", "ProximityPrompt jumpscare tidak ditemukan!", 2.5)
         end
     end)
 end)
@@ -822,7 +822,7 @@ buatTombol("Auto Collect Event (Once)", function()
 end)
 
 buatSection("Quick Actions & Lobby")
-buatTombol("🏆 Ending Aja Kuntinya Ga Ada", function()
+buatTombol("🏆 Ending Aja Candynya Ga Ada", function()
     pcall(function()
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local Gameplay = ReplicatedStorage:WaitForChild("Gameplay")
@@ -1315,15 +1315,15 @@ task.spawn(function()
             
             if jumpscareFolder then
                 if descendant:IsDescendantOf(jumpscareFolder) then
-                    if string.find(descendant.Name, "SusterAdminIn") or string.find(descendant.Name, "SusterAdmin") or string.find(descendant.Name, "SusterAdmin ") then
+                    if string.find(descendant.Name, "CandyIn") or string.find(descendant.Name, "Candy") or string.find(descendant.Name, "Candy ") then
                         -- TAMBAH COUNTER SETIAP KALI MUNCUL
-                        kuntiSpawnCount = kuntiSpawnCount + 1
-                        if kuntiCounterLabel then
-                            kuntiCounterLabel.Text = "Kunti Bogel Muncul: " .. kuntiSpawnCount .. "x"
+                        CandySpawnCount = CandySpawnCount + 1
+                        if CandyCounterLabel then
+                            CandyCounterLabel.Text = "Candy Muncul: " .. CandySpawnCount .. "x"
                         end
 
                         local namaHantu = descendant.Name
-                        task.spawn(buatWarningTengah, "⚠️ AWAS ADA SUSTER ADMIN  ⚠️", "Terdeteksi: " .. namaHantu .. " telah muncul!", 3.5)
+                        task.spawn(buatWarningTengah, "⚠️ AWAS ADA WEREWOLF  ⚠️", "Terdeteksi: " .. namaHantu .. " telah muncul!", 3.5)
                         
                         local sound = Instance.new("Sound")
                         sound.SoundId = "rbxassetid://9114223171"
