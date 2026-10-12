@@ -26,8 +26,8 @@ if not screenGui.Parent then screenGui.Parent = localPlayer:WaitForChild("Player
 ----------------------------------------------------
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 240)
-mainFrame.Position = UDim2.new(0.5, -125, 0.5, -120)
+mainFrame.Size = UDim2.new(0, 250, 0, 205) -- Disesuaikan ukurannya karena 1 toggle dikurangi
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -102)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.ClipsDescendants = true
@@ -200,7 +200,6 @@ end
 
 local isHalloweenActive = createSpookyToggle("30 MENIT SPAWN", "🍬")
 local isPatrolActive = createSpookyToggle("AUTO COLLECT BOOST", "🎁")
-local isGodModeActive = createSpookyToggle("GOD MODE", "👻")
 local isAntiAfkActive = createSpookyToggle("Anti-AFK Mode", "⏰")
 
 ----------------------------------------------------
@@ -260,7 +259,7 @@ circleWidget.MouseButton1Click:Connect(function()
     circleWidget.Visible = false
 
     mainFrame.Visible = true
-    TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 240)}):Play()
+    TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 205)}):Play()
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
@@ -270,7 +269,7 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------
--- BACKGROUND FEATURES (ANTI-AFK, GOD MODE, COLLECT)
+-- BACKGROUND FEATURES (ANTI-AFK & COLLECT)
 ----------------------------------------------------
 localPlayer.Idled:Connect(function()
     if isAntiAfkActive() then
@@ -280,41 +279,6 @@ localPlayer.Idled:Connect(function()
         end)
     end
 end)
-
-local function applyAntiGhostMode()
-    local character = localPlayer.Character
-    if not character then return end
-
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanTouch = false
-        end
-    end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid and humanoid.Health < humanoid.MaxHealth then
-        humanoid.Health = humanoid.MaxHealth
-    end
-
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("Model") or v:IsA("BasePart") then
-            local nameLower = v.Name:lower()
-            if nameLower:find("ghost") or nameLower:find("hantu") or nameLower:find("monster") or nameLower:find("npc") or nameLower:find("killer") then
-                if v:IsA("BasePart") then
-                    v.CanTouch = false
-                    v.CanCollide = false
-                elseif v:IsA("Model") then
-                    for _, child in ipairs(v:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            child.CanTouch = false
-                            child.CanCollide = false
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
 
 local function processPromptsInFolder(folder)
     if not folder then return end
@@ -386,10 +350,6 @@ end
 task.spawn(function()
     while true do
         pcall(function()
-            if isGodModeActive() then
-                applyAntiGhostMode()
-            end
-
             if isHalloweenActive() then
                 local halloweenFolder = workspace:FindFirstChild("Halloween")
                 local spawnPoint = halloweenFolder and halloweenFolder:FindFirstChild("SpawnPoint")
