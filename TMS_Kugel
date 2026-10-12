@@ -714,7 +714,7 @@ end
 -- =============================================================================
 buatTombol("🎃 Event Halloween", function()
     pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/TMS%20Halloween"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/TMS%20Halloween"))()
         buatNotifikasi("Event Halloween", "Script Event Halloween berhasil dimuat!", 2.5)
     end)
 end)
