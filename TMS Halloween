@@ -1,0 +1,410 @@
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local workspace = game:GetService("Workspace")
+local localPlayer = Players.LocalPlayer
+
+-- Hapus UI lama jika ada
+if CoreGui:FindFirstChild("SpookyCollectUI") then
+    CoreGui.SpookyCollectUI:Destroy()
+end
+
+----------------------------------------------------
+-- CORE SCREENUI SETUP
+----------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpookyCollectUI"
+screenGui.ResetOnSpawn = false
+
+pcall(function() screenGui.Parent = CoreGui end)
+if not screenGui.Parent then screenGui.Parent = localPlayer:WaitForChild("PlayerGui") end
+
+----------------------------------------------------
+-- MAIN WINDOW FRAME (COMPACT FOR MOBILE)
+----------------------------------------------------
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 250, 0, 240)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -120)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = mainFrame
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 1.5
+uiStroke.Color = Color3.fromRGB(255, 110, 0)
+uiStroke.Parent = mainFrame
+
+local topBarGlow = Instance.new("Frame")
+topBarGlow.Size = UDim2.new(1, 0, 0, 3)
+topBarGlow.BackgroundColor3 = Color3.fromRGB(160, 0, 255)
+topBarGlow.BorderSizePixel = 0
+topBarGlow.Parent = mainFrame
+
+----------------------------------------------------
+-- FLOATING CIRCLE WIDGET (MINIMIZE CIRCLE)
+----------------------------------------------------
+local circleWidget = Instance.new("TextButton")
+circleWidget.Name = "CircleWidget"
+circleWidget.Size = UDim2.new(0, 48, 0, 48)
+circleWidget.Position = UDim2.new(0, 15, 0.5, -24)
+circleWidget.BackgroundColor3 = Color3.fromRGB(25, 18, 30)
+circleWidget.Text = "🎃"
+circleWidget.TextSize = 24
+circleWidget.AutoButtonColor = false
+circleWidget.Visible = false
+circleWidget.Active = true
+circleWidget.Parent = screenGui
+
+local circleCorner = Instance.new("UICorner")
+circleCorner.CornerRadius = UDim.new(1, 0)
+circleCorner.Parent = circleWidget
+
+local circleStroke = Instance.new("UIStroke")
+circleStroke.Thickness = 1.5
+circleStroke.Color = Color3.fromRGB(255, 110, 0)
+circleStroke.Parent = circleWidget
+
+----------------------------------------------------
+-- HEADER CONTROLS (Title, Minimize, Close)
+----------------------------------------------------
+local headerFrame = Instance.new("Frame")
+headerFrame.Size = UDim2.new(1, 0, 0, 32)
+headerFrame.BackgroundTransparency = 1
+headerFrame.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0.65, 0, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Font = Enum.Font.FredokaOne
+titleLabel.Text = "🎃 THE MORGUE SHIFT"
+titleLabel.TextColor3 = Color3.fromRGB(255, 130, 0)
+titleLabel.TextSize = 13
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = headerFrame
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -28, 0.5, -11)
+closeBtn.BackgroundColor3 = Color3.fromRGB(35, 25, 45)
+closeBtn.Font = Enum.Font.FredokaOne
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255, 60, 90)
+closeBtn.TextSize = 12
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = headerFrame
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.Parent = closeBtn
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -54, 0.5, -11)
+minBtn.BackgroundColor3 = Color3.fromRGB(35, 25, 45)
+minBtn.Font = Enum.Font.FredokaOne
+minBtn.Text = "─"
+minBtn.TextColor3 = Color3.fromRGB(255, 180, 0)
+minBtn.TextSize = 12
+minBtn.AutoButtonColor = false
+minBtn.Parent = headerFrame
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 5)
+minCorner.Parent = minBtn
+
+----------------------------------------------------
+-- CONTENT BODY (COMPACT TOGGLES)
+----------------------------------------------------
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -20, 1, -40)
+contentFrame.Position = UDim2.new(0, 10, 0, 35)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 6)
+listLayout.Parent = contentFrame
+
+local function createSpookyToggle(name, icon)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 22, 38)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.Parent = contentFrame
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(0, 6)
+    tCorner.Parent = toggleFrame
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(0.68, 0, 1, 0)
+    title.Position = UDim2.new(0, 8, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.FredokaOne
+    title.Text = icon .. " " .. name
+    title.TextColor3 = Color3.fromRGB(220, 220, 230)
+    title.TextSize = 12
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = toggleFrame
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 42, 0, 22)
+    toggleBtn.Position = UDim2.new(1, -48, 0.5, -11)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 40, 60)
+    toggleBtn.Text = ""
+    toggleBtn.AutoButtonColor = false
+    toggleBtn.Parent = toggleFrame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(1, 0)
+    btnCorner.Parent = toggleBtn
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 16, 0, 16)
+    indicator.Position = UDim2.new(0, 3, 0.5, -8)
+    indicator.BackgroundColor3 = Color3.fromRGB(150, 150, 160)
+    indicator.BorderSizePixel = 0
+    indicator.Parent = toggleBtn
+
+    local indCorner = Instance.new("UICorner")
+    indCorner.CornerRadius = UDim.new(1, 0)
+    indCorner.Parent = indicator
+
+    local active = false
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        active = not active
+        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        if active then
+            TweenService:Create(indicator, tweenInfo, {Position = UDim2.new(1, -19, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            TweenService:Create(toggleBtn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(255, 110, 0)}):Play()
+        else
+            TweenService:Create(indicator, tweenInfo, {Position = UDim2.new(0, 3, 0.5, -8), BackgroundColor3 = Color3.fromRGB(150, 150, 160)}):Play()
+            TweenService:Create(toggleBtn, tweenInfo, {BackgroundColor3 = Color3.fromRGB(50, 40, 60)}):Play()
+        end
+    end)
+
+    return function() return active end
+end
+
+local isHalloweenActive = createSpookyToggle("30 MENIT SPAWN", "🍬")
+local isPatrolActive = createSpookyToggle("AUTO COLLECT BOOST", "🎁")
+local isGodModeActive = createSpookyToggle("GOD MODE", "👻")
+local isAntiAfkActive = createSpookyToggle("Anti-AFK Mode", "⏰")
+
+----------------------------------------------------
+-- DRAG SYSTEM (Mendukung Touch HP & Mouse PC)
+----------------------------------------------------
+local function applyDrag(guiObject)
+    local dragging, dragStart, startPos, dragInput
+
+    guiObject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = guiObject.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    guiObject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            TweenService:Create(guiObject, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = newPos}):Play()
+        end
+    end)
+end
+
+applyDrag(mainFrame)
+applyDrag(circleWidget)
+
+----------------------------------------------------
+-- TOGGLE VISIBILITY & ANIMATION (MINIMIZE / RESTORE)
+----------------------------------------------------
+minBtn.MouseButton1Click:Connect(function()
+    TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+    task.wait(0.25)
+    mainFrame.Visible = false
+
+    circleWidget.Visible = true
+    circleWidget.Size = UDim2.new(0, 0, 0, 0)
+    TweenService:Create(circleWidget, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+end)
+
+circleWidget.MouseButton1Click:Connect(function()
+    TweenService:Create(circleWidget, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+    task.wait(0.2)
+    circleWidget.Visible = false
+
+    mainFrame.Visible = true
+    TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 240)}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
+    task.wait(0.25)
+    screenGui:Destroy()
+end)
+
+----------------------------------------------------
+-- BACKGROUND FEATURES (ANTI-AFK, GOD MODE, COLLECT)
+----------------------------------------------------
+localPlayer.Idled:Connect(function()
+    if isAntiAfkActive() then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+    end
+end)
+
+local function applyAntiGhostMode()
+    local character = localPlayer.Character
+    if not character then return end
+
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanTouch = false
+        end
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health < humanoid.MaxHealth then
+        humanoid.Health = humanoid.MaxHealth
+    end
+
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Model") or v:IsA("BasePart") then
+            local nameLower = v.Name:lower()
+            if nameLower:find("ghost") or nameLower:find("hantu") or nameLower:find("monster") or nameLower:find("npc") or nameLower:find("killer") then
+                if v:IsA("BasePart") then
+                    v.CanTouch = false
+                    v.CanCollide = false
+                elseif v:IsA("Model") then
+                    for _, child in ipairs(v:GetDescendants()) do
+                        if child:IsA("BasePart") then
+                            child.CanTouch = false
+                            child.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function processPromptsInFolder(folder)
+    if not folder then return end
+    local character = localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, prompt in ipairs(folder:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            local parent = prompt.Parent
+            local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
+
+            if targetCFrame then
+                hrp.CFrame = targetCFrame * CFrame.new(0, 2.5, 0)
+                task.wait(0.1)
+
+                if fireproximityprompt then
+                    fireproximityprompt(prompt)
+                else
+                    prompt:InputHoldBegin()
+                    task.wait(prompt.HoldDuration + 0.05)
+                    prompt:InputHoldEnd()
+                end
+                task.wait(0.15)
+            end
+        end
+    end
+end
+
+-- Khusus Patrol: Mengambil item yang mengandung kata "Candy", "Gift", ATAU "Pumpkin"
+local function processPatrolItems(folder)
+    if not folder then return end
+    local character = localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, prompt in ipairs(folder:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            local parent = prompt.Parent
+            local promptName = prompt.Name:lower()
+            local parentName = parent.Name:lower()
+
+            -- Memeriksa apakah nama prompt/parent mengandung "candy", "gift", atau "pumpkin"
+            if promptName:find("candy") or parentName:find("candy") or 
+               promptName:find("gift") or parentName:find("gift") or 
+               promptName:find("pumpkin") or parentName:find("pumpkin") then
+               
+                local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
+
+                if targetCFrame then
+                    hrp.CFrame = targetCFrame * CFrame.new(0, 2.5, 0)
+                    task.wait(0.1)
+
+                    if fireproximityprompt then
+                        fireproximityprompt(prompt)
+                    else
+                        prompt:InputHoldBegin()
+                        task.wait(prompt.HoldDuration + 0.05)
+                        prompt:InputHoldEnd()
+                    end
+                    task.wait(0.15)
+                end
+            end
+        end
+    end
+end
+
+-- Main Loop Running in Background
+task.spawn(function()
+    while true do
+        pcall(function()
+            if isGodModeActive() then
+                applyAntiGhostMode()
+            end
+
+            if isHalloweenActive() then
+                local halloweenFolder = workspace:FindFirstChild("Halloween")
+                local spawnPoint = halloweenFolder and halloweenFolder:FindFirstChild("SpawnPoint")
+                if spawnPoint then
+                    processPromptsInFolder(spawnPoint)
+                end
+            end
+
+            if isPatrolActive() then
+                local patrolFolder = workspace:FindFirstChild("Patrol")
+                if patrolFolder then
+                    processPatrolItems(patrolFolder)
+                end
+            end
+        end)
+        task.wait(0.2)
+    end
+end)
