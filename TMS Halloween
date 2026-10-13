@@ -26,7 +26,7 @@ if not screenGui.Parent then screenGui.Parent = localPlayer:WaitForChild("Player
 ----------------------------------------------------
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 250, 0, 205) -- Disesuaikan ukurannya karena 1 toggle dikurangi
+mainFrame.Size = UDim2.new(0, 250, 0, 205)
 mainFrame.Position = UDim2.new(0.5, -125, 0.5, -102)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 25)
 mainFrame.BorderSizePixel = 0
@@ -269,7 +269,7 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------
--- BACKGROUND FEATURES (ANTI-AFK & COLLECT)
+-- BACKGROUND FEATURES (ANTI-AFK & TWEEN COLLECT)
 ----------------------------------------------------
 localPlayer.Idled:Connect(function()
     if isAntiAfkActive() then
@@ -279,6 +279,20 @@ localPlayer.Idled:Connect(function()
         end)
     end
 end)
+
+-- Fungsi Bantu TWEEN Menuju Target (Speed 16 Normal)
+local function tweenToTarget(hrp, targetCFrame)
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local normalSpeed = 16 
+    local travelTime = distance / normalSpeed
+    
+    travelTime = math.clamp(travelTime, 0.05, 5) 
+
+    local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+end
 
 local function processPromptsInFolder(folder)
     if not folder then return end
@@ -292,7 +306,8 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                hrp.CFrame = targetCFrame * CFrame.new(0, 2.5, 0)
+                -- Bergerak menggunakan Tween kecepatan normal
+                tweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
                 task.wait(0.1)
 
                 if fireproximityprompt then
@@ -302,7 +317,9 @@ local function processPromptsInFolder(folder)
                     task.wait(prompt.HoldDuration + 0.05)
                     prompt:InputHoldEnd()
                 end
-                task.wait(0.15)
+                
+                -- Jeda 2 detik setelah selesai memproses 1 item
+                task.wait(2.0)
             end
         end
     end
@@ -321,7 +338,6 @@ local function processPatrolItems(folder)
             local promptName = prompt.Name:lower()
             local parentName = parent.Name:lower()
 
-            -- Memeriksa apakah nama prompt/parent mengandung "candy", "gift", atau "pumpkin"
             if promptName:find("candy") or parentName:find("candy") or 
                promptName:find("gift") or parentName:find("gift") or 
                promptName:find("pumpkin") or parentName:find("pumpkin") then
@@ -329,7 +345,8 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    hrp.CFrame = targetCFrame * CFrame.new(0, 2.5, 0)
+                    -- Bergerak menggunakan Tween kecepatan normal
+                    tweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
                     task.wait(0.1)
 
                     if fireproximityprompt then
@@ -339,7 +356,9 @@ local function processPatrolItems(folder)
                         task.wait(prompt.HoldDuration + 0.05)
                         prompt:InputHoldEnd()
                     end
-                    task.wait(0.15)
+                    
+                    -- Jeda 2 detik setelah selesai memproses 1 item
+                    task.wait(2.0)
                 end
             end
         end
@@ -365,6 +384,6 @@ task.spawn(function()
                 end
             end
         end)
-        task.wait(0.2)
+        task.wait(0.5)
     end
 end)
