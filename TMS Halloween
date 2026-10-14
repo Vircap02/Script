@@ -381,7 +381,6 @@ local function safeTweenToTarget(hrp, targetCFrame)
     
     tween:Play()
     tween.Completed:Wait()
-    task.wait(0.2)
 end
 
 local function processPromptsInFolder(folder)
@@ -396,21 +395,23 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- 1. Tween mendekati item yang baru spawn
+                -- 1. Mendekati item dengan Tween aman
                 safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                -- 2. Menunggu 5 detik (delay acak 4.8 - 5.2 detik agar aman) di dekat item sebelum diambil
-                task.wait(math.random(48, 52) / 10)
+                -- 2. Tunggu dulu sekitar 5 detik sebelum mengambil item (acak 4.8 - 5.5 detik)
+                task.wait(math.random(48, 55) / 10)
 
-                -- 3. Eksekusi ambil item menggunakan fireproximityprompt
-                if prompt.Enabled then
+                -- 3. Spam fireproximityprompt berulang-ulang agar sukses terambil
+                for i = 1, 5 do
+                    if not prompt.Enabled then break end
                     if fireproximityprompt then
                         fireproximityprompt(prompt)
                     else
                         prompt:InputHoldBegin()
-                        task.wait(prompt.HoldDuration + 0.05)
+                        task.wait(0.05)
                         prompt:InputHoldEnd()
                     end
+                    task.wait(0.1)
                 end
             end
         end
@@ -436,21 +437,23 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- 1. Tween mendekati item patroli
+                    -- 1. Mendekati item dengan Tween aman
                     safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                    -- 2. Menunggu 5 detik (delay acak 4.8 - 5.2 detik) sebelum diambil
-                    task.wait(math.random(48, 52) / 10)
+                    -- 2. Tunggu dulu sekitar 5 detik sebelum mengambil item (acak 4.8 - 5.5 detik)
+                    task.wait(math.random(48, 55) / 10)
 
-                    -- 3. Eksekusi ambil item menggunakan fireproximityprompt
-                    if prompt.Enabled then
+                    -- 3. Spam fireproximityprompt berulang-ulang agar sukses terambil
+                    for i = 1, 5 do
+                        if not prompt.Enabled then break end
                         if fireproximityprompt then
                             fireproximityprompt(prompt)
                         else
                             prompt:InputHoldBegin()
-                            task.wait(prompt.HoldDuration + 0.05)
+                            task.wait(0.05)
                             prompt:InputHoldEnd()
                         end
+                        task.wait(0.1)
                     end
                 end
             end
