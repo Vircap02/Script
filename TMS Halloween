@@ -395,13 +395,13 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- 1. Mendekati item dengan Tween aman
-                safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-
-                -- 2. Tunggu dulu sekitar 5 detik sebelum mengambil item (acak 4.8 - 5.5 detik)
+                -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat sebelum bergerak
                 task.wait(math.random(48, 55) / 10)
 
-                -- 3. Spam fireproximityprompt berulang-ulang agar sukses terambil
+                -- 2. Baru bergerak ke item menggunakan Tween aman
+                safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
+
+                -- 3. Langsung spam fireproximityprompt saat sampai
                 for i = 1, 5 do
                     if not prompt.Enabled then break end
                     if fireproximityprompt then
@@ -437,19 +437,19 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- 1. Mendekati item dengan Tween aman
-                    safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-
-                    -- 2. Tunggu dulu sekitar 5 detik sebelum mengambil item (acak 4.8 - 5.5 detik)
+                    -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat sebelum bergerak
                     task.wait(math.random(48, 55) / 10)
 
-                    -- 3. Spam fireproximityprompt berulang-ulang agar sukses terambil
+                    -- 2. Baru bergerak ke item menggunakan Tween aman
+                    safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
+
+                    -- 3. Langsung spam fireproximityprompt saat sampai
                     for i = 1, 5 do
                         if not prompt.Enabled then break end
                         if fireproximityprompt then
                             fireproximityprompt(prompt)
                         else
-                            prompt:InputHoldBegin()
+                        prompt:InputHoldBegin()
                             task.wait(0.05)
                             prompt:InputHoldEnd()
                         end
