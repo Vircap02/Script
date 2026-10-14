@@ -384,17 +384,6 @@ local function safeTweenToTarget(hrp, targetCFrame)
     tween.Completed:Wait()
 end
 
-local function triggerHoldPrompt(prompt)
-    if not prompt or not prompt.Enabled then return end
-    
-    pcall(function()
-        prompt:InputHoldBegin()
-        local duration = prompt.HoldDuration or 0.1
-        task.wait(duration + 0.1)
-        prompt:InputHoldEnd()
-    end)
-end
-
 local function processPromptsInFolder(folder)
     if not folder then return end
     local character = localPlayer.Character
@@ -407,19 +396,24 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- 1. Tunggu dulu sekitar 5 detik di tempat sebelum bergerak
+                -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                 task.wait(math.random(48, 55) / 10)
 
-                -- 2. Kamera menghadap ke arah item
+                -- 2. Kamera menghadap ke arah posisi target item
                 local targetPos = targetCFrame.Position
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
 
                 -- 3. Bergerak ke item menggunakan Tween aman
                 safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                -- 4. Gunakan Hold Proximity
-                triggerHoldPrompt(prompt)
-                task.wait(0.2)
+                -- 4. Gunakan metode Hold Proximity (Menahan tombol prompt sesuai durasi aslinya agar tidak gagal collect)
+                pcall(function()
+                    prompt:InputHoldBegin()
+                    task.wait(prompt.HoldDuration + 0.3)
+                    prompt:InputHoldEnd()
+                end)
+                
+                task.wait(0.5)
             end
         end
     end
@@ -444,19 +438,24 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- 1. Tunggu dulu sekitar 5 detik di tempat sebelum bergerak
+                    -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                     task.wait(math.random(48, 55) / 10)
 
-                    -- 2. Kamera menghadap ke arah item
+                    -- 2. Kamera menghadap ke arah posisi target item
                     local targetPos = targetCFrame.Position
                     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
 
                     -- 3. Bergerak ke item menggunakan Tween aman
                     safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                    -- 4. Gunakan Hold Proximity
-                    triggerHoldPrompt(prompt)
-                    task.wait(0.2)
+                    -- 4. Gunakan metode Hold Proximity (Menahan tombol prompt)
+                    pcall(function()
+                        prompt:InputHoldBegin()
+                        task.wait(prompt.HoldDuration + 0.3)
+                        prompt:InputHoldEnd()
+                    end)
+                    
+                    task.wait(0.5)
                 end
             end
         end
