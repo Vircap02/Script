@@ -371,14 +371,16 @@ localPlayer.Idled:Connect(function()
 end)
 
 local function safeTweenToTarget(hrp, targetCFrame)
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    if distance < 1.5 then return end
+    -- Berhenti dengan offset mundur sejauh 2.5 studs ke belakang item agar pas di jangkauan prompt
+    local adjustedCFrame = targetCFrame * CFrame.new(0, 0, 2.5)
+    local distance = (hrp.Position - adjustedCFrame.Position).Magnitude
+    if distance < 1.0 then return end
 
     local safeSpeed = 14 
     local travelTime = distance / safeSpeed
 
     local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = adjustedCFrame})
     
     tween:Play()
     tween.Completed:Wait()
@@ -401,17 +403,13 @@ local function processPromptsInFolder(folder)
 
                 -- 2. Kamera langsung menghadap ke arah posisi target item secara mulus
                 local targetPos = targetCFrame.Position
-                local camTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local currentCamCFrame = Camera.CFrame
-                local lookAtCFrame = CFrame.new(currentCamCFrame.Position, targetPos)
-                
-                -- Terapkan rotasi kamera menghadap item
+                local lookAtCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                 Camera.CFrame = lookAtCFrame
 
-                -- 3. Bergerak ke item menggunakan Tween aman
-                safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
+                -- 3. Bergerak ke posisi tepat di depan/luar item menggunakan Tween aman
+                safeTweenToTarget(hrp, targetCFrame)
 
-                -- 4. Spam fireproximityprompt saat sampai
+                -- 4. Langsung spam fireproximityprompt saat sampai
                 for i = 1, 5 do
                     if not prompt.Enabled then break end
                     if fireproximityprompt then
@@ -455,10 +453,10 @@ local function processPatrolItems(folder)
                     local lookAtCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                     Camera.CFrame = lookAtCFrame
 
-                    -- 3. Bergerak ke item menggunakan Tween aman
-                    safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
+                    -- 3. Bergerak ke posisi tepat di depan/luar item menggunakan Tween aman
+                    safeTweenToTarget(hrp, targetCFrame)
 
-                    -- 4. Spam fireproximityprompt saat sampai
+                    -- 4. Langsung spam fireproximityprompt saat sampai
                     for i = 1, 5 do
                         if not prompt.Enabled then break end
                         if fireproximityprompt then
