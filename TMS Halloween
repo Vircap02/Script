@@ -269,7 +269,7 @@ closeBtn.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------
--- BACKGROUND FEATURES (ANTI-AFK & TWEEN COLLECT)
+-- BACKGROUND FEATURES (ANTI-AFK & SAFE TWEEN)
 ----------------------------------------------------
 localPlayer.Idled:Connect(function()
     if isAntiAfkActive() then
@@ -280,18 +280,23 @@ localPlayer.Idled:Connect(function()
     end
 end)
 
--- Fungsi Bantu TWEEN Menuju Target (Speed 16 Normal)
-local function tweenToTarget(hrp, targetCFrame)
+-- Fungsi Safe Tween untuk Menghindari Anti-Cheat Banned
+local function safeTweenToTarget(hrp, targetCFrame)
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local normalSpeed = 16 
-    local travelTime = distance / normalSpeed
-    
-    travelTime = math.clamp(travelTime, 0.05, 5) 
+    if distance < 1.5 then return end -- Sudah sangat dekat
+
+    -- Kecepatan dibuat 14 studs/detik (di bawah batas normal 16 studs/detik agar aman)
+    local safeSpeed = 14 
+    local travelTime = distance / safeSpeed
 
     local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    
     tween:Play()
     tween.Completed:Wait()
+    
+    -- Jeda mikro memastikan server mencatat posisi secara valid
+    task.wait(0.2)
 end
 
 local function processPromptsInFolder(folder)
@@ -306,9 +311,8 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- Bergerak menggunakan Tween kecepatan normal
-                tweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-                task.wait(0.1)
+                -- Pergerakan Tween Aman
+                safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
                 if fireproximityprompt then
                     fireproximityprompt(prompt)
@@ -318,8 +322,8 @@ local function processPromptsInFolder(folder)
                     prompt:InputHoldEnd()
                 end
                 
-                -- Jeda 2 detik setelah selesai memproses 1 item
-                task.wait(2.0)
+                -- Delay Acak (2.5 - 3.5 detik) agar tidak terdeteksi bot/script otomatis
+                task.wait(math.random(25, 35) / 10)
             end
         end
     end
@@ -345,9 +349,8 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- Bergerak menggunakan Tween kecepatan normal
-                    tweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-                    task.wait(0.1)
+                    -- Pergerakan Tween Aman
+                    safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
                     if fireproximityprompt then
                         fireproximityprompt(prompt)
@@ -357,8 +360,8 @@ local function processPatrolItems(folder)
                         prompt:InputHoldEnd()
                     end
                     
-                    -- Jeda 2 detik setelah selesai memproses 1 item
-                    task.wait(2.0)
+                    -- Delay Acak (2.5 - 4.0 detik) antar item
+                    task.wait(math.random(25, 40) / 10)
                 end
             end
         end
@@ -384,6 +387,6 @@ task.spawn(function()
                 end
             end
         end)
-        task.wait(0.5)
+        task.wait(1)
     end
 end)
