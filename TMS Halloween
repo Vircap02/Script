@@ -3,9 +3,9 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
-local workspace = game:GetService("Workspace")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 local localPlayer = Players.LocalPlayer
-local camera = workspace.CurrentCamera
 
 -- Hapus UI lama jika ada
 if CoreGui:FindFirstChild("SpookyCollectUI") then
@@ -296,8 +296,8 @@ local function updateEsp()
     end
 
     local foldersToCheck = {
-        workspace:FindFirstChild("Halloween") and workspace.Halloween:FindFirstChild("SpawnPoint"),
-        workspace:FindFirstChild("Patrol")
+        Workspace:FindFirstChild("Halloween") and Workspace.Halloween:FindFirstChild("SpawnPoint"),
+        Workspace:FindFirstChild("Patrol")
     }
 
     local activePrompts = {}
@@ -399,10 +399,14 @@ local function processPromptsInFolder(folder)
                 -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                 task.wait(math.random(48, 55) / 10)
 
-                -- 2. Kamera menghadap langsung ke arah item sebelum bergerak
-                pcall(function()
-                    camera.CFrame = CFrame.new(camera.CFrame.Position, targetCFrame.Position)
-                end)
+                -- 2. Kamera langsung menghadap ke arah posisi target item secara mulus
+                local targetPos = targetCFrame.Position
+                local camTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local currentCamCFrame = Camera.CFrame
+                local lookAtCFrame = CFrame.new(currentCamCFrame.Position, targetPos)
+                
+                -- Terapkan rotasi kamera menghadap item
+                Camera.CFrame = lookAtCFrame
 
                 -- 3. Bergerak ke item menggunakan Tween aman
                 safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
@@ -446,10 +450,10 @@ local function processPatrolItems(folder)
                     -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                     task.wait(math.random(48, 55) / 10)
 
-                    -- 2. Kamera menghadap langsung ke arah item sebelum bergerak
-                    pcall(function()
-                        camera.CFrame = CFrame.new(camera.CFrame.Position, targetCFrame.Position)
-                    end)
+                    -- 2. Kamera langsung menghadap ke arah posisi target item
+                    local targetPos = targetCFrame.Position
+                    local lookAtCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+                    Camera.CFrame = lookAtCFrame
 
                     -- 3. Bergerak ke item menggunakan Tween aman
                     safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
@@ -477,7 +481,7 @@ task.spawn(function()
     while true do
         pcall(function()
             if isHalloweenActive() then
-                local halloweenFolder = workspace:FindFirstChild("Halloween")
+                local halloweenFolder = Workspace:FindFirstChild("Halloween")
                 local spawnPoint = halloweenFolder and halloweenFolder:FindFirstChild("SpawnPoint")
                 if spawnPoint then
                     processPromptsInFolder(spawnPoint)
@@ -485,7 +489,7 @@ task.spawn(function()
             end
 
             if isPatrolActive() then
-                local patrolFolder = workspace:FindFirstChild("Patrol")
+                local patrolFolder = Workspace:FindFirstChild("Patrol")
                 if patrolFolder then
                     processPatrolItems(patrolFolder)
                 end
