@@ -302,54 +302,56 @@ local function updateEsp()
 
     local activePrompts = {}
 
-    for _, folder in ipairs(foldersToCheck) do
-        if folder then
-            for _, prompt in ipairs(folder:GetDescendants()) do
-                if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                    local parent = prompt.Parent
-                    local pName = prompt.Name:lower()
-                    local parName = parent and parent.Name:lower() or ""
+    local function checkAndAdd(folder)
+        if not folder then return end
+        for _, prompt in ipairs(folder:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                local parent = prompt.Parent
+                local pName = prompt.Name:lower()
+                local parName = parent and parent.Name:lower() or ""
 
-                    if pName:find("candy") or parName:find("candy") or
-                       pName:find("gift") or parName:find("gift") or
-                       pName:find("pumpkin") or parName:find("pumpkin") or
-                       folder.Name == "SpawnPoint" then
-                        
-                        activePrompts[prompt] = parent
+                if pName:find("candy") or parName:find("candy") or
+                   pName:find("gift") or parName:find("gift") or
+                   pName:find("pumpkin") or parName:find("pumpkin") or
+                   folder.Name == "SpawnPoint" then
+                    
+                    activePrompts[prompt] = parent
 
-                        if parent and (parent:IsA("BasePart") or parent:IsA("Model")) and not espContainer[prompt] then
-                            local highlight = Instance.new("Highlight")
-                            highlight.Adornee = parent
-                            highlight.FillColor = Color3.fromRGB(255, 110, 0)
-                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.FillTransparency = 0.5
-                            highlight.OutlineTransparency = 0
-                            highlight.Parent = CoreGui
+                    if parent and (parent:IsA("BasePart") or parent:IsA("Model")) and not espContainer[prompt] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Adornee = parent
+                        highlight.FillColor = Color3.fromRGB(255, 110, 0)
+                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = CoreGui
 
-                            local billboard = Instance.new("BillboardGui")
-                            billboard.Adornee = parent:IsA("BasePart") and parent or parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart")
-                            billboard.Size = UDim2.new(0, 100, 0, 40)
-                            billboard.StudsOffset = Vector3.new(0, 2, 0)
-                            billboard.AlwaysOnTop = true
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Adornee = parent:IsA("BasePart") and parent or parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart")
+                        billboard.Size = UDim2.new(0, 100, 0, 40)
+                        billboard.StudsOffset = Vector3.new(0, 2, 0)
+                        billboard.AlwaysOnTop = true
 
-                            local textLabel = Instance.new("TextLabel")
-                            textLabel.Size = UDim2.new(1, 0, 1, 0)
-                            textLabel.BackgroundTransparency = 1
-                            textLabel.Font = Enum.Font.FredokaOne
-                            textLabel.Text = "🎃 " .. (parent.Name ~= "" and parent.Name or "Item")
-                            textLabel.TextColor3 = Color3.fromRGB(255, 180, 0)
-                            textLabel.TextSize = 12
-                            textLabel.TextStrokeTransparency = 0
-                            textLabel.Parent = billboard
+                        local textLabel = Instance.new("TextLabel")
+                        textLabel.Size = UDim2.new(1, 0, 1, 0)
+                        textLabel.BackgroundTransparency = 1
+                        textLabel.Font = Enum.Font.FredokaOne
+                        textLabel.Text = "🎃 " .. (parent.Name ~= "" and parent.Name or "Item")
+                        textLabel.TextColor3 = Color3.fromRGB(255, 180, 0)
+                        textLabel.TextSize = 12
+                        textLabel.TextStrokeTransparency = 0
+                        textLabel.Parent = billboard
 
-                            billboard.Parent = CoreGui
-                            espContainer[prompt] = {highlight = highlight, billboard = billboard}
-                        end
+                        billboard.Parent = CoreGui
+                        espContainer[prompt] = {highlight = highlight, billboard = billboard}
                     end
                 end
             end
         end
     end
+
+    checkAndAdd(Workspace:FindFirstChild("Halloween") and Workspace.Halloween:FindFirstChild("SpawnPoint"))
+    checkAndAdd(Workspace:FindFirstChild("Patrol"))
 
     for prompt, data in pairs(espContainer) do
         if not activePrompts[prompt] or not prompt.Parent or not prompt.Enabled then
@@ -359,7 +361,7 @@ local function updateEsp()
 end
 
 ----------------------------------------------------
--- BACKGROUND FEATURES (ANTI-AFK & SAFE TWEEN)
+-- BACKGROUND FEATURES (ANTI-AFK & FARMING LOGIC)
 ----------------------------------------------------
 localPlayer.Idled:Connect(function()
     if isAntiAfkActive() then
@@ -374,7 +376,6 @@ local function safeTweenToTarget(hrp, targetCFrame)
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     if distance < 1.5 then return end
 
-    -- Kecepatan tween dikurangi ke 11 studs/detik agar semakin halus dan aman
     local safeSpeed = 11 
     local travelTime = distance / safeSpeed
 
@@ -385,6 +386,7 @@ local function safeTweenToTarget(hrp, targetCFrame)
     tween.Completed:Wait()
 end
 
+-- 30 Menit Spawn (Halloween): Tween, Jaga Jarak, Kamera Menghadap Presisi, Jeda 5 Detik, FireProximity
 local function processPromptsInFolder(folder)
     if not folder then return end
     local character = localPlayer.Character
@@ -392,6 +394,7 @@ local function processPromptsInFolder(folder)
     if not hrp then return end
 
     for _, prompt in ipairs(folder:GetDescendants()) do
+        if not isHalloweenActive() then break end
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
             local parent = prompt.Parent
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
@@ -399,11 +402,11 @@ local function processPromptsInFolder(folder)
             if targetCFrame then
                 local targetPos = targetCFrame.Position
 
-                -- Kunci kamera menjadi Scriptable agar menghadap akurat ke prompt
+                -- Kamera menghadap persis ke arah item menggunakan CFrame.lookAt
                 Camera.CameraType = Enum.CameraType.Scriptable
                 Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos)
 
-                -- Bergerak ke dekat item dengan jarak aman
+                -- Tween mendekati item dengan jarak aman
                 local offsetCFrame = targetCFrame * CFrame.new(0, 2.5, 3) 
                 safeTweenToTarget(hrp, offsetCFrame)
 
@@ -419,7 +422,6 @@ local function processPromptsInFolder(folder)
                     prompt:InputHoldEnd()
                 end
                 
-                -- Kembalikan kamera ke mode normal
                 Camera.CameraType = Enum.CameraType.Custom
                 task.wait(0.5)
             end
@@ -427,6 +429,7 @@ local function processPromptsInFolder(folder)
     end
 end
 
+-- Auto Collect Boost (Patrol): TP Instan, Kamera Menghadap Presisi, FireProximity Tanpa Delay
 local function processPatrolItems(folder)
     if not folder then return end
     local character = localPlayer.Character
@@ -434,6 +437,7 @@ local function processPatrolItems(folder)
     if not hrp then return end
 
     for _, prompt in ipairs(folder:GetDescendants()) do
+        if not isPatrolActive() then break end
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
             local parent = prompt.Parent
             local promptName = prompt.Name:lower()
@@ -448,29 +452,22 @@ local function processPatrolItems(folder)
                 if targetCFrame then
                     local targetPos = targetCFrame.Position
 
-                    -- Kunci kamera menjadi Scriptable
+                    -- Kamera menghadap persis ke arah item saat TP instan
                     Camera.CameraType = Enum.CameraType.Scriptable
                     Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos)
 
-                    -- Bergerak ke dekat item dengan jarak aman
-                    local offsetCFrame = targetCFrame * CFrame.new(0, 2.5, 3)
-                    safeTweenToTarget(hrp, offsetCFrame)
-
-                    -- Tunggu 5 detik setelah sampai
-                    task.wait(math.random(48, 55) / 10)
-
-                    -- Eksekusi fireproximityprompt
+                    -- Teleport instan langsung ke item tanpa delay
+                    hrp.CFrame = targetCFrame * CFrame.new(0, 2.5, 0)
+                    
                     if fireproximityprompt then
                         fireproximityprompt(prompt)
                     else
                         prompt:InputHoldBegin()
-                        task.wait(prompt.HoldDuration + 0.05)
+                        task.wait(0.05)
                         prompt:InputHoldEnd()
                     end
-                    
-                    -- Kembalikan kamera ke mode normal
+
                     Camera.CameraType = Enum.CameraType.Custom
-                    task.wait(0.5)
                 end
             end
         end
@@ -498,6 +495,6 @@ task.spawn(function()
 
             updateEsp()
         end)
-        task.wait(0.5)
+        task.wait(0.2)
     end
 end)
