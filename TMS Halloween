@@ -374,7 +374,8 @@ local function safeTweenToTarget(hrp, targetCFrame)
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     if distance < 1.5 then return end
 
-    local safeSpeed = 14 
+    -- Kecepatan tween dikurangi ke 11 studs/detik agar semakin halus dan aman
+    local safeSpeed = 11 
     local travelTime = distance / safeSpeed
 
     local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
@@ -396,23 +397,30 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
+                local targetPos = targetCFrame.Position
+
+                -- Kunci kamera menjadi Scriptable agar menghadap akurat ke prompt
+                Camera.CameraType = Enum.CameraType.Scriptable
+                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos)
+
+                -- Bergerak ke dekat item dengan jarak aman
+                local offsetCFrame = targetCFrame * CFrame.new(0, 2.5, 3) 
+                safeTweenToTarget(hrp, offsetCFrame)
+
+                -- Tunggu 5 detik setelah sampai
                 task.wait(math.random(48, 55) / 10)
 
-                -- 2. Kamera menghadap ke arah posisi target item
-                local targetPos = targetCFrame.Position
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-
-                -- 3. Bergerak ke item menggunakan Tween aman
-                safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-
-                -- 4. Gunakan metode Hold Proximity (Menahan tombol prompt sesuai durasi aslinya agar tidak gagal collect)
-                pcall(function()
+                -- Eksekusi fireproximityprompt
+                if fireproximityprompt then
+                    fireproximityprompt(prompt)
+                else
                     prompt:InputHoldBegin()
-                    task.wait(prompt.HoldDuration + 0.3)
+                    task.wait(prompt.HoldDuration + 0.05)
                     prompt:InputHoldEnd()
-                end)
+                end
                 
+                -- Kembalikan kamera ke mode normal
+                Camera.CameraType = Enum.CameraType.Custom
                 task.wait(0.5)
             end
         end
@@ -438,23 +446,30 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
+                    local targetPos = targetCFrame.Position
+
+                    -- Kunci kamera menjadi Scriptable
+                    Camera.CameraType = Enum.CameraType.Scriptable
+                    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos)
+
+                    -- Bergerak ke dekat item dengan jarak aman
+                    local offsetCFrame = targetCFrame * CFrame.new(0, 2.5, 3)
+                    safeTweenToTarget(hrp, offsetCFrame)
+
+                    -- Tunggu 5 detik setelah sampai
                     task.wait(math.random(48, 55) / 10)
 
-                    -- 2. Kamera menghadap ke arah posisi target item
-                    local targetPos = targetCFrame.Position
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-
-                    -- 3. Bergerak ke item menggunakan Tween aman
-                    safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
-
-                    -- 4. Gunakan metode Hold Proximity (Menahan tombol prompt)
-                    pcall(function()
+                    -- Eksekusi fireproximityprompt
+                    if fireproximityprompt then
+                        fireproximityprompt(prompt)
+                    else
                         prompt:InputHoldBegin()
-                        task.wait(prompt.HoldDuration + 0.3)
+                        task.wait(prompt.HoldDuration + 0.05)
                         prompt:InputHoldEnd()
-                    end)
+                    end
                     
+                    -- Kembalikan kamera ke mode normal
+                    Camera.CameraType = Enum.CameraType.Custom
                     task.wait(0.5)
                 end
             end
