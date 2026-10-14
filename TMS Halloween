@@ -392,26 +392,26 @@ local function processPromptsInFolder(folder)
 
     for _, prompt in ipairs(folder:GetDescendants()) do
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-            -- Jeda 5 detik terlebih dahulu setelah item terdeteksi spawn sebelum diambil
-            task.wait(math.random(48, 52) / 10) 
-
-            if not prompt.Enabled then continue end -- Cek ulang jaga-jaga kalau itemnya sudah hilang
-
             local parent = prompt.Parent
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
+                -- 1. Tween mendekati item yang baru spawn
                 safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                if fireproximityprompt then
-                    fireproximityprompt(prompt)
-                else
-                    prompt:InputHoldBegin()
-                    task.wait(prompt.HoldDuration + 0.05)
-                    prompt:InputHoldEnd()
+                -- 2. Menunggu 5 detik (delay acak 4.8 - 5.2 detik agar aman) di dekat item sebelum diambil
+                task.wait(math.random(48, 52) / 10)
+
+                -- 3. Eksekusi ambil item menggunakan fireproximityprompt
+                if prompt.Enabled then
+                    if fireproximityprompt then
+                        fireproximityprompt(prompt)
+                    else
+                        prompt:InputHoldBegin()
+                        task.wait(prompt.HoldDuration + 0.05)
+                        prompt:InputHoldEnd()
+                    end
                 end
-                
-                task.wait(0.5)
             end
         end
     end
@@ -433,25 +433,25 @@ local function processPatrolItems(folder)
                promptName:find("gift") or parentName:find("gift") or 
                promptName:find("pumpkin") or parentName:find("pumpkin") then
                
-                -- Jeda 5 detik terlebih dahulu setelah item terdeteksi spawn sebelum diambil
-                task.wait(math.random(48, 52) / 10)
-
-                if not prompt.Enabled then continue end
-
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
+                    -- 1. Tween mendekati item patroli
                     safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                    if fireproximityprompt then
-                        fireproximityprompt(prompt)
-                    else
-                        prompt:InputHoldBegin()
-                        task.wait(prompt.HoldDuration + 0.05)
-                        prompt:InputHoldEnd()
+                    -- 2. Menunggu 5 detik (delay acak 4.8 - 5.2 detik) sebelum diambil
+                    task.wait(math.random(48, 52) / 10)
+
+                    -- 3. Eksekusi ambil item menggunakan fireproximityprompt
+                    if prompt.Enabled then
+                        if fireproximityprompt then
+                            fireproximityprompt(prompt)
+                        else
+                            prompt:InputHoldBegin()
+                            task.wait(prompt.HoldDuration + 0.05)
+                            prompt:InputHoldEnd()
+                        end
                     end
-                    
-                    task.wait(0.5)
                 end
             end
         end
