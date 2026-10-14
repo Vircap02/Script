@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
 local workspace = game:GetService("Workspace")
 local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
 -- Hapus UI lama jika ada
 if CoreGui:FindFirstChild("SpookyCollectUI") then
@@ -395,13 +396,18 @@ local function processPromptsInFolder(folder)
             local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
             if targetCFrame then
-                -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat sebelum bergerak
+                -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                 task.wait(math.random(48, 55) / 10)
 
-                -- 2. Baru bergerak ke item menggunakan Tween aman
+                -- 2. Kamera menghadap langsung ke arah item sebelum bergerak
+                pcall(function()
+                    camera.CFrame = CFrame.new(camera.CFrame.Position, targetCFrame.Position)
+                end)
+
+                -- 3. Bergerak ke item menggunakan Tween aman
                 safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                -- 3. Langsung spam fireproximityprompt saat sampai
+                -- 4. Spam fireproximityprompt saat sampai
                 for i = 1, 5 do
                     if not prompt.Enabled then break end
                     if fireproximityprompt then
@@ -437,19 +443,24 @@ local function processPatrolItems(folder)
                 local targetCFrame = parent:IsA("BasePart") and parent.CFrame or (parent:IsA("Model") and parent:GetPivot())
 
                 if targetCFrame then
-                    -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat sebelum bergerak
+                    -- 1. Tunggu dulu sekitar 5 detik (4.8 - 5.5 detik) di tempat
                     task.wait(math.random(48, 55) / 10)
 
-                    -- 2. Baru bergerak ke item menggunakan Tween aman
+                    -- 2. Kamera menghadap langsung ke arah item sebelum bergerak
+                    pcall(function()
+                        camera.CFrame = CFrame.new(camera.CFrame.Position, targetCFrame.Position)
+                    end)
+
+                    -- 3. Bergerak ke item menggunakan Tween aman
                     safeTweenToTarget(hrp, targetCFrame * CFrame.new(0, 2.5, 0))
 
-                    -- 3. Langsung spam fireproximityprompt saat sampai
+                    -- 4. Spam fireproximityprompt saat sampai
                     for i = 1, 5 do
                         if not prompt.Enabled then break end
                         if fireproximityprompt then
                             fireproximityprompt(prompt)
                         else
-                        prompt:InputHoldBegin()
+                            prompt:InputHoldBegin()
                             task.wait(0.05)
                             prompt:InputHoldEnd()
                         end
