@@ -376,7 +376,8 @@ local function safeTweenToTarget(hrp, targetCFrame)
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     if distance < 1.5 then return end
 
-    local safeSpeed = 11 
+    -- Batasi kecepatan maksimal tween tepat di angka 12 studs/detik
+    local safeSpeed = 12 
     local travelTime = distance / safeSpeed
 
     local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
