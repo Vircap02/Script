@@ -1,43 +1,41 @@
+-- Behaviour trace of a MoonVeil script
+-- NOTE: reconstructed from observed behaviour; branches that were not taken
+--       during the trace are missing and conditions are only noted in comments.
+-- run status: finished
+-- 30 statements recorded in 0.03s
+-- URLs requested:
+--   https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau
+--   https://raw.githubusercontent.com/Mainery-foxxie/Main/refs/heads/main/UI%20Libary/Kawai%20Lib/Source.lua
+
+task.spawn(function()
+end)
+
 local response = game:HttpGet("https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau", true)
 local arod = loadstring(response)()
 local response2 = game:HttpGet("https://raw.githubusercontent.com/Mainery-foxxie/Main/refs/heads/main/UI%20Libary/Kawai%20Lib/Source.lua", true)
 local Kawai20Lib = loadstring(response2)()
-
 local Window = arod:CreateWindow("Auto Refund", "refresh-cw")
 Window:Section("Auto Refund")
 Window:Label("Automatically declines purchase prompts and shows item details.")
 Window:Label("No Robux or gems are spent – just snipes and refunds.")
-
 getgenv().AutoRefundV2 = false
 
 Window:Toggle("Enable Auto Refund", false, function(arg)
 	getgenv().AutoRefundV2 = arg
 
-	if arg then
-		Kawai20Lib.Notify({
-			Title = "Auto Refund",
-			Desc = "Enabled – purchases will be auto-declined",
-			Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
-			Duration = 3,
-			Icon = "128092559044681",
-			Type = "success"
-		})
-	else
-		Kawai20Lib.Notify({
-			Title = "Auto Refund",
-			Desc = "Disabled – purchases will proceed normally",
-			Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
-			Duration = 3,
-			Icon = "128092559044681",
-			Type = "warning"
-		})
-	end
+	Kawai20Lib.Notify({
+	Title = "Auto Refund",
+	Desc = "Enabled – purchases will be auto-declined",
+	Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
+	Duration = 3,
+	Icon = "88708020645655",
+	Type = "success"
+})
 end)
 
 Window:Section("Credits")
-Window:Label("Skid by Virgoboy")
+Window:Label("Made by Synai Z Hub")
 arod:Start()
-
 local MarketplaceService = game:GetService("MarketplaceService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -50,6 +48,49 @@ Kawai20Lib.Notify({
 	Desc = "Toggle enabled/disabled in the UI",
 	Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
 	Duration = 4,
-	Icon = "128092559044681",
+	Icon = "88708020645655",
 	Type = "info"
 })
+
+task.spawn(function()
+	task.wait(2)
+
+	Kawai20Lib.Notify({
+	Title = "Shota-chan",
+	Desc = "Thanks for using Auto Refund!\nJoin our Discord for more scripts! 💖",
+	Buttons = {
+		{
+			Title = "Yes",
+			Callback = function()
+					setclipboard("https://discord.gg/mJm4etTYjk")
+
+					Kawai20Lib.Notify({
+	Title = "Shota-chan",
+	Desc = "Link copied! See you there! 💖",
+	Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
+	Duration = 3,
+	Icon = "88708020645655",
+	Type = "success"
+})
+				end
+		},
+		{
+			Title = "No",
+			Callback = function()
+					Kawai20Lib.Notify({
+	Title = "Shota-chan",
+	Desc = "Aww, maybe next time! 🥺",
+	Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
+	Duration = 2,
+	Icon = "88708020645655",
+	Type = "info"
+})
+				end
+		}
+	},
+	Color = { Color3.fromRGB(255, 105, 180), Color3.fromRGB(128, 0, 128) },
+	Duration = 60,
+	Icon = "88708020645655",
+	Type = "info"
+})
+end)
