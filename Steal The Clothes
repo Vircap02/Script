@@ -1,0 +1,541 @@
+-- [[ SHOPPING HUB EXECUTOR GUI - FIX PROXIMITY DELAY ]] --
+
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+if CoreGui:FindFirstChild("ShoppingHubGui") then
+	CoreGui:FindFirstChild("ShoppingHubGui"):Destroy()
+end
+
+local ShoppingHubGui = Instance.new("ScreenGui")
+ShoppingHubGui.Name = "ShoppingHubGui"
+ShoppingHubGui.ResetOnSpawn = false
+if syn and syn.protect_gui then
+	syn.protect_gui(ShoppingHubGui)
+	ShoppingHubGui.Parent = CoreGui
+elseif gethui then
+	ShoppingHubGui.Parent = gethui()
+else
+	ShoppingHubGui.Parent = CoreGui
+end
+
+--------------------------------------------------------------------------------
+-- MAIN FRAME
+--------------------------------------------------------------------------------
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 480, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ShoppingHubGui
+
+local MainUICorner = Instance.new("UICorner")
+MainUICorner.CornerRadius = UDim.new(0, 10)
+MainUICorner.Parent = MainFrame
+
+local MainUIStroke = Instance.new("UIStroke")
+MainUIStroke.Color = Color3.fromRGB(255, 185, 0)
+MainUIStroke.Thickness = 2
+MainUIStroke.Parent = MainFrame
+
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 10)
+TopBarCorner.Parent = TopBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 300, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "🛍️ STEAL THE CLOTHES"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 205, 60)
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -34, 0, 6)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
+CloseBtn.Parent = TopBar
+
+local CloseBtnCorner = Instance.new("UICorner")
+CloseBtnCorner.CornerRadius = UDim.new(0, 6)
+CloseBtnCorner.Parent = CloseBtn
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -68, 0, 6)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+MinimizeBtn.Text = "—"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 14
+MinimizeBtn.Parent = TopBar
+
+local MiniBtnCorner = Instance.new("UICorner")
+MiniBtnCorner.CornerRadius = UDim.new(0, 6)
+MiniBtnCorner.Parent = MinimizeBtn
+
+--------------------------------------------------------------------------------
+-- DRAGGING LOGIC
+--------------------------------------------------------------------------------
+local dragging, dragStart, startPos
+TopBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- TAB SYSTEM
+--------------------------------------------------------------------------------
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 120, 1, -40)
+Sidebar.Position = UDim2.new(0, 0, 0, 40)
+Sidebar.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local TabHolder = Instance.new("Frame")
+TabHolder.Size = UDim2.new(1, -130, 1, -50)
+TabHolder.Position = UDim2.new(0, 125, 0, 45)
+TabHolder.BackgroundTransparency = 1
+TabHolder.Parent = MainFrame
+
+local tabs = {}
+local function createTab(name, icon)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Size = UDim2.new(1, -16, 0, 36)
+	tabBtn.Position = UDim2.new(0, 8, 0, 10 + (#tabs * 42))
+	tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+	tabBtn.Text = icon .. " " .. name
+	tabBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
+	tabBtn.Font = Enum.Font.GothamSemibold
+	tabBtn.TextSize = 12
+	tabBtn.Parent = Sidebar
+
+	local tabCorner = Instance.new("UICorner")
+	tabCorner.CornerRadius = UDim.new(0, 6)
+	tabCorner.Parent = tabBtn
+
+	local container = Instance.new("ScrollingFrame")
+	container.Size = UDim2.new(1, 0, 1, 0)
+	container.BackgroundTransparency = 1
+	container.ScrollBarThickness = 4
+	container.ScrollBarImageColor3 = Color3.fromRGB(255, 185, 0)
+	container.Visible = false
+	container.Parent = TabHolder
+
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.Padding = UDim.new(0, 8)
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Parent = container
+
+	tabBtn.MouseButton1Click:Connect(function()
+		for _, t in ipairs(tabs) do
+			t.Button.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+			t.Button.TextColor3 = Color3.fromRGB(180, 180, 190)
+			t.Container.Visible = false
+		end
+		tabBtn.BackgroundColor3 = Color3.fromRGB(255, 185, 0)
+		tabBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+		container.Visible = true
+	end)
+
+	table.insert(tabs, {Button = tabBtn, Container = container})
+	if #tabs == 1 then
+		tabBtn.BackgroundColor3 = Color3.fromRGB(255, 185, 0)
+		tabBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+		container.Visible = true
+	end
+	return container
+end
+
+local function createShopButton(container, text, subtext, color, callback)
+	local btnFrame = Instance.new("Frame")
+	btnFrame.Size = UDim2.new(1, -10, 0, 50)
+	btnFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+	btnFrame.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btnFrame
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(0.65, 0, 0.5, 0)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = text
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = btnFrame
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.65, 0, 0.5, -5)
+	desc.Position = UDim2.new(0, 10, 0.5, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = subtext
+	desc.TextColor3 = Color3.fromRGB(150, 150, 160)
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 10
+	desc.TextXAlignment = Enum.TextXAlignment.Left
+	desc.Parent = btnFrame
+
+	local actionBtn = Instance.new("TextButton")
+	actionBtn.Size = UDim2.new(0.3, -15, 0.7, 0)
+	actionBtn.Position = UDim2.new(0.7, 5, 0.15, 0)
+	actionBtn.BackgroundColor3 = color or Color3.fromRGB(0, 180, 100)
+	actionBtn.Text = "EXECUTE"
+	actionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	actionBtn.Font = Enum.Font.GothamBold
+	actionBtn.TextSize = 11
+	actionBtn.Parent = btnFrame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = actionBtn
+
+	actionBtn.MouseButton1Click:Connect(callback)
+end
+
+local function createSpeedInput(container)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -10, 0, 50)
+	frame.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+	frame.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(0.55, 0, 0.5, 0)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = "Custom WalkSpeed"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = frame
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.55, 0, 0.5, -5)
+	desc.Position = UDim2.new(0, 10, 0.5, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = "Ketik kecepatan lalu klik Set"
+	desc.TextColor3 = Color3.fromRGB(150, 150, 160)
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 10
+	desc.TextXAlignment = Enum.TextXAlignment.Left
+	desc.Parent = frame
+
+	local textBox = Instance.new("TextBox")
+	textBox.Size = UDim2.new(0.18, 0, 0.7, 0)
+	textBox.Position = UDim2.new(0.56, 0, 0.15, 0)
+	textBox.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+	textBox.Text = "32"
+	textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textBox.Font = Enum.Font.GothamBold
+	textBox.TextSize = 12
+	textBox.ClearTextOnFocus = false
+	textBox.Parent = frame
+
+	local boxCorner = Instance.new("UICorner")
+	boxCorner.CornerRadius = UDim.new(0, 6)
+	boxCorner.Parent = textBox
+
+	local setBtn = Instance.new("TextButton")
+	setBtn.Size = UDim2.new(0.22, -5, 0.7, 0)
+	setBtn.Position = UDim2.new(0.76, 5, 0.15, 0)
+	setBtn.BackgroundColor3 = Color3.fromRGB(140, 80, 220)
+	setBtn.Text = "SET"
+	setBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	setBtn.Font = Enum.Font.GothamBold
+	setBtn.TextSize = 11
+	setBtn.Parent = frame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = setBtn
+
+	setBtn.MouseButton1Click:Connect(function()
+		local speedVal = tonumber(textBox.Text)
+		if speedVal then
+			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum.WalkSpeed = speedVal
+				print("Walkspeed diubah ke: " .. speedVal)
+			end
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- ACTIONS & TABS CONTENT
+--------------------------------------------------------------------------------
+local TeleportTab = createTab("Teleports", "📍")
+local SettingsTab = createTab("Settings", "⚙️")
+
+local currentIndex = 1
+local cachedTargets = nil
+local savedBaseCFrame = nil
+local visualMarker = nil
+
+local function getLegendaryTargets()
+	if cachedTargets then return cachedTargets end
+	local clothingShops = workspace:FindFirstChild("ClothingShops")
+	if not clothingShops then return {} end
+	
+	cachedTargets = {}
+	for _, object in ipairs(clothingShops:GetDescendants()) do
+		if object.Name == "Legendary" then
+			table.insert(cachedTargets, object)
+		end
+	end
+	return cachedTargets
+end
+
+-- 1. TANDAI KOORDINAT POSISI BERDIRI SEKARANG
+createShopButton(
+	TeleportTab, 
+	"📌 Tandai Lokasi", 
+	"Kunci posisi tempat berdiri Anda saat ini", 
+	Color3.fromRGB(0, 180, 120), 
+	function()
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			savedBaseCFrame = hrp.CFrame
+			print("Posisi berhasil terkunci!")
+
+			if visualMarker then visualMarker:Destroy() end
+
+			visualMarker = Instance.new("Part")
+			visualMarker.Name = "MySavedLocationMarker"
+			visualMarker.Shape = Enum.PartType.Cylinder
+			visualMarker.Size = Vector3.new(0.5, 6, 6)
+			visualMarker.CFrame = hrp.CFrame * CFrame.Angles(0, 0, math.rad(90)) - Vector3.new(0, 2.5, 0)
+			visualMarker.Anchored = true
+			visualMarker.CanCollide = false
+			visualMarker.Material = Enum.Material.Neon
+			visualMarker.Color = Color3.fromRGB(0, 255, 120)
+			visualMarker.Transparency = 0.5
+			visualMarker.Parent = workspace
+		end
+	end
+)
+
+-- 2. AUTO PLAY (FIX DELAY: TP -> WAIT -> FIRE -> WAIT -> RETURN)
+createShopButton(
+	TeleportTab, 
+	"⚡ Auto Ambil", 
+	"TP Item -> Fire Prompt -> Return (Stable)", 
+	Color3.fromRGB(255, 50, 100), 
+	function()
+		task.spawn(function()
+			if not savedBaseCFrame then
+				warn("PERINGATAN: Tandai posisi Anda terlebih dahulu menggunakan '📌 Mark My Position'!")
+				return
+			end
+
+			local targets = getLegendaryTargets()
+			if #targets == 0 then
+				warn("Tidak ada objek Legendary ditemukan!")
+				return
+			end
+
+			local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not hrp then return end
+
+			if currentIndex > #targets then currentIndex = 1 end
+			local target = targets[currentIndex]
+
+			if target and target.Parent then
+				local targetCFrame = target:IsA("BasePart") and target.CFrame or (target:IsA("Model") and target:GetPivot())
+
+				if targetCFrame then
+					-- Langkah 1: Teleportasi ke Item Legendary (Dekat dengan Part)
+					hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+					hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+
+					-- Langkah 2: Jeda singkat agar server mendeteksi posisi baru karakter
+					task.wait(0.25)
+
+					-- Langkah 3: Eksekusi ProximityPrompt dengan Override sementara
+					local prompt = target:FindFirstChildOfClass("ProximityPrompt") or target:FindFirstChildWhichIsA("ProximityPrompt", true)
+					if prompt then
+						local oldHold = prompt.HoldDuration
+						local oldLineOfSight = prompt.RequiresLineOfSight
+
+						prompt.HoldDuration = 0
+						prompt.RequiresLineOfSight = false
+
+						if fireproximityprompt then
+							fireproximityprompt(prompt)
+							print("Auto Play: Successful Fired Prompt [" .. currentIndex .. "]")
+						end
+
+						task.delay(0.2, function()
+							if prompt then
+								prompt.HoldDuration = oldHold
+								prompt.RequiresLineOfSight = oldLineOfSight
+							end
+						end)
+					end
+
+					-- Langkah 4: Jeda 0.5 detik agar server sempat memproses transaksi/pembelian
+					task.wait(0.5)
+
+					-- Langkah 5: Teleport Kembali ke Posisi Terkunci (Base)
+					hrp.CFrame = savedBaseCFrame + Vector3.new(0, 2, 0)
+					hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+					print("Auto Play: Selesai & Kembali ke Base!")
+
+					currentIndex = currentIndex + 1
+				end
+			else
+				cachedTargets = nil
+			end
+		end)
+	end
+)
+
+-- 3. TP KE KOORDINAT YANG DITANDAI
+createShopButton(
+	TeleportTab, 
+	"🏠 Teleport Ke Lokasi (Manual)", 
+	"Teleportasi 100% tepat ke lokasi berdirimu", 
+	Color3.fromRGB(0, 160, 240), 
+	function()
+		task.spawn(function()
+			local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not hrp then return end
+
+			if savedBaseCFrame then
+				hrp.CFrame = savedBaseCFrame + Vector3.new(0, 2, 0)
+				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				print("Berhasil kembali ke lokasi terdaftar!")
+			else
+				warn("Belum ada posisi yang ditandai! Jalan ke Base Anda lalu klik 'Mark My Position'.")
+			end
+		end)
+	end
+)
+
+-- SETTINGS TAB
+createSpeedInput(SettingsTab)
+
+createShopButton(
+	SettingsTab, 
+	"Reset Walkspeed", 
+	"Kembalikan kecepatan normal (16)", 
+	Color3.fromRGB(200, 50, 50), 
+	function()
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.WalkSpeed = 16
+		end
+	end
+)
+
+--------------------------------------------------------------------------------
+-- REOPEN & MINIMIZE
+--------------------------------------------------------------------------------
+local ReopenBtn = Instance.new("TextButton")
+ReopenBtn.Size = UDim2.new(0, 50, 0, 50)
+ReopenBtn.Position = UDim2.new(0, 20, 0.5, -25)
+ReopenBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+ReopenBtn.Text = "🛍️"
+ReopenBtn.TextSize = 24
+ReopenBtn.Visible = false
+ReopenBtn.Parent = ShoppingHubGui
+
+local ReopenCorner = Instance.new("UICorner")
+ReopenCorner.CornerRadius = UDim.new(1, 0)
+ReopenCorner.Parent = ReopenBtn
+
+local ReopenStroke = Instance.new("UIStroke")
+ReopenStroke.Color = Color3.fromRGB(255, 185, 0)
+ReopenStroke.Thickness = 2
+ReopenStroke.Parent = ReopenBtn
+
+local rDragging, rDragStart, rStartPos
+ReopenBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		rDragging = true
+		rDragStart = input.Position
+		rStartPos = ReopenBtn.Position
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if rDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - rDragStart
+		ReopenBtn.Position = UDim2.new(rStartPos.X.Scale, rStartPos.X.Offset + delta.X, rStartPos.Y.Scale, rStartPos.Y.Offset + delta.Y)
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		rDragging = false
+	end
+end)
+
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 480, 0, 40)}):Play()
+		Sidebar.Visible = false
+		TabHolder.Visible = false
+	else
+		TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 480, 0, 320)}):Play()
+		task.wait(0.2)
+		Sidebar.Visible = true
+		TabHolder.Visible = true
+	end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	MainFrame.Visible = false
+	ReopenBtn.Visible = true
+end)
+
+ReopenBtn.MouseButton1Click:Connect(function()
+	MainFrame.Visible = true
+	ReopenBtn.Visible = false
+end)
+
+print("Shopping Hub GUI Loaded Successfully!")
