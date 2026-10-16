@@ -1,4 +1,4 @@
--- [[ SHOPPING HUB EXECUTOR GUI - COMPLETE TIERS & PARTICLES ]] --
+-- [[ SHOPPING HUB EXECUTOR GUI - COMPLETE TIERS & PARTICLES & ANTI-INTRUDER ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -457,6 +457,8 @@ local cachedTargets = nil
 local savedBaseCFrame = nil
 local visualMarker = nil
 local autoSlotsEnabled = false
+local antiIntruderEnabled = false
+local intruderRadius = 15 -- Jarak radius dalam stud (bisa disesuaikan)
 
 -- Diperbarui mencakup Legendary
 local selectedTier = "Legendary"
@@ -664,7 +666,7 @@ createShopButton(
 )
 
 --------------------------------------------------------------------------------
--- BASE SLOTS LOGIC
+-- BASE SLOTS & ANTI-INTRUDER LOGIC
 --------------------------------------------------------------------------------
 local function getNearestBase()
 	local basesFolder = workspace:FindFirstChild("Bases")
@@ -731,6 +733,64 @@ createToggleButton(
 					task.wait(1)
 				end
 			end)
+		end
+	end
+)
+
+local function startAntiIntruder()
+	task.spawn(function()
+		while antiIntruderEnabled do
+			task.wait(0.2)
+			if not savedBaseCFrame then continue end
+			
+			local hrpLocal = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not hrpLocal then continue end
+
+			for _, otherPlayer in ipairs(Players:GetPlayers()) do
+				if otherPlayer ~= player and otherPlayer.Character then
+					local otherHrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+					local otherHumanoid = otherPlayer.Character:FindFirstChildOfClass("Humanoid")
+					
+					if otherHrp and otherHumanoid and otherHumanoid.Health > 0 then
+						local distance = (otherHrp.Position - savedBaseCFrame.Position).Magnitude
+						
+						if distance <= intruderRadius then
+							local bodyVelocity = Instance.new("BodyVelocity")
+							bodyVelocity.Name = "AntiIntruderFling"
+							bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+							bodyVelocity.Velocity = Vector3.new(math.random(-300, 300), 500, math.random(-300, 300))
+							bodyVelocity.Parent = otherHrp
+							
+							task.delay(0.3, function()
+								if bodyVelocity and bodyVelocity.Parent then
+									bodyVelocity:Destroy()
+								end
+							end)
+							print("Anti-Intruder: Mementalkan penyusup -> " .. otherPlayer.Name)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+createToggleButton(
+	BaseTab,
+	"🛡️ Anti-Intruder (Auto Fling)",
+	"Mentalin player lain yang masuk ke area base yang ditandai",
+	false,
+	function(state)
+		antiIntruderEnabled = state
+		if antiIntruderEnabled then
+			if not savedBaseCFrame then
+				warn("PERINGATAN: Harap tandai posisi base Anda dulu di tab Teleports (📌 Tandai Lokasi)!")
+			else
+				print("Anti-Intruder diaktifkan!")
+				startAntiIntruder()
+			end
+		else
+			print("Anti-Intruder dimatikan!")
 		end
 	end
 )
@@ -825,4 +885,4 @@ MinimizeBtn.MouseButton1Click:Connect(animateClose)
 CloseBtn.MouseButton1Click:Connect(animateClose)
 LogoBtn.MouseButton1Click:Connect(animateOpen)
 
-print("Shopping Hub GUI (With Legendary Tier) Loaded Successfully!")
+print("Shopping Hub GUI (With Anti-Intruder & Legendary Tier) Loaded Successfully!")
