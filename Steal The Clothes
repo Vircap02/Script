@@ -1,4 +1,4 @@
--- [[ SHOPPING HUB EXECUTOR GUI - FIX PROXIMITY DELAY ]] --
+-- [[ SHOPPING HUB EXECUTOR GUI - COMPLETE TIERS & PARTICLES ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
@@ -23,16 +23,40 @@ else
 end
 
 --------------------------------------------------------------------------------
+-- FUNGSI EFEK PARTIKEL BINTANG/SPARKLE
+--------------------------------------------------------------------------------
+local function createEmitter(parent, color, rate)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color or Color3.fromRGB(255, 200, 50))
+	emitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 0)})
+	emitter.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+	emitter.Lifetime = NumberRange.new(0.5, 1.2)
+	emitter.Speed = NumberRange.new(20, 40)
+	emitter.SpreadAngle = Vector2.new(-180, 180)
+	emitter.Rate = rate or 0
+	emitter.Parent = parent
+	return emitter
+end
+
+--------------------------------------------------------------------------------
 -- MAIN FRAME
 --------------------------------------------------------------------------------
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 480, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 480, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -190)
 MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
 MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
+MainFrame.ClipsDescendants = false
 MainFrame.Parent = ShoppingHubGui
+
+-- Animasi Masuk Awal (Pop-up smooth dengan Back easing)
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.BackgroundTransparency = 1
+TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	Size = UDim2.new(0, 480, 0, 380),
+	BackgroundTransparency = 0
+}):Play()
 
 local MainUICorner = Instance.new("UICorner")
 MainUICorner.CornerRadius = UDim.new(0, 10)
@@ -42,6 +66,15 @@ local MainUIStroke = Instance.new("UIStroke")
 MainUIStroke.Color = Color3.fromRGB(255, 185, 0)
 MainUIStroke.Thickness = 2
 MainUIStroke.Parent = MainFrame
+
+-- Efek Partikel di sekeliling Main Frame
+local MainParticlePart = Instance.new("Part")
+MainParticlePart.Size = Vector3.new(1, 1, 1)
+MainParticlePart.Transparency = 1
+MainParticlePart.Anchored = true
+MainParticlePart.CanCollide = false
+MainParticlePart.Parent = MainFrame
+local frameEmitter = createEmitter(MainParticlePart, Color3.fromRGB(255, 215, 0), 5)
 
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
@@ -60,7 +93,7 @@ TitleLabel.Position = UDim2.new(0, 12, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "🛍️ STEAL THE CLOTHES"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 205, 60)
-TitleLabel.TextSize = 15
+TitleLabel.TextSize = 13
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
@@ -94,7 +127,7 @@ MiniBtnCorner.CornerRadius = UDim.new(0, 6)
 MiniBtnCorner.Parent = MinimizeBtn
 
 --------------------------------------------------------------------------------
--- DRAGGING LOGIC
+-- DRAGGING LOGIC (MAIN FRAME)
 --------------------------------------------------------------------------------
 local dragging, dragStart, startPos
 TopBar.InputBegan:Connect(function(input)
@@ -119,7 +152,7 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 --------------------------------------------------------------------------------
--- TAB SYSTEM
+-- TAB SYSTEM WITH ANIMATED TRANSITION
 --------------------------------------------------------------------------------
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 120, 1, -40)
@@ -163,15 +196,31 @@ local function createTab(name, icon)
 	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	listLayout.Parent = container
 
+	tabBtn.MouseEnter:Connect(function()
+		if tabBtn.BackgroundColor3 ~= Color3.fromRGB(255, 185, 0) then
+			TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 58)}):Play()
+		end
+	end)
+	tabBtn.MouseLeave:Connect(function()
+		if tabBtn.BackgroundColor3 ~= Color3.fromRGB(255, 185, 0) then
+			TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
+		end
+	end)
+
 	tabBtn.MouseButton1Click:Connect(function()
 		for _, t in ipairs(tabs) do
-			t.Button.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-			t.Button.TextColor3 = Color3.fromRGB(180, 180, 190)
+			TweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 38), TextColor3 = Color3.fromRGB(180, 180, 190)}):Play()
 			t.Container.Visible = false
 		end
-		tabBtn.BackgroundColor3 = Color3.fromRGB(255, 185, 0)
-		tabBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+		
+		container.Position = UDim2.new(0.05, 0, 0, 0)
 		container.Visible = true
+		container.CanvasPosition = Vector2.new(0, 0)
+		TweenService:Create(container, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0, 0, 0, 0)
+		}):Play()
+
+		TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 185, 0), TextColor3 = Color3.fromRGB(20, 20, 20)}):Play()
 	end)
 
 	table.insert(tabs, {Button = tabBtn, Container = container})
@@ -229,7 +278,98 @@ local function createShopButton(container, text, subtext, color, callback)
 	btnCorner.CornerRadius = UDim.new(0, 6)
 	btnCorner.Parent = actionBtn
 
-	actionBtn.MouseButton1Click:Connect(callback)
+	local btnPart = Instance.new("Part")
+	btnPart.Size = Vector3.new(1, 1, 1)
+	btnPart.Transparency = 1
+	btnPart.Anchored = true
+	btnPart.CanCollide = false
+	btnPart.Parent = btnFrame
+	local clickEmitter = createEmitter(btnPart, color, 0)
+
+	actionBtn.MouseEnter:Connect(function()
+		TweenService:Create(actionBtn, TweenInfo.new(0.15), {Size = UDim2.new(0.32, -15, 0.78, 0), Position = UDim2.new(0.69, 5, 0.11, 0)}):Play()
+	end)
+	actionBtn.MouseLeave:Connect(function()
+		TweenService:Create(actionBtn, TweenInfo.new(0.15), {Size = UDim2.new(0.3, -15, 0.7, 0), Position = UDim2.new(0.7, 5, 0.15, 0)}):Play()
+	end)
+
+	actionBtn.MouseButton1Click:Connect(function()
+		clickEmitter.Rate = 30
+		task.delay(0.1, function()
+			clickEmitter.Rate = 0
+		end)
+		callback()
+	end)
+end
+
+local function createToggleButton(container, text, subtext, defaultState, callback)
+	local btnFrame = Instance.new("Frame")
+	btnFrame.Size = UDim2.new(1, -10, 0, 50)
+	btnFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+	btnFrame.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btnFrame
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(0.6, 0, 0.5, 0)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = text
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = btnFrame
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.6, 0, 0.5, -5)
+	desc.Position = UDim2.new(0, 10, 0.5, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = subtext
+	desc.TextColor3 = Color3.fromRGB(150, 150, 160)
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 10
+	desc.TextXAlignment = Enum.TextXAlignment.Left
+	desc.Parent = btnFrame
+
+	local toggleBtn = Instance.new("TextButton")
+	toggleBtn.Size = UDim2.new(0.35, -10, 0.7, 0)
+	toggleBtn.Position = UDim2.new(0.63, 5, 0.15, 0)
+	toggleBtn.BackgroundColor3 = defaultState and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(200, 50, 50)
+	toggleBtn.Text = defaultState and "ON" or "OFF"
+	toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	toggleBtn.Font = Enum.Font.GothamBold
+	toggleBtn.TextSize = 12
+	toggleBtn.Parent = btnFrame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = toggleBtn
+
+	local togglePart = Instance.new("Part")
+	togglePart.Size = Vector3.new(1, 1, 1)
+	togglePart.Transparency = 1
+	togglePart.Anchored = true
+	togglePart.CanCollide = false
+	togglePart.Parent = btnFrame
+	local toggleEmitter = createEmitter(togglePart, Color3.fromRGB(0, 255, 120), 0)
+
+	local state = defaultState
+	toggleBtn.MouseButton1Click:Connect(function()
+		state = not state
+		local targetColor = state and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(200, 50, 50)
+		TweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
+		toggleBtn.Text = state and "ON" or "OFF"
+		
+		toggleEmitter.Rate = 25
+		task.delay(0.1, function()
+			toggleEmitter.Rate = 0
+		end)
+		
+		callback(state)
+	end)
 end
 
 local function createSpeedInput(container)
@@ -309,28 +449,102 @@ end
 -- ACTIONS & TABS CONTENT
 --------------------------------------------------------------------------------
 local TeleportTab = createTab("Teleports", "📍")
+local BaseTab = createTab("Base", "🏠")
 local SettingsTab = createTab("Settings", "⚙️")
 
 local currentIndex = 1
 local cachedTargets = nil
 local savedBaseCFrame = nil
 local visualMarker = nil
+local autoSlotsEnabled = false
 
-local function getLegendaryTargets()
+-- Diperbarui mencakup Legendary
+local selectedTier = "Legendary"
+local availableTiers = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}
+
+local function createTierSelector(container)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, -10, 0, 50)
+	frame.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+	frame.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(0.45, 0, 0.5, 0)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = "Pilih Tier Clothes"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = frame
+
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.45, 0, 0.5, -5)
+	desc.Position = UDim2.new(0, 10, 0.5, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = "Target Auto Ambil"
+	desc.TextColor3 = Color3.fromRGB(150, 150, 160)
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 10
+	desc.TextXAlignment = Enum.TextXAlignment.Left
+	desc.Parent = frame
+
+	local tierBtn = Instance.new("TextButton")
+	tierBtn.Size = UDim2.new(0.5, -15, 0.7, 0)
+	tierBtn.Position = UDim2.new(0.48, 5, 0.15, 0)
+	tierBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+	tierBtn.Text = selectedTier
+	tierBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tierBtn.Font = Enum.Font.GothamBold
+	tierBtn.TextSize = 12
+	tierBtn.Parent = frame
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = tierBtn
+
+	tierBtn.MouseButton1Click:Connect(function()
+		local currentIndexInList = 1
+		for i, t in ipairs(availableTiers) do
+			if t == selectedTier then
+				currentIndexInList = i
+				break
+			end
+		end
+		
+		currentIndexInList = currentIndexInList + 1
+		if currentIndexInList > #availableTiers then
+			currentIndexInList = 1
+		end
+		
+		selectedTier = availableTiers[currentIndexInList]
+		tierBtn.Text = selectedTier
+		cachedTargets = nil
+		print("Tier clothes diubah ke: " .. selectedTier)
+	end)
+end
+
+local function getTargetsByTier()
 	if cachedTargets then return cachedTargets end
 	local clothingShops = workspace:FindFirstChild("ClothingShops")
 	if not clothingShops then return {} end
 	
 	cachedTargets = {}
 	for _, object in ipairs(clothingShops:GetDescendants()) do
-		if object.Name == "Legendary" then
+		if object.Name == selectedTier then
 			table.insert(cachedTargets, object)
 		end
 	end
 	return cachedTargets
 end
 
--- 1. TANDAI KOORDINAT POSISI BERDIRI SEKARANG
+createTierSelector(TeleportTab)
+
 createShopButton(
 	TeleportTab, 
 	"📌 Tandai Lokasi", 
@@ -359,22 +573,21 @@ createShopButton(
 	end
 )
 
--- 2. AUTO PLAY (FIX DELAY: TP -> WAIT -> FIRE -> WAIT -> RETURN)
 createShopButton(
 	TeleportTab, 
-	"⚡ Auto Ambil", 
-	"TP Item -> Fire Prompt -> Return (Stable)", 
+	"⚡ Auto Ambil (Once)", 
+	"TP 1 Item sesuai Tier -> Fire Prompt -> Return", 
 	Color3.fromRGB(255, 50, 100), 
 	function()
 		task.spawn(function()
 			if not savedBaseCFrame then
-				warn("PERINGATAN: Tandai posisi Anda terlebih dahulu menggunakan '📌 Mark My Position'!")
+				warn("PERINGATAN: Tandai posisi Anda terlebih dahulu menggunakan '📌 Tandai Lokasi'!")
 				return
 			end
 
-			local targets = getLegendaryTargets()
+			local targets = getTargetsByTier()
 			if #targets == 0 then
-				warn("Tidak ada objek Legendary ditemukan!")
+				warn("Tidak ada objek dengan tier " .. selectedTier .. " ditemukan!")
 				return
 			end
 
@@ -388,14 +601,11 @@ createShopButton(
 				local targetCFrame = target:IsA("BasePart") and target.CFrame or (target:IsA("Model") and target:GetPivot())
 
 				if targetCFrame then
-					-- Langkah 1: Teleportasi ke Item Legendary (Dekat dengan Part)
 					hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
 					hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 
-					-- Langkah 2: Jeda singkat agar server mendeteksi posisi baru karakter
 					task.wait(0.25)
 
-					-- Langkah 3: Eksekusi ProximityPrompt dengan Override sementara
 					local prompt = target:FindFirstChildOfClass("ProximityPrompt") or target:FindFirstChildWhichIsA("ProximityPrompt", true)
 					if prompt then
 						local oldHold = prompt.HoldDuration
@@ -406,7 +616,7 @@ createShopButton(
 
 						if fireproximityprompt then
 							fireproximityprompt(prompt)
-							print("Auto Play: Successful Fired Prompt [" .. currentIndex .. "]")
+							print("Auto Ambil [" .. selectedTier .. "]: Berhasil Fire Prompt [" .. currentIndex .. "]")
 						end
 
 						task.delay(0.2, function()
@@ -417,13 +627,11 @@ createShopButton(
 						end)
 					end
 
-					-- Langkah 4: Jeda 0.5 detik agar server sempat memproses transaksi/pembelian
 					task.wait(0.5)
 
-					-- Langkah 5: Teleport Kembali ke Posisi Terkunci (Base)
 					hrp.CFrame = savedBaseCFrame + Vector3.new(0, 2, 0)
 					hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-					print("Auto Play: Selesai & Kembali ke Base!")
+					print("Auto Ambil: Selesai & Kembali ke Base!")
 
 					currentIndex = currentIndex + 1
 				end
@@ -434,7 +642,6 @@ createShopButton(
 	end
 )
 
--- 3. TP KE KOORDINAT YANG DITANDAI
 createShopButton(
 	TeleportTab, 
 	"🏠 Teleport Ke Lokasi (Manual)", 
@@ -450,13 +657,84 @@ createShopButton(
 				hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
 				print("Berhasil kembali ke lokasi terdaftar!")
 			else
-				warn("Belum ada posisi yang ditandai! Jalan ke Base Anda lalu klik 'Mark My Position'.")
+				warn("Belum ada posisi yang ditandai!")
 			end
 		end)
 	end
 )
 
--- SETTINGS TAB
+--------------------------------------------------------------------------------
+-- BASE SLOTS LOGIC
+--------------------------------------------------------------------------------
+local function getNearestBase()
+	local basesFolder = workspace:FindFirstChild("Bases")
+	if not basesFolder then return nil end
+
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+
+	local nearestBase = nil
+	local minDistance = math.huge
+
+	for _, base in ipairs(basesFolder:GetChildren()) do
+		local spawnPart = base:FindFirstChild("SpawnPart") or base:FindFirstChildWhichIsA("BasePart", true)
+		if spawnPart and spawnPart:IsA("BasePart") then
+			local dist = (hrp.Position - spawnPart.Position).Magnitude
+			if dist < minDistance then
+				minDistance = dist
+				nearestBase = base
+			end
+		end
+	end
+
+	return nearestBase
+end
+
+local function fireTouchSlots()
+	local nearestBase = getNearestBase()
+	if not nearestBase then return end
+
+	local slotsFolder = nearestBase:FindFirstChild("Slots")
+	if not slotsFolder then return end
+
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp or not firetouchinterest then return end
+
+	for _, item in ipairs(slotsFolder:GetDescendants()) do
+		if not autoSlotsEnabled then break end
+		if item:IsA("TouchTransmitter") then
+			local touchablePart = item.Parent
+			if touchablePart and touchablePart:IsA("BasePart") then
+				firetouchinterest(hrp, touchablePart, 0)
+				task.wait()
+				firetouchinterest(hrp, touchablePart, 1)
+			end
+		elseif item:IsA("BasePart") and item.CanTouch then
+			firetouchinterest(hrp, item, 0)
+			task.wait()
+			firetouchinterest(hrp, item, 1)
+		end
+	end
+end
+
+createToggleButton(
+	BaseTab,
+	"⚡ Auto Collect Cash",
+	"Looping sentuh semua slot di Base terdekat",
+	false,
+	function(state)
+		autoSlotsEnabled = state
+		if autoSlotsEnabled then
+			task.spawn(function()
+				while autoSlotsEnabled do
+					fireTouchSlots()
+					task.wait(1)
+				end
+			end)
+		end
+	end
+)
+
 createSpeedInput(SettingsTab)
 
 createShopButton(
@@ -473,69 +751,78 @@ createShopButton(
 )
 
 --------------------------------------------------------------------------------
--- REOPEN & MINIMIZE
+-- ANIMATED LOGO MINIMIZE & REOPEN LOGIC
 --------------------------------------------------------------------------------
-local ReopenBtn = Instance.new("TextButton")
-ReopenBtn.Size = UDim2.new(0, 50, 0, 50)
-ReopenBtn.Position = UDim2.new(0, 20, 0.5, -25)
-ReopenBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
-ReopenBtn.Text = "🛍️"
-ReopenBtn.TextSize = 24
-ReopenBtn.Visible = false
-ReopenBtn.Parent = ShoppingHubGui
+local LogoBtn = Instance.new("TextButton")
+LogoBtn.Size = UDim2.new(0, 45, 0, 45)
+LogoBtn.Position = UDim2.new(0, 20, 0.5, -22)
+LogoBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+LogoBtn.Text = "🛍️"
+LogoBtn.TextSize = 22
+LogoBtn.Visible = false
+LogoBtn.Parent = ShoppingHubGui
 
-local ReopenCorner = Instance.new("UICorner")
-ReopenCorner.CornerRadius = UDim.new(1, 0)
-ReopenCorner.Parent = ReopenBtn
+local LogoCorner = Instance.new("UICorner")
+LogoCorner.CornerRadius = UDim.new(1, 0)
+LogoCorner.Parent = LogoBtn
 
-local ReopenStroke = Instance.new("UIStroke")
-ReopenStroke.Color = Color3.fromRGB(255, 185, 0)
-ReopenStroke.Thickness = 2
-ReopenStroke.Parent = ReopenBtn
+LogoBtn.MouseEnter:Connect(function()
+	TweenService:Create(LogoBtn, TweenInfo.new(0.2), {Size = UDim2.new(0, 52, 0, 52)}):Play()
+end)
+LogoBtn.MouseLeave:Connect(function()
+	TweenService:Create(LogoBtn, TweenInfo.new(0.2), {Size = UDim2.new(0, 45, 0, 45)}):Play()
+end)
 
-local rDragging, rDragStart, rStartPos
-ReopenBtn.InputBegan:Connect(function(input)
+local lDragging, lDragStart, lStartPos
+LogoBtn.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		rDragging = true
-		rDragStart = input.Position
-		rStartPos = ReopenBtn.Position
+		lDragging = true
+		lDragStart = input.Position
+		lStartPos = LogoBtn.Position
 	end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
-	if rDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - rDragStart
-		ReopenBtn.Position = UDim2.new(rStartPos.X.Scale, rStartPos.X.Offset + delta.X, rStartPos.Y.Scale, rStartPos.Y.Offset + delta.Y)
+	if lDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - lDragStart
+		LogoBtn.Position = UDim2.new(lStartPos.X.Scale, lStartPos.X.Offset + delta.X, lStartPos.Y.Scale, lStartPos.Y.Offset + delta.Y)
 	end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		rDragging = false
+		lDragging = false
 	end
 end)
 
-local isMinimized = false
-MinimizeBtn.MouseButton1Click:Connect(function()
-	isMinimized = not isMinimized
-	if isMinimized then
-		TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 480, 0, 40)}):Play()
-		Sidebar.Visible = false
-		TabHolder.Visible = false
-	else
-		TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 480, 0, 320)}):Play()
-		task.wait(0.2)
-		Sidebar.Visible = true
-		TabHolder.Visible = true
-	end
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
+local function animateClose()
+	TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	}):Play()
+	task.wait(0.25)
 	MainFrame.Visible = false
-	ReopenBtn.Visible = true
-end)
+	LogoBtn.Visible = true
+	
+	LogoBtn.Size = UDim2.new(0, 0, 0, 0)
+	TweenService:Create(LogoBtn, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 45, 0, 45)
+	}):Play()
+end
 
-ReopenBtn.MouseButton1Click:Connect(function()
+local function animateOpen()
+	LogoBtn.Visible = false
 	MainFrame.Visible = true
-	ReopenBtn.Visible = false
-end)
+	MainFrame.Size = UDim2.new(0, 0, 0, 0)
+	MainFrame.BackgroundTransparency = 1
+	TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 480, 0, 380),
+		BackgroundTransparency = 0
+	}):Play()
+end
 
-print("Shopping Hub GUI Loaded Successfully!")
+MinimizeBtn.MouseButton1Click:Connect(animateClose)
+CloseBtn.MouseButton1Click:Connect(animateClose)
+LogoBtn.MouseButton1Click:Connect(animateOpen)
+
+print("Shopping Hub GUI (With Legendary Tier) Loaded Successfully!")
