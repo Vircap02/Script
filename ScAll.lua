@@ -1,11 +1,20 @@
-local coreGui = cloneref(game:GetService("CoreGui"))
-local userInputService = cloneref(game:GetService("UserInputService"))
-local runService = cloneref(game:GetService("RunService"))
-local tweenService = cloneref(game:GetService("TweenService"))
-local players = cloneref(game:GetService("Players"))
-local MarketplaceService = cloneref(game:GetService("MarketplaceService"))
+local userInputService = cloneref and cloneref(game:GetService("UserInputService")) or game:GetService("UserInputService")
+local runService = cloneref and cloneref(game:GetService("RunService")) or game:GetService("RunService")
+local tweenService = cloneref and cloneref(game:GetService("TweenService")) or game:GetService("TweenService")
+local players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
+local MarketplaceService = cloneref and cloneref(game:GetService("MarketplaceService")) or game:GetService("MarketplaceService")
 
 local localPlayer = players.LocalPlayer
+
+-- Mengatasi CoreGui yang kadang nil/diblokir executor
+local coreGui = nil
+pcall(function()
+    coreGui = cloneref and cloneref(game:GetService("CoreGui")) or game:GetService("CoreGui")
+end)
+
+if not coreGui then
+    coreGui = localPlayer:WaitForChild("PlayerGui")
+end
 
 if coreGui:FindFirstChild("VirgoboyHubUI") then
     coreGui.VirgoboyHubUI:Destroy()
@@ -826,6 +835,126 @@ remoteBtn.MouseButton1Click:Connect(function()
     showNotify("Executing...", "Menjalankan Remote Detector...", 2)
     pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/oxireun/User/refs/heads/main/RemoteDetector.lua"))()
+    end)
+end)
+
+-- ====================================================
+--  TOMBOL ALL SERVER (MENU SETTING) - BARU
+-- ====================================================
+local allServerBtn = Instance.new("TextButton")
+allServerBtn.Size = UDim2.new(1, 0, 0, 32)
+allServerBtn.BackgroundColor3 = COL_ACCENT
+allServerBtn.Text = "🌐 All Server Browser"
+allServerBtn.Font = Enum.Font.GothamBold
+allServerBtn.TextSize = 11
+allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+allServerBtn.LayoutOrder = 2.72
+allServerBtn.ZIndex = 2
+allServerBtn.Parent = settingScroll
+Instance.new("UICorner", allServerBtn).CornerRadius = UDim.new(0, 6)
+animStroke(allServerBtn, 1)
+themeObjectsToUpdate[allServerBtn] = "BackgroundColor3"
+
+allServerBtn.MouseButton1Click:Connect(function()
+    showNotify("All Server", "Membuka daftar server publik...", 2)
+    
+    local serverGui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
+    serverGui.Name = "VirgoboyAllServerGui"
+    serverGui.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame", serverGui)
+    frame.Size = UDim2.new(0, 320, 0, 360)
+    frame.Position = UDim2.new(0.5, -160, 0.5, -180)
+    frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    animStroke(frame, 1.5)
+
+    local titleLbl = Instance.new("TextLabel", frame)
+    titleLbl.Size = UDim2.new(1, -40, 0, 35)
+    titleLbl.Position = UDim2.new(0, 12, 0, 5)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = "🌐 ALL SERVER BROWSER"
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 13
+    titleLbl.TextColor3 = COL_ACCENT
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    themeObjectsToUpdate[titleLbl] = "TextColor3"
+
+    local closeBtn = Instance.new("TextButton", frame)
+    closeBtn.Size = UDim2.new(0, 28, 0, 28)
+    closeBtn.Position = UDim2.new(1, -34, 0, 8)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "✕"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 16
+    closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+    closeBtn.MouseButton1Click:Connect(function()
+        serverGui:Destroy()
+    end)
+
+    local scroll = Instance.new("ScrollingFrame", frame)
+    scroll.Size = UDim2.new(1, -16, 1, -50)
+    scroll.Position = UDim2.new(0, 8, 0, 42)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 4
+    scroll.ScrollBarImageColor3 = COL_ACCENT
+
+    local layout = Instance.new("UIListLayout", scroll)
+    layout.Padding = UDim.new(0, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+    end)
+
+    task.spawn(function()
+        local HttpService = game:GetService("HttpService")
+        local TeleportService = game:GetService("TeleportService")
+        
+        local success, result = pcall(function()
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            local response = request({Url = url, Method = "GET"})
+            return HttpService:JSONDecode(response.Body)
+        end)
+
+        if success and result and result.data then
+            for _, srv in pairs(result.data) do
+                local sBtn = Instance.new("TextButton", scroll)
+                sBtn.Size = UDim2.new(1, 0, 0, 40)
+                sBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+                sBtn.BackgroundTransparency = 0.2
+                sBtn.Text = "  Players: " .. tostring(srv.playing) .. "/" .. tostring(srv.maxPlayers) .. (srv.id == game.JobId and " [CURRENT]" or "")
+                sBtn.Font = Enum.Font.GothamMedium
+                sBtn.TextSize = 11
+                sBtn.TextColor3 = srv.id == game.JobId and Color3.fromRGB(100, 255, 150) or TEXT_MAIN
+                sBtn.TextXAlignment = Enum.TextXAlignment.Left
+                
+                Instance.new("UICorner", sBtn).CornerRadius = UDim.new(0, 6)
+                
+                sBtn.MouseButton1Click:Connect(function()
+                    if srv.id ~= game.JobId then
+                        showNotify("Teleporting", "Menghubungkan ke server terpilih...", 3)
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, srv.id, localPlayer)
+                    else
+                        showNotify("Info", "Anda sudah berada di server ini!", 2)
+                    end
+                end)
+            end
+        else
+            local errLbl = Instance.new("TextLabel", scroll)
+            errLbl.Size = UDim2.new(1, 0, 0, 40)
+            errLbl.BackgroundTransparency = 1
+            errLbl.Text = "Gagal memuat daftar server."
+            errLbl.Font = Enum.Font.GothamBold
+            errLbl.TextSize = 12
+            errLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
     end)
 end)
 
