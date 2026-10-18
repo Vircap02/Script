@@ -13,12 +13,16 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master Toggle (Set ke TRUE agar langsung AUTO ON)
+-- Status Master Toggle
 local masterEnabled = true
 
--- Status Auto Refund Toggle (Set ke TRUE secara terpisah)
+-- Status Auto Refund Toggle
 local autoRefundEnabled = true
 getgenv().AutoRefundV2 = autoRefundEnabled
+
+-- Durasi Rejoin Timer (15 Menit = 900 Detik)
+local REJOIN_TIME = 15 * 60
+local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
 local KnitServices = ReplicatedStorage:WaitForChild("Packages", 5) 
@@ -52,33 +56,17 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Playtime Rewards (Rejoin jika semua sudah ter-claim)
+-- 2. Auto Playtime Rewards (Hanya Claim Reward saja)
 task.spawn(function()
-    local maxRewards = 12
+    local maxRewards = 3
     while true do
         if masterEnabled and PlaytimeRemote then
-            local allClaimed = true
-            
             for i = 1, maxRewards do
                 if not masterEnabled then break end
-                
-                local success, result = pcall(function()
-                    return PlaytimeRemote:InvokeServer(i)
-                end)
-                
-                if success and result ~= nil then
-                    allClaimed = false
-                end
-                
-                task.wait(0.15)
-            end
-            
-            if masterEnabled and allClaimed then
-                task.wait(2)
                 pcall(function()
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    PlaytimeRemote:InvokeServer(i)
                 end)
-                break
+                task.wait(0.15)
             end
         end
         task.wait(5)
@@ -140,7 +128,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Refund Purchase Prompt (Diatur oleh autoRefundEnabled)
+-- 5. Auto Refund Purchase Prompt
 MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
     if player == LocalPlayer and autoRefundEnabled then
         local assetId = info and info.Id or "Unknown"
@@ -159,7 +147,7 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- 7. Auto Reconnect
+-- 7. Auto Reconnect saat Error Prompt
 CoreGui.ChildAdded:Connect(function(child)
     if masterEnabled and child.Name == "ErrorPrompt" then
         task.wait(2)
@@ -188,11 +176,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan tingginya untuk memuat 3 tombol)
+-- Main Frame (Disesuaikan ukurannya untuk memuat Timer)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 255)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -127)
+MainFrame.Size = UDim2.new(0, 280, 0, 285)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -142)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -321,8 +309,8 @@ UIListLayout.Parent = Container
 
 -- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
-MasterButton.Size = UDim2.new(1, 0, 0, 45)
-MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238) -- Warna Pink Aktif
+MasterButton.Size = UDim2.new(1, 0, 0, 42)
+MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
 MasterButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -356,7 +344,7 @@ end)
 
 -- 2. Tombol Auto Refund Toggle
 local RefundButton = Instance.new("TextButton")
-RefundButton.Size = UDim2.new(1, 0, 0, 45)
+RefundButton.Size = UDim2.new(1, 0, 0, 42)
 RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 RefundButton.Text = "<b>AUTO REFUND: ON</b>"
 RefundButton.RichText = true
@@ -392,7 +380,7 @@ end)
 
 -- 3. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
-RejoinButton.Size = UDim2.new(1, 0, 0, 45)
+RejoinButton.Size = UDim2.new(1, 0, 0, 42)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
 RejoinButton.Text = "<b>🛍 REJOIN SERVER</b>"
 RejoinButton.RichText = true
@@ -412,6 +400,51 @@ RejoinStroke.Thickness = 1.5
 RejoinStroke.Parent = RejoinButton
 
 RejoinButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end)
+
+-- 4. Label Display Rejoin Timer
+local TimerFrame = Instance.new("Frame")
+TimerFrame.Size = UDim2.new(1, 0, 0, 38)
+TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
+TimerFrame.Parent = Container
+
+local TimerCorner = Instance.new("UICorner")
+TimerCorner.CornerRadius = UDim.new(0, 10)
+TimerCorner.Parent = TimerFrame
+
+local TimerStroke = Instance.new("UIStroke")
+TimerStroke.Color = Color3.fromRGB(120, 80, 180)
+TimerStroke.Thickness = 1
+TimerStroke.Parent = TimerFrame
+
+local TimerLabel = Instance.new("TextLabel")
+TimerLabel.Size = UDim2.new(1, 0, 1, 0)
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Text = "<b>Auto Rejoin: 15:00</b>"
+TimerLabel.RichText = true
+TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
+TimerLabel.TextSize = 12
+TimerLabel.Font = Enum.Font.GothamBold
+TimerLabel.Parent = TimerFrame
+
+-- Task Countdown Timer 15 Menit
+task.spawn(function()
+    while timeRemaining > 0 do
+        task.wait(1)
+        if masterEnabled then
+            timeRemaining = timeRemaining - 1
+            local minutes = math.floor(timeRemaining / 60)
+            local seconds = timeRemaining % 60
+            TimerLabel.Text = string.format("<b>Auto Rejoin: %02d:%02d</b>", minutes, seconds)
+        end
+    end
+    
+    -- Teleport/Rejoin saat Waktu Habis
+    TimerLabel.Text = "<b>Rejoining...</b>"
+    task.wait(1)
     pcall(function()
         TeleportService:Teleport(game.PlaceId, LocalPlayer)
     end)
