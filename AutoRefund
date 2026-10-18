@@ -1,3 +1,12 @@
+-- Behaviour trace of a MoonVeil script
+-- NOTE: reconstructed from observed behaviour; branches that were not taken
+--       during the trace are missing and conditions are only noted in comments.
+-- run status: finished
+-- 30 statements recorded in 0.03s
+-- URLs requested:
+--   https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau
+--   https://raw.githubusercontent.com/Mainery-foxxie/Main/refs/heads/main/UI%20Libary/Kawai%20Lib/Source.lua
+
 task.spawn(function()
 end)
 
