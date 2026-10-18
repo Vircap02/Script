@@ -13,11 +13,11 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master Toggle
+-- States / Status Toggle
 local masterEnabled = true
-
--- Status Auto Refund Toggle
 local autoRefundEnabled = true
+local autoStealEnabled = true
+
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (15 Menit = 900 Detik)
@@ -128,7 +128,23 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Refund Purchase Prompt
+-- 5. Auto Steal (Anti-Steal Logic)
+RunService.Stepped:Connect(function()
+    if masterEnabled and autoStealEnabled then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanTouch = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- 6. Auto Refund Purchase Prompt
 MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
     if player == LocalPlayer and autoRefundEnabled then
         local assetId = info and info.Id or "Unknown"
@@ -138,7 +154,7 @@ MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
     end
 end)
 
--- 6. Anti-AFK
+-- 7. Anti-AFK
 LocalPlayer.Idled:Connect(function()
     if masterEnabled then
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -147,7 +163,7 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- 7. Auto Reconnect saat Error Prompt
+-- 8. Auto Reconnect saat Error Prompt
 CoreGui.ChildAdded:Connect(function(child)
     if masterEnabled and child.Name == "ErrorPrompt" then
         task.wait(2)
@@ -176,11 +192,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan ukurannya untuk memuat Timer)
+-- Main Frame (Disesuaikan tingginya untuk memuat semua tombol)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 285)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -142)
+MainFrame.Size = UDim2.new(0, 280, 0, 335)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -167)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -304,12 +320,12 @@ Container.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = Container
 
 -- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
-MasterButton.Size = UDim2.new(1, 0, 0, 42)
+MasterButton.Size = UDim2.new(1, 0, 0, 40)
 MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
@@ -344,7 +360,7 @@ end)
 
 -- 2. Tombol Auto Refund Toggle
 local RefundButton = Instance.new("TextButton")
-RefundButton.Size = UDim2.new(1, 0, 0, 42)
+RefundButton.Size = UDim2.new(1, 0, 0, 40)
 RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 RefundButton.Text = "<b>AUTO REFUND: ON</b>"
 RefundButton.RichText = true
@@ -378,9 +394,44 @@ RefundButton.MouseButton1Click:Connect(function()
     TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 3. Tombol Manual Rejoin Server
+-- 3. Tombol Auto Steal Toggle
+local StealButton = Instance.new("TextButton")
+StealButton.Size = UDim2.new(1, 0, 0, 40)
+StealButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
+StealButton.Text = "<b>AUTO STEAL: ON</b>"
+StealButton.RichText = true
+StealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StealButton.TextSize = 13
+StealButton.Font = Enum.Font.GothamBold
+StealButton.AutoButtonColor = false
+StealButton.Parent = Container
+
+local StealCorner = Instance.new("UICorner")
+StealCorner.CornerRadius = UDim.new(0, 10)
+StealCorner.Parent = StealButton
+
+local StealStroke = Instance.new("UIStroke")
+StealStroke.Color = Color3.fromRGB(255, 119, 238)
+StealStroke.Thickness = 1.5
+StealStroke.Parent = StealButton
+
+StealButton.MouseButton1Click:Connect(function()
+    autoStealEnabled = not autoStealEnabled
+
+    local targetBg = autoStealEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
+    local targetText = autoStealEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
+    local targetBorder = autoStealEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 50, 95)
+    local statusText = autoStealEnabled and "<b>AUTO STEAL: ON</b>" or "<b>AUTO STEAL: OFF</b>"
+
+    StealButton.Text = statusText
+    TweenService:Create(StealButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
+    TweenService:Create(StealButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
+    TweenService:Create(StealStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
+end)
+
+-- 4. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
-RejoinButton.Size = UDim2.new(1, 0, 0, 42)
+RejoinButton.Size = UDim2.new(1, 0, 0, 40)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
 RejoinButton.Text = "<b>🛍 REJOIN SERVER</b>"
 RejoinButton.RichText = true
@@ -405,9 +456,9 @@ RejoinButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 4. Label Display Rejoin Timer
+-- 5. Label Display Rejoin Timer
 local TimerFrame = Instance.new("Frame")
-TimerFrame.Size = UDim2.new(1, 0, 0, 38)
+TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
 TimerFrame.Parent = Container
 
@@ -500,6 +551,7 @@ end)
 CloseBtn.MouseButton1Click:Connect(function()
     masterEnabled = false
     autoRefundEnabled = false
+    autoStealEnabled = false
     getgenv().AutoRefundV2 = false
 
     local tweenClose = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
