@@ -2,6 +2,14 @@
 --   ROBLOX AUTO-HUB GUI (AUTO ON UPON EXECUTION)
 -- ========================================================
 
+-- Ganti angka di bawah ini dengan Place ID map yang diizinkan
+local ALLOWED_PLACE_ID = 1234567890 -- <--- Ganti dengan Place ID map Anda
+
+if game.PlaceId ~= ALLOWED_PLACE_ID then
+    warn("[Auto Hub]: Skrip ini tidak diizinkan berjalan di map ini!")
+    return -- Skrip akan langsung berhenti total jika di map lain
+end
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -191,18 +199,15 @@ NotifLabel.TextSize = 13
 NotifLabel.Font = Enum.Font.GothamBold
 NotifLabel.Parent = NotifFrame
 
--- Fungsi Menampilkan Notifikasi di Layar
 local function showRefundNotification(itemName)
     NotifLabel.Text = string.format("<b>[REFUND] Di-refund: %s</b>", tostring(itemName))
     NotifFrame.Visible = true
     NotifFrame.Position = UDim2.new(0.5, -160, 0, -50)
     
-    -- Animasi Muncul ke Bawah
     TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, -160, 0, 20)
     }):Play()
     
-    -- Sembunyikan otomatis setelah 3 detik
     task.spawn(function()
         task.wait(3)
         if NotifFrame.Visible then
@@ -221,7 +226,6 @@ MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
         local assetId = info and info.Id or "Unknown"
         local itemName = "Unknown Item"
         
-        -- Ambil nama item dari MarketplaceService berdasarkan ID
         pcall(function()
             local productInfo = MarketplaceService:GetProductInfo(assetId)
             if productInfo and productInfo.Name then
@@ -231,17 +235,15 @@ MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
             end
         end)
         
-        -- Tampilkan nama item ke layar
         showRefundNotification(itemName)
         
-        -- Kirim sinyal refund
         pcall(function()
             MarketplaceService:SignalPromptProductRequestFinished(assetId, Enum.ProductPurchaseDecision.NotProcessedYet)
         end)
     end
 end)
 
--- Main Frame (Disesuaikan ukurannya untuk 3 tombol + timer)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 245)
@@ -257,7 +259,6 @@ local MainUICorner = Instance.new("UICorner")
 MainUICorner.CornerRadius = UDim.new(0, 14)
 MainUICorner.Parent = MainFrame
 
--- ANIMATED BORDER PASTEL GLOW
 local MainUIStroke = Instance.new("UIStroke")
 MainUIStroke.Thickness = 2
 MainUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -271,7 +272,6 @@ UIStrokeGradient.Color = ColorSequence.new({
 })
 UIStrokeGradient.Parent = MainUIStroke
 
--- ANIMATED BACKGROUND GRADIENT
 local BackgroundGradient = Instance.new("UIGradient")
 BackgroundGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 22, 45)),
@@ -303,7 +303,6 @@ TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
 
--- Tombol Close & Minimize
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -32, 0, 6)
@@ -332,7 +331,6 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 8)
 MinCorner.Parent = MinimizeBtn
 
--- Floating Restore Button
 local RestoreBtn = Instance.new("TextButton")
 RestoreBtn.Size = UDim2.new(0, 130, 0, 38)
 RestoreBtn.Position = UDim2.new(0, 20, 0.85, 0)
@@ -354,13 +352,11 @@ RestoreStroke.Color = Color3.fromRGB(255, 119, 238)
 RestoreStroke.Thickness = 1.5
 RestoreStroke.Parent = RestoreBtn
 
--- Animasi Background Bergerak
 RunService.RenderStepped:Connect(function(dt)
     BackgroundGradient.Rotation = (BackgroundGradient.Rotation + dt * 20) % 360
     UIStrokeGradient.Rotation = (UIStrokeGradient.Rotation + dt * 35) % 360
 end)
 
--- Layout Container
 local Container = Instance.new("Frame")
 Container.Size = UDim2.new(1, -24, 1, -50)
 Container.Position = UDim2.new(0, 12, 0, 44)
@@ -507,7 +503,6 @@ task.spawn(function()
         end
     end
     
-    -- Teleport/Rejoin saat Waktu Habis
     TimerLabel.Text = "<b>Rejoining...</b>"
     task.wait(1)
     pcall(function()
@@ -525,7 +520,6 @@ pcall(function()
     end
 end)
 
--- Animasi Buka, Minimize, dan Close GUI
 local originalSize = MainFrame.Size
 local originalPos = MainFrame.Position
 
