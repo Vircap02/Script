@@ -57,7 +57,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 3
+    local maxRewards = 12
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
@@ -127,16 +127,24 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Steal / Anti-Steal Logic
+-- 5. Auto Steal / Anti-Steal Logic (CanTouch + Disable ProximityPrompts)
 RunService.Stepped:Connect(function()
     if masterEnabled then
         pcall(function()
+            -- Nonaktifkan CanTouch di karakter sendiri
             local char = LocalPlayer.Character
             if char then
                 for _, part in ipairs(char:GetChildren()) do
                     if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                         part.CanTouch = false
                     end
+                end
+            end
+
+            -- Nonaktifkan atau sembunyikan semua ProximityPrompt Steal di game
+            for _, prompt in ipairs(workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    prompt.Enabled = false
                 end
             end
         end)
@@ -191,7 +199,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan ukurannya untuk memuat 3 tombol + timer)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 245)
