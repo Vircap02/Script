@@ -57,7 +57,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 3
+    local maxRewards = 12
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
