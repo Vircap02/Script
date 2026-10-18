@@ -388,7 +388,7 @@ pcall(function()
     if queue_on_teleport then
         queue_on_teleport([[
             task.wait(3)
-            loadstring(game:HttpGet("URL_SCRIPT_ANDA_DISINI"))()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Sit%20For%20UGC"))()
         ]])
     end
 end)
