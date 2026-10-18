@@ -16,9 +16,8 @@ local LocalPlayer = Players.LocalPlayer
 -- Status Master Toggle (Set ke TRUE agar langsung AUTO ON)
 local masterEnabled = true
 
--- Status Auto Refund Toggle (Set ke TRUE secara terpisah)
-local autoRefundEnabled = true
-getgenv().AutoRefundV2 = autoRefundEnabled
+-- Synchronize global variable untuk fungsi refund
+getgenv().AutoRefundV2 = true
 
 -- References Remotes & Services
 local KnitServices = ReplicatedStorage:WaitForChild("Packages", 5) 
@@ -54,7 +53,7 @@ end)
 
 -- 2. Auto Playtime Rewards (Rejoin jika semua sudah ter-claim)
 task.spawn(function()
-    local maxRewards = 3
+    local maxRewards = 12
     while true do
         if masterEnabled and PlaytimeRemote then
             local allClaimed = true
@@ -140,9 +139,9 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Refund Purchase Prompt (Diatur oleh autoRefundEnabled)
+-- 5. Auto Refund Purchase Prompt
 MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
-    if player == LocalPlayer and autoRefundEnabled then
+    if player == LocalPlayer and masterEnabled then
         local assetId = info and info.Id or "Unknown"
         pcall(function()
             MarketplaceService:SignalPromptProductRequestFinished(assetId, Enum.ProductPurchaseDecision.NotProcessedYet)
@@ -188,11 +187,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan tingginya untuk memuat 3 tombol)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 255)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -127)
+MainFrame.Size = UDim2.new(0, 280, 0, 215)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -107)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -255,9 +254,9 @@ local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -32, 0, 6)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(240, 80, 120)
-CloseBtn.Text = "X"
+CloseBtn.Text = "×"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 14
+CloseBtn.TextSize = 18
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = TopBar
 
@@ -319,14 +318,14 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.Parent = Container
 
--- 1. Tombol Master Toggle
+-- 1. Tombol Master Toggle (Default Tampilan ON saat di-execute)
 local MasterButton = Instance.new("TextButton")
-MasterButton.Size = UDim2.new(1, 0, 0, 45)
+MasterButton.Size = UDim2.new(1, 0, 0, 52)
 MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238) -- Warna Pink Aktif
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
 MasterButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MasterButton.TextSize = 13
+MasterButton.TextSize = 14
 MasterButton.Font = Enum.Font.GothamBold
 MasterButton.AutoButtonColor = false
 MasterButton.Parent = Container
@@ -342,6 +341,7 @@ MasterStroke.Parent = MasterButton
 
 MasterButton.MouseButton1Click:Connect(function()
     masterEnabled = not masterEnabled
+    getgenv().AutoRefundV2 = masterEnabled
 
     local targetBg = masterEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
     local targetText = masterEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
@@ -354,47 +354,11 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Refund Toggle
-local RefundButton = Instance.new("TextButton")
-RefundButton.Size = UDim2.new(1, 0, 0, 45)
-RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
-RefundButton.Text = "<b>AUTO REFUND: ON</b>"
-RefundButton.RichText = true
-RefundButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefundButton.TextSize = 13
-RefundButton.Font = Enum.Font.GothamBold
-RefundButton.AutoButtonColor = false
-RefundButton.Parent = Container
-
-local RefundCorner = Instance.new("UICorner")
-RefundCorner.CornerRadius = UDim.new(0, 10)
-RefundCorner.Parent = RefundButton
-
-local RefundStroke = Instance.new("UIStroke")
-RefundStroke.Color = Color3.fromRGB(255, 119, 238)
-RefundStroke.Thickness = 1.5
-RefundStroke.Parent = RefundButton
-
-RefundButton.MouseButton1Click:Connect(function()
-    autoRefundEnabled = not autoRefundEnabled
-    getgenv().AutoRefundV2 = autoRefundEnabled
-
-    local targetBg = autoRefundEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
-    local targetText = autoRefundEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
-    local targetBorder = autoRefundEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 50, 95)
-    local statusText = autoRefundEnabled and "<b>AUTO REFUND: ON</b>" or "<b>AUTO REFUND: OFF</b>"
-
-    RefundButton.Text = statusText
-    TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
-    TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
-    TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
-end)
-
--- 3. Tombol Manual Rejoin Server
+-- 2. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
 RejoinButton.Size = UDim2.new(1, 0, 0, 45)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
-RejoinButton.Text = "<b>🛍 REJOIN SERVER</b>"
+RejoinButton.Text = "<b>🔄 REJOIN SERVER</b>"
 RejoinButton.RichText = true
 RejoinButton.TextColor3 = Color3.fromRGB(255, 150, 240)
 RejoinButton.TextSize = 13
@@ -422,7 +386,7 @@ pcall(function()
     if queue_on_teleport then
         queue_on_teleport([[
             task.wait(3)
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Sit%20For%20UGC"))()
+            loadstring(game:HttpGet("URL_SCRIPT_ANDA_DISINI"))()
         ]])
     end
 end)
@@ -466,7 +430,6 @@ end)
 
 CloseBtn.MouseButton1Click:Connect(function()
     masterEnabled = false
-    autoRefundEnabled = false
     getgenv().AutoRefundV2 = false
 
     local tweenClose = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
