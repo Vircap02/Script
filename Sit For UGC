@@ -53,7 +53,7 @@ end)
 
 -- 2. Auto Playtime Rewards (Rejoin jika semua sudah ter-claim)
 task.spawn(function()
-    local maxRewards = 8
+    local maxRewards = 7
     while true do
         if masterEnabled and PlaytimeRemote then
             local allClaimed = true
