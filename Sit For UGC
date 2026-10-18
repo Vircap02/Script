@@ -21,7 +21,7 @@ local autoStealEnabled = true -- Default ON saat di-execute
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (15 Menit = 900 Detik)
-local REJOIN_TIME = 15 * 60
+local REJOIN_TIME = 10 * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -58,7 +58,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 3
+    local maxRewards = 12
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
