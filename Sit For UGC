@@ -3,7 +3,7 @@
 -- ========================================================
 
 -- Ganti angka di bawah ini dengan Place ID map yang diizinkan
-local ALLOWED_PLACE_ID = 1234567890 -- <--- Ganti dengan Place ID map Anda
+local ALLOWED_PLACE_ID = 91626065062974 -- <--- Ganti dengan Place ID map Anda
 
 if game.PlaceId ~= ALLOWED_PLACE_ID then
     warn("[Auto Hub]: Skrip ini tidak diizinkan berjalan di map ini!")
