@@ -52,12 +52,12 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Playtime Rewards & Auto Rejoin (Diperbaiki)
+-- 2. Auto Playtime Rewards (Rejoin jika semua sudah ter-claim)
 task.spawn(function()
     local maxRewards = 3
     while true do
         if masterEnabled and PlaytimeRemote then
-            local claimedCount = 0
+            local allClaimed = true
             
             for i = 1, maxRewards do
                 if not masterEnabled then break end
@@ -66,18 +66,15 @@ task.spawn(function()
                     return PlaytimeRemote:InvokeServer(i)
                 end)
                 
-                -- Jika berhasil invoke dan server merespon sukses/memberikan sesuatu
-                if success and result == true then
-                    claimedCount = claimedCount + 1
+                if success and result ~= nil then
+                    allClaimed = false
                 end
                 
-                task.wait(0.3)
+                task.wait(0.15)
             end
             
-            -- Jika semua reward (maxRewards) sudah berhasil diklaim atau habis, lakukan rejoin
-            if masterEnabled and claimedCount == 0 then
-                -- Cek tambahan: Berikan jeda sebentar lalu pastikan benar-benar habis sebelum rejoin
-                task.wait(3)
+            if masterEnabled and allClaimed then
+                task.wait(2)
                 pcall(function()
                     TeleportService:Teleport(game.PlaceId, LocalPlayer)
                 end)
@@ -191,7 +188,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame
+-- Main Frame (Disesuaikan tingginya untuk memuat 3 tombol)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 255)
@@ -325,7 +322,7 @@ UIListLayout.Parent = Container
 -- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
 MasterButton.Size = UDim2.new(1, 0, 0, 45)
-MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
+MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238) -- Warna Pink Aktif
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
 MasterButton.TextColor3 = Color3.fromRGB(255, 255, 255)
