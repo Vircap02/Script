@@ -21,7 +21,7 @@ local autoStealEnabled = true -- Default ON saat di-execute
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (15 Menit = 900 Detik)
-local REJOIN_TIME = 10 * 60
+local REJOIN_TIME = 15 * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -58,7 +58,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 12
+    local maxRewards = 3
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
@@ -116,13 +116,12 @@ RunService.Stepped:Connect(function()
             if character then
                 for _, part in ipairs(character:GetDescendants()) do
                     if part:IsA("BasePart") then
-                        -- Jika Auto Steal aktif, buat CanCollide dan TouchInterest/Collision dimatikan/false
                         if autoStealEnabled then
                             part.CanCollide = false
                             part.CanTouch = false
                             part.CanQuery = false
                         else
-                            part.CanCollide = false -- tetap false agar tidak fling
+                            part.CanCollide = false
                         end
 
                         if part.AssemblyLinearVelocity.Magnitude > 100 or part.AssemblyAngularVelocity.Magnitude > 100 then
@@ -186,7 +185,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan ukurannya untuk memuat tambahan tombol Auto Steal)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 335)
@@ -388,7 +387,7 @@ RefundButton.MouseButton1Click:Connect(function()
     TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 3. Tombol Auto Steal Toggle (Matikan interaksi / touch character)
+-- 3. Tombol Auto Steal Toggle
 local StealButton = Instance.new("TextButton")
 StealButton.Size = UDim2.new(1, 0, 0, 40)
 StealButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
