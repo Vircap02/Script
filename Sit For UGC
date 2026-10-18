@@ -20,7 +20,7 @@ local autoRefundEnabled = true
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (10 Menit = 600 Detik)
-local REJOIN_TIME = 90 * 60
+local REJOIN_TIME = 10 * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -57,7 +57,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 12
+    local maxRewards = 3
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
@@ -241,11 +241,11 @@ MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
     end
 end)
 
--- Main Frame (Disesuaikan ukurannya untuk 3 tombol + timer)
+-- Main Frame (Disesuaikan ukurannya untuk memuat tombol Pilih Server)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 245)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -122)
+MainFrame.Size = UDim2.new(0, 280, 0, 287)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -143)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -296,7 +296,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -70, 1, 0)
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "🌸 MASTER AUTO HUB 🌸"
+TitleLabel.Text = "✨ MASTER AUTO HUB ✨"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 150, 240)
 TitleLabel.TextSize = 12
 TitleLabel.Font = Enum.Font.GothamBold
@@ -337,7 +337,7 @@ local RestoreBtn = Instance.new("TextButton")
 RestoreBtn.Size = UDim2.new(0, 130, 0, 38)
 RestoreBtn.Position = UDim2.new(0, 20, 0.85, 0)
 RestoreBtn.BackgroundColor3 = Color3.fromRGB(30, 22, 45)
-RestoreBtn.Text = "<b>🌸 Open Hub</b>"
+RestoreBtn.Text = "<b>✨ Open Hub</b>"
 RestoreBtn.RichText = true
 RestoreBtn.TextColor3 = Color3.fromRGB(255, 150, 240)
 RestoreBtn.TextSize = 13
@@ -447,7 +447,7 @@ end)
 local RejoinButton = Instance.new("TextButton")
 RejoinButton.Size = UDim2.new(1, 0, 0, 36)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
-RejoinButton.Text = "<b>🛍 REJOIN SERVER</b>"
+RejoinButton.Text = "<b>🗘 REJOIN SERVER</b>"
 RejoinButton.RichText = true
 RejoinButton.TextColor3 = Color3.fromRGB(255, 150, 240)
 RejoinButton.TextSize = 13
@@ -470,7 +470,34 @@ RejoinButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 4. Label Display Rejoin Timer (10 Menit)
+-- 4. Tombol Pilih Server (Tambahan Baru)
+local ServerButton = Instance.new("TextButton")
+ServerButton.Size = UDim2.new(1, 0, 0, 36)
+ServerButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
+ServerButton.Text = "<b>🌐 PILIH SERVER</b>"
+ServerButton.RichText = true
+ServerButton.TextColor3 = Color3.fromRGB(255, 150, 240)
+ServerButton.TextSize = 13
+ServerButton.Font = Enum.Font.GothamBold
+ServerButton.AutoButtonColor = false
+ServerButton.Parent = Container
+
+local ServerCorner = Instance.new("UICorner")
+ServerCorner.CornerRadius = UDim.new(0, 10)
+ServerCorner.Parent = ServerButton
+
+local ServerStroke = Instance.new("UIStroke")
+ServerStroke.Color = Color3.fromRGB(153, 102, 255)
+ServerStroke.Thickness = 1.5
+ServerStroke.Parent = ServerButton
+
+ServerButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/1q3gr8bb6o"))()
+    end)
+end)
+
+-- 5. Label Display Rejoin Timer (10 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
