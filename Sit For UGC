@@ -20,7 +20,7 @@ local autoRefundEnabled = true
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (10 Menit = 600 Detik)
-local REJOIN_TIME = 10 * 60
+local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
