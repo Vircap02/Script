@@ -10,7 +10,6 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
-local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -128,11 +127,10 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Steal / Anti-Steal Logic (Blokir Total ProximityPrompt "Steal Time")
+-- 5. Auto Steal / Anti-Steal Logic
 RunService.Stepped:Connect(function()
     if masterEnabled then
         pcall(function()
-            -- Nonaktifkan CanTouch di karakter sendiri
             local char = LocalPlayer.Character
             if char then
                 for _, part in ipairs(char:GetChildren()) do
@@ -141,53 +139,6 @@ RunService.Stepped:Connect(function()
                     end
                 end
             end
-
-            -- Hancurkan atau nonaktifkan semua ProximityPrompt yang memiliki kata "Steal"
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    if obj.ActionText:lower():find("steal") or obj.ObjectText:lower():find("steal") then
-                        obj:Destroy() -- Hapus permanen prompt steal agar tidak muncul
-                    else
-                        obj.Enabled = false
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- Blokir event prompt muncul di layar
-ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
-    if masterEnabled and (prompt.ActionText:lower():find("steal") or prompt.ObjectText:lower():find("steal")) then
-        prompt.Enabled = false
-    end
-end)
-
--- 6. Auto Refund Purchase Prompt
-MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
-    if player == LocalPlayer and autoRefundEnabled then
-        local assetId = info and info.Id or "Unknown"
-        pcall(function()
-            MarketplaceService:SignalPromptProductRequestFinished(assetId, Enum.ProductPurchaseDecision.NotProcessedYet)
-        end)
-    end
-end)
-
--- 7. Anti-AFK
-LocalPlayer.Idled:Connect(function()
-    if masterEnabled then
-        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    end
-end)
-
--- 8. Auto Reconnect saat Error Prompt
-CoreGui.ChildAdded:Connect(function(child)
-    if masterEnabled and child.Name == "ErrorPrompt" then
-        task.wait(2)
-        pcall(function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
     end
 end)
@@ -211,7 +162,86 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame
+-- Notifikasi Popup Nama Item Refund di Layar
+local NotifFrame = Instance.new("Frame")
+NotifFrame.Size = UDim2.new(0, 320, 0, 45)
+NotifFrame.Position = UDim2.new(0.5, -160, 0, 15)
+NotifFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 50)
+NotifFrame.BackgroundTransparency = 0.2
+NotifFrame.BorderSizePixel = 0
+NotifFrame.Visible = false
+NotifFrame.Parent = ScreenGui
+
+local NotifCorner = Instance.new("UICorner")
+NotifCorner.CornerRadius = UDim.new(0, 10)
+NotifCorner.Parent = NotifFrame
+
+local NotifStroke = Instance.new("UIStroke")
+NotifStroke.Color = Color3.fromRGB(255, 119, 238)
+NotifStroke.Thickness = 1.5
+NotifStroke.Parent = NotifFrame
+
+local NotifLabel = Instance.new("TextLabel")
+NotifLabel.Size = UDim2.new(1, 0, 1, 0)
+NotifLabel.BackgroundTransparency = 1
+NotifLabel.Text = "<b>[REFUND]: Item Name</b>"
+NotifLabel.RichText = true
+NotifLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
+NotifLabel.TextSize = 13
+NotifLabel.Font = Enum.Font.GothamBold
+NotifLabel.Parent = NotifFrame
+
+-- Fungsi Menampilkan Notifikasi di Layar
+local function showRefundNotification(itemName)
+    NotifLabel.Text = string.format("<b>[REFUND] Di-refund: %s</b>", tostring(itemName))
+    NotifFrame.Visible = true
+    NotifFrame.Position = UDim2.new(0.5, -160, 0, -50)
+    
+    -- Animasi Muncul ke Bawah
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -160, 0, 20)
+    }):Play()
+    
+    -- Sembunyikan otomatis setelah 3 detik
+    task.spawn(function()
+        task.wait(3)
+        if NotifFrame.Visible then
+            TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Position = UDim2.new(0.5, -160, 0, -50)
+            }):Play()
+            task.wait(0.3)
+            NotifFrame.Visible = false
+        end
+    end)
+end
+
+-- 6. Auto Refund Purchase Prompt (Dengan Deteksi Nama Item)
+MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
+    if player == LocalPlayer and autoRefundEnabled then
+        local assetId = info and info.Id or "Unknown"
+        local itemName = "Unknown Item"
+        
+        -- Ambil nama item dari MarketplaceService berdasarkan ID
+        pcall(function()
+            local productInfo = MarketplaceService:GetProductInfo(assetId)
+            if productInfo and productInfo.Name then
+                itemName = productInfo.Name
+            elseif info and (info.Name or info.Title) then
+                itemName = info.Name or info.Title
+            end
+        end)
+        
+        -- Tampilkan nama item ke layar
+        showRefundNotification(itemName)
+        
+        -- Kirim sinyal refund
+        pcall(function()
+            MarketplaceService:SignalPromptProductRequestFinished(assetId, Enum.ProductPurchaseDecision.NotProcessedYet)
+        end)
+    end
+end)
+
+-- Main Frame (Disesuaikan ukurannya untuk 3 tombol + timer)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 245)
