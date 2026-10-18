@@ -10,6 +10,7 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -57,7 +58,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 12
+    local maxRewards = 3
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
@@ -127,7 +128,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Steal / Anti-Steal Logic (CanTouch + Disable ProximityPrompts)
+-- 5. Auto Steal / Anti-Steal Logic (Blokir Total ProximityPrompt "Steal Time")
 RunService.Stepped:Connect(function()
     if masterEnabled then
         pcall(function()
@@ -141,13 +142,24 @@ RunService.Stepped:Connect(function()
                 end
             end
 
-            -- Nonaktifkan atau sembunyikan semua ProximityPrompt Steal di game
-            for _, prompt in ipairs(workspace:GetDescendants()) do
-                if prompt:IsA("ProximityPrompt") then
-                    prompt.Enabled = false
+            -- Hancurkan atau nonaktifkan semua ProximityPrompt yang memiliki kata "Steal"
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") then
+                    if obj.ActionText:lower():find("steal") or obj.ObjectText:lower():find("steal") then
+                        obj:Destroy() -- Hapus permanen prompt steal agar tidak muncul
+                    else
+                        obj.Enabled = false
+                    end
                 end
             end
         end)
+    end
+end)
+
+-- Blokir event prompt muncul di layar
+ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
+    if masterEnabled and (prompt.ActionText:lower():find("steal") or prompt.ObjectText:lower():find("steal")) then
+        prompt.Enabled = false
     end
 end)
 
