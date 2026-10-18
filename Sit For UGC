@@ -13,14 +13,13 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- States / Status Toggle
+-- Status Master & Auto Refund Toggle
 local masterEnabled = true
 local autoRefundEnabled = true
-local autoStealEnabled = true
 
 getgenv().AutoRefundV2 = autoRefundEnabled
 
--- Durasi Rejoin Timer (15 Menit = 900 Detik)
+-- Durasi Rejoin Timer (10 Menit = 600 Detik)
 local REJOIN_TIME = 10 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -56,7 +55,7 @@ task.spawn(function()
     end
 end)
 
--- 2. Auto Playtime Rewards (Hanya Claim Reward saja)
+-- 2. Auto Playtime Rewards
 task.spawn(function()
     local maxRewards = 3
     while true do
@@ -128,9 +127,9 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 5. Auto Steal (Anti-Steal Logic)
+-- 5. Auto Steal / Anti-Steal Logic
 RunService.Stepped:Connect(function()
-    if masterEnabled and autoStealEnabled then
+    if masterEnabled then
         pcall(function()
             local char = LocalPlayer.Character
             if char then
@@ -192,11 +191,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan tingginya untuk memuat semua tombol)
+-- Main Frame (Disesuaikan ukurannya untuk memuat 3 tombol + timer)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 335)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -167)
+MainFrame.Size = UDim2.new(0, 280, 0, 245)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -122)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -325,7 +324,7 @@ UIListLayout.Parent = Container
 
 -- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
-MasterButton.Size = UDim2.new(1, 0, 0, 40)
+MasterButton.Size = UDim2.new(1, 0, 0, 36)
 MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
@@ -360,7 +359,7 @@ end)
 
 -- 2. Tombol Auto Refund Toggle
 local RefundButton = Instance.new("TextButton")
-RefundButton.Size = UDim2.new(1, 0, 0, 40)
+RefundButton.Size = UDim2.new(1, 0, 0, 36)
 RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 RefundButton.Text = "<b>AUTO REFUND: ON</b>"
 RefundButton.RichText = true
@@ -394,44 +393,9 @@ RefundButton.MouseButton1Click:Connect(function()
     TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 3. Tombol Auto Steal Toggle
-local StealButton = Instance.new("TextButton")
-StealButton.Size = UDim2.new(1, 0, 0, 40)
-StealButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
-StealButton.Text = "<b>AUTO STEAL: ON</b>"
-StealButton.RichText = true
-StealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-StealButton.TextSize = 13
-StealButton.Font = Enum.Font.GothamBold
-StealButton.AutoButtonColor = false
-StealButton.Parent = Container
-
-local StealCorner = Instance.new("UICorner")
-StealCorner.CornerRadius = UDim.new(0, 10)
-StealCorner.Parent = StealButton
-
-local StealStroke = Instance.new("UIStroke")
-StealStroke.Color = Color3.fromRGB(255, 119, 238)
-StealStroke.Thickness = 1.5
-StealStroke.Parent = StealButton
-
-StealButton.MouseButton1Click:Connect(function()
-    autoStealEnabled = not autoStealEnabled
-
-    local targetBg = autoStealEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
-    local targetText = autoStealEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
-    local targetBorder = autoStealEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 50, 95)
-    local statusText = autoStealEnabled and "<b>AUTO STEAL: ON</b>" or "<b>AUTO STEAL: OFF</b>"
-
-    StealButton.Text = statusText
-    TweenService:Create(StealButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
-    TweenService:Create(StealButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
-    TweenService:Create(StealStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
-end)
-
--- 4. Tombol Manual Rejoin Server
+-- 3. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
-RejoinButton.Size = UDim2.new(1, 0, 0, 40)
+RejoinButton.Size = UDim2.new(1, 0, 0, 36)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
 RejoinButton.Text = "<b>🛍 REJOIN SERVER</b>"
 RejoinButton.RichText = true
@@ -456,7 +420,7 @@ RejoinButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Label Display Rejoin Timer
+-- 4. Label Display Rejoin Timer (10 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -474,14 +438,14 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 1, 0)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 15:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 10:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer 15 Menit
+-- Task Countdown Timer 10 Menit
 task.spawn(function()
     while timeRemaining > 0 do
         task.wait(1)
@@ -551,7 +515,6 @@ end)
 CloseBtn.MouseButton1Click:Connect(function()
     masterEnabled = false
     autoRefundEnabled = false
-    autoStealEnabled = false
     getgenv().AutoRefundV2 = false
 
     local tweenClose = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
