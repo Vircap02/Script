@@ -20,7 +20,7 @@ local autoRefundEnabled = true
 getgenv().AutoRefundV2 = autoRefundEnabled
 
 -- Durasi Rejoin Timer (10 Menit = 600 Detik)
-local REJOIN_TIME = 10 * 60
+local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -57,7 +57,7 @@ end)
 
 -- 2. Auto Playtime Rewards
 task.spawn(function()
-    local maxRewards = 3
+    local maxRewards = 12
     while true do
         if masterEnabled and PlaytimeRemote then
             for i = 1, maxRewards do
