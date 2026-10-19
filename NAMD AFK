@@ -154,12 +154,15 @@ Window:Toggle("Auto Spin Ruleta", false, function(v)
     end
 end, "rotate-cw")
 
--- Loop Auto Spin
+-- Loop Auto Spin dengan argumen "halloween"
 task.spawn(function()
     while true do
         if autoSpinActive then
             pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("SistemaRuleta"):WaitForChild("Girar"):InvokeServer()
+                local args = {
+                    "halloween"
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("SistemaRuleta"):WaitForChild("Girar"):InvokeServer(unpack(args))
             end)
             task.wait(1)
         else
