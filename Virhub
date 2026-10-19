@@ -1,6 +1,6 @@
 --[[
     ╔══════════════════════════════════════════════╗
-    ║              VIRGOBOY HUB  v2.0              ║
+    ║              VIRGOBOY HUB  v2.1              ║
     ║     Hacker Live Animated Edition • PC/Mobile ║
     ║              Owner: Virgoboy                 ║
     ╚══════════════════════════════════════════════╝
@@ -22,6 +22,10 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Stats = game:GetService("Stats")
 local VirtualUser = game:GetService("VirtualUser")
+local Lighting = game:GetService("Lighting")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local GuiService = game:GetService("GuiService")
+local TeleportService = game:GetService("TeleportService")
 
 local IS_TOUCH = UIS.TouchEnabled
 local IS_MOBILE = UIS.TouchEnabled and not UIS.KeyboardEnabled
@@ -55,7 +59,7 @@ end
 local CFG = {
 	Name = "Virgoboy Hub",
 	Owner = "Virgoboy",
-	Version = "2.0.0",
+	Version = "2.1.0",
 	ToggleKey = Enum.KeyCode.RightShift,
 	ThemeName = "Hacker",
 	Accent = Color3.fromRGB(0, 255, 65),
@@ -85,6 +89,33 @@ local C = {
 
 local hasFS = (writefile and readfile and isfile) and true or false
 
+-- State Variabel Pengaturan yang akan disimpan & dimuat
+local savedState = {
+	WalkSpeed = 16,
+	JumpPower = 50,
+	FlySpeed = 60,
+	Noclip = false,
+	InfJump = false,
+	WalkFling = false,
+	Fullbright = false,
+	InstantInteract = false,
+	InfProximity = false,
+	ESP = false,
+	AntiAfk = true,
+}
+
+local function saveSettings()
+	if not hasFS then return end
+	pcall(function()
+		local data = {
+			Theme = CFG.ThemeName,
+			Key = CFG.ToggleKey.Name,
+			States = savedState
+		}
+		writefile(CFG.SettingsFile, HttpService:JSONEncode(data))
+	end)
+end
+
 local function loadSettings()
 	if not hasFS then return end
 	local okExists, exists = pcall(isfile, CFG.SettingsFile)
@@ -93,24 +124,24 @@ local function loadSettings()
 		return HttpService:JSONDecode(readfile(CFG.SettingsFile))
 	end)
 	if ok and type(d) == "table" then
-		for _, t in ipairs(THEMES) do
-			if t[1] == d.Theme then
-				CFG.ThemeName = t[1]
-				CFG.Accent = t[2]
+		if d.Theme then
+			for _, t in ipairs(THEMES) do
+				if t[1] == d.Theme then
+					CFG.ThemeName = t[1]
+					CFG.Accent = t[2]
+				end
 			end
 		end
 		if type(d.Key) == "string" then
 			local ok2, k = pcall(function() return Enum.KeyCode[d.Key] end)
 			if ok2 and k then CFG.ToggleKey = k end
 		end
+		if type(d.States) == "table" then
+			for k, v in pairs(d.States) do
+				savedState[k] = v
+			end
+		end
 	end
-end
-
-local function saveSettings()
-	if not hasFS then return end
-	pcall(function()
-		writefile(CFG.SettingsFile, HttpService:JSONEncode({ Theme = CFG.ThemeName, Key = CFG.ToggleKey.Name }))
-	end)
 end
 
 loadSettings()
@@ -702,6 +733,7 @@ local function toggle(page, text, default, callback)
 		if not ok then notify("Error", tostring(err), C.Bad) end
 	end
 	connect(hit.MouseButton1Click, function() apply(not state) end)
+	render()
 	return { Set = apply, Get = function() return state end }
 end
 
@@ -761,26 +793,41 @@ local function slider(page, text, min, max, default, callback)
 	}, { corner(8) })
 
 	local dragging = false
-	local function update(x)
+	local function update(x, skipCallback)
 		local w = math.max(bar.AbsoluteSize.X, 1)
 		local rel = math.clamp((x - bar.AbsolutePosition.X) / w, 0, 1)
 		local v = math.floor(min + (max - min) * rel + 0.5)
 		fill.Size = UDim2.new(rel, 0, 1, 0)
 		knob.Position = UDim2.new(rel, 0, 0.5, 0)
 		val.Text = tostring(v)
-		pcall(callback, v)
+		if not skipCallback then
+			pcall(callback, v)
+		end
 	end
+	
 	connect(hit.InputBegan, function(i)
-		if isPointer(i) then dragging = true; page.ScrollingEnabled = false; update(i.Position.X) end
+		if isPointer(i) then dragging = true; page.ScrollingEnabled = false; update(i.Position.X, false) end
 	end)
 	connect(UIS.InputChanged, function(i)
 		if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-			update(i.Position.X)
+			update(i.Position.X, false)
 		end
 	end)
 	connect(UIS.InputEnded, function(i)
 		if dragging and isPointer(i) then dragging = false; page.ScrollingEnabled = true end
 	end)
+
+	-- Fungsi untuk set nilai dari luar (misal saat Load Settings)
+	local function setVal(v)
+		v = math.clamp(v, min, max)
+		local rel = (v - min) / (max - min)
+		fill.Size = UDim2.new(rel, 0, 1, 0)
+		knob.Position = UDim2.new(rel, 0, 0.5, 0)
+		val.Text = tostring(v)
+		pcall(callback, v)
+	end
+
+	return { Set = setVal, Get = function() return tonumber(val.Text) or default end }
 end
 
 local function textbox(page, placeholder, height, multiline)
@@ -938,10 +985,10 @@ do
 	})
 end
 
---// ========== PLAYER ==========
-local flying, noclip, infJump, esp, antiAfk = false, false, false, false, true
+--// ========== PLAYER (BAWAAN VIRGOBOY + FITUR TAMBAHAN) ==========
+local flying, noclip, infJump, esp, antiAfk = false, false, false, false, savedState.AntiAfk
 local customSpeed, customJump = nil, nil
-local flySpeed = 60
+local flySpeed = savedState.FlySpeed
 local flyUp, flyDown = false, false
 local bv, bg
 local stopFly
@@ -951,9 +998,10 @@ local function getHum()
 	local ch = LP.Character
 	return ch and ch:FindFirstChildOfClass("Humanoid")
 end
-local function getOWNER()
+
+local function getRoot()
 	local ch = LP.Character
-	return ch and ch:FindFirstChild("HumanoidOWNERPart")
+	return ch and (ch:FindFirstChild("HumanoidRootPart") or ch:FindFirstChild("Torso") or ch:FindFirstChild("UpperTorso"))
 end
 
 local FlyPad = make("Frame", {
@@ -1004,18 +1052,21 @@ stopFly = function()
 end
 
 local function startFly()
-	local OWNER, hum = getOWNER(), getHum()
-	if not OWNER or not hum then notify("Fly", "Karakter belum siap.", C.Bad) return false end
+	local root, hum = getRoot(), getHum()
+	if not root or not hum then notify("Fly", "Karakter belum siap.", C.Bad) return false end
 	stopFly()
+	
 	bv = Instance.new("BodyVelocity")
 	bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
 	bv.Velocity = Vector3.zero
-	bv.Parent = OWNER
+	bv.Parent = root
+	
 	bg = Instance.new("BodyGyro")
 	bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
 	bg.P = 9e4
-	bg.CFrame = OWNER.CFrame
-	bg.Parent = OWNER
+	bg.CFrame = root.CFrame
+	bg.Parent = root
+	
 	hum.PlatformStand = true
 	flying = true
 	FlyPad.Visible = IS_TOUCH
@@ -1025,16 +1076,20 @@ end
 do
 	section(PlayerPg, "Movement")
 	local h0 = getHum()
-	local ws0 = h0 and math.floor(h0.WalkSpeed + 0.5) or 16
-	local jp0 = h0 and math.floor(h0.JumpPower + 0.5) or 50
+	local ws0 = savedState.WalkSpeed or (h0 and math.floor(h0.WalkSpeed + 0.5) or 16)
+	local jp0 = savedState.JumpPower or (h0 and math.floor(h0.JumpPower + 0.5) or 50)
 
 	slider(PlayerPg, "WalkSpeed", 16, 250, ws0, function(v)
 		customSpeed = v
+		savedState.WalkSpeed = v
+		saveSettings()
 		local h = getHum()
 		if h then h.WalkSpeed = v end
 	end)
 	slider(PlayerPg, "JumpPower", 50, 300, jp0, function(v)
 		customJump = v
+		savedState.JumpPower = v
+		saveSettings()
 		local h = getHum()
 		if h then h.UseJumpPower = true; h.JumpPower = v end
 	end)
@@ -1056,36 +1111,45 @@ do
 			stopFly()
 		end
 	end)
-	slider(PlayerPg, "Fly Speed", 20, 300, 60, function(v) flySpeed = v end)
+	
+	slider(PlayerPg, "Fly Speed", 20, 300, savedState.FlySpeed, function(v)
+		flySpeed = v
+		savedState.FlySpeed = v
+		saveSettings()
+	end)
 
 	connect(RunService.RenderStepped, function()
 		if not (flying and bv and bg) then return end
-		local OWNER = getOWNER()
-		if not OWNER or not bv.Parent then return end
+		local root = getRoot()
+		if not root or not bv.Parent then return end
 		local cam = workspace.CurrentCamera
 		local hum = getHum()
 		local dir = Vector3.zero
 		local move = hum and hum.MoveDirection or Vector3.zero
+		
 		if move.Magnitude > 0.05 then
-			local rel = cam.CFrame:VectorToObjectSpace(move)
-			dir = cam.CFrame.LookVector * (-rel.Z) + cam.CFrame.RightVector * rel.X
+			dir = move * flySpeed
 		else
 			if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
 			if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
 			if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
 			if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+			dir = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
 		end
-		if flyUp or UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
-		if flyDown or UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
-		if dir.Magnitude > 0.01 then
-			bv.Velocity = dir.Unit * flySpeed
-		else
-			bv.Velocity = Vector3.zero
-		end
-		bg.CFrame = CFrame.new(OWNER.Position, OWNER.Position + cam.CFrame.LookVector)
+		
+		if flyUp or UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, flySpeed, 0) end
+		if flyDown or UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, flySpeed, 0) end
+		
+		bv.Velocity = dir
+		bg.CFrame = cam.CFrame
 	end)
 
-	toggle(PlayerPg, "Noclip", false, function(s) noclip = s end)
+	local noclipToggle = toggle(PlayerPg, "Noclip", savedState.Noclip, function(s)
+		noclip = s
+		savedState.Noclip = s
+		saveSettings()
+	end)
+	
 	connect(RunService.Stepped, function()
 		if noclip and LP.Character then
 			for _, p in ipairs(LP.Character:GetDescendants()) do
@@ -1094,12 +1158,194 @@ do
 		end
 	end)
 
-	toggle(PlayerPg, "Infinite Jump", false, function(s) infJump = s end)
+	local infJumpToggle = toggle(PlayerPg, "Infinite Jump", savedState.InfJump, function(s)
+		infJump = s
+		savedState.InfJump = s
+		saveSettings()
+	end)
+	
 	connect(UIS.JumpRequest, function()
 		if infJump then
 			local h = getHum()
 			if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
 		end
+	end)
+
+	--// FITUR TAMBAHAN DARI Flinghub.lua (WalkFling & Fullbright)
+	local walkFlingEnabled = savedState.WalkFling
+	local flingConnection
+	
+	local function applyWalkFling(s)
+		walkFlingEnabled = s
+		savedState.WalkFling = s
+		saveSettings()
+		if walkFlingEnabled then
+			flingConnection = RunService.Heartbeat:Connect(function()
+				local character = LP.Character
+				if not character then return end
+				local root = character:FindFirstChild("HumanoidRootPart")
+				if root and walkFlingEnabled then
+					local oldVel = root.AssemblyLinearVelocity
+					root.AssemblyLinearVelocity = Vector3.new(10000, 10000, 10000)
+					RunService.RenderStepped:Wait()
+					root.AssemblyLinearVelocity = oldVel
+				end
+			end)
+		else
+			if flingConnection then flingConnection:Disconnect(); flingConnection = nil end
+		end
+	end
+	
+	local walkFlingToggle = toggle(PlayerPg, "WalkFling", savedState.WalkFling, applyWalkFling)
+	if savedState.WalkFling then applyWalkFling(true) end
+
+	local fullbrightEnabled = savedState.Fullbright
+	local originalLighting = {
+		Brightness = Lighting.Brightness,
+		ClockTime = Lighting.ClockTime,
+		FogEnd = Lighting.FogEnd,
+		GlobalShadows = Lighting.GlobalShadows,
+		Ambient = Lighting.Ambient
+	}
+	local brightConnection
+	
+	local function applyFullbright(s)
+		fullbrightEnabled = s
+		savedState.Fullbright = s
+		saveSettings()
+		if fullbrightEnabled then
+			originalLighting.Brightness = Lighting.Brightness
+			originalLighting.ClockTime = Lighting.ClockTime
+			originalLighting.FogEnd = Lighting.FogEnd
+			originalLighting.GlobalShadows = Lighting.GlobalShadows
+			originalLighting.Ambient = Lighting.Ambient
+			
+			brightConnection = RunService.RenderStepped:Connect(function()
+				if fullbrightEnabled then
+					Lighting.Brightness = 2
+					Lighting.ClockTime = 14
+					Lighting.FogEnd = 100000
+					Lighting.GlobalShadows = false
+					Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+				end
+			end)
+		else
+			if brightConnection then brightConnection:Disconnect(); brightConnection = nil end
+			Lighting.Brightness = originalLighting.Brightness
+			Lighting.ClockTime = originalLighting.ClockTime
+			Lighting.FogEnd = originalLighting.FogEnd
+			Lighting.GlobalShadows = originalLighting.GlobalShadows
+			Lighting.Ambient = originalLighting.Ambient
+		end
+	end
+	
+	local fullbrightToggle = toggle(PlayerPg, "Fullbright (Terang)", savedState.Fullbright, applyFullbright)
+	if savedState.Fullbright then applyFullbright(true) end
+
+	--// FITUR TAMBAHAN INTERAKSI (Instant Interact & Inf Proximity Range)
+	local instantInteract = savedState.InstantInteract
+	local instantToggle = toggle(PlayerPg, "Instant Interact", savedState.InstantInteract, function(s)
+		instantInteract = s
+		savedState.InstantInteract = s
+		saveSettings()
+	end)
+	
+	connect(ProximityPromptService.PromptButtonHoldBegan, function(prompt)
+		if instantInteract then
+			prompt.HoldDuration = 0
+			if fireproximityprompt then fireproximityprompt(prompt) end
+		end
+	end)
+
+	local proxiReach = savedState.InfProximity
+	local defaultProxiData = {}
+	local proxConnections = {}
+	
+	local function applyInfProximity(s)
+		proxiReach = s
+		savedState.InfProximity = s
+		saveSettings()
+		if not proxiReach then
+			for prompt, data in pairs(defaultProxiData) do
+				if prompt and prompt.Parent then
+					prompt.MaxActivationDistance = data.Distance
+					prompt.RequiresLineOfSight = data.Sight
+				end
+			end
+			defaultProxiData = {}
+			for _, conn in pairs(proxConnections) do conn:Disconnect() end
+			proxConnections = {}
+		end
+	end
+	
+	local infProximityToggle = toggle(PlayerPg, "Inf Proximity Range", savedState.InfProximity, applyInfProximity)
+
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			if proxiReach then
+				for _, v in pairs(workspace:GetDescendants()) do
+					if v:IsA("ProximityPrompt") then
+						if not defaultProxiData[v] then
+							defaultProxiData[v] = { Distance = v.MaxActivationDistance, Sight = v.RequiresLineOfSight }
+						end
+						v.MaxActivationDistance = 99999
+						v.RequiresLineOfSight = false
+						if not proxConnections[v] then
+							proxConnections[v] = v.Triggered:Connect(function(playerWhoTriggered)
+								if playerWhoTriggered == LP then
+									if fireproximityprompt then
+										fireproximityprompt(v)
+									else
+										local char = LP.Character
+										local root = char and char:FindFirstChild("HumanoidRootPart")
+										local targetPart = v.Parent:IsA("BasePart") and v.Parent or v.Parent:FindFirstChildWhichIsA("BasePart")
+										if root and targetPart then
+											local oldCFrame = root.CFrame
+											root.CFrame = targetPart.CFrame
+											task.wait(0.1)
+											root.CFrame = oldCFrame
+										end
+									end
+								end
+							end)
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	--// FIRE TOUCH & FIRE CLICK BUTTONS
+	button(PlayerPg, "Fire Touch Interests", function()
+		local char = LP.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		local count = 0
+		for _, v in pairs(workspace:GetDescendants()) do
+			if v:IsA("TouchTransmitter") and v.Parent and v.Parent:IsA("BasePart") then
+				if firetouchinterest then
+					firetouchinterest(root, v.Parent, 0)
+					task.wait()
+					firetouchinterest(root, v.Parent, 1)
+					count = count + 1
+				end
+			end
+		end
+		notify("Fire Touch", "Berhasil menembakkan " .. count .. " touch interest.", C.Good)
+	end)
+
+	button(PlayerPg, "Fire Click Detectors", function()
+		local count = 0
+		for _, v in pairs(workspace:GetDescendants()) do
+			if v:IsA("ClickDetector") then
+				if fireclickdetector then
+					fireclickdetector(v)
+					count = count + 1
+				end
+			end
+		end
+		notify("Fire Click", "Berhasil menembakkan " .. count .. " click detector.", C.Good)
 	end)
 
 	local espFolder = make("Folder", { Name = "VirgoESP", Parent = Gui })
@@ -1129,24 +1375,57 @@ do
 	connect(Players.PlayerAdded, hookPlayer)
 	connect(Players.PlayerRemoving, removeEsp)
 	onTheme(function() for _, h in pairs(espObjs) do h.FillColor = CFG.Accent end end)
-	toggle(PlayerPg, "ESP Pemain (Highlight)", false, function(s)
+	
+	local espToggle = toggle(PlayerPg, "ESP Pemain (Highlight)", savedState.ESP, function(s)
 		esp = s
+		savedState.ESP = s
+		saveSettings()
 		for _, p in ipairs(Players:GetPlayers()) do updateEsp(p) end
 	end)
 
-	toggle(PlayerPg, "Anti-AFK", true, function(s) antiAfk = s end)
+	local antiAfkToggle = toggle(PlayerPg, "Anti-AFK", savedState.AntiAfk, function(s)
+		antiAfk = s
+		savedState.AntiAfk = s
+		saveSettings()
+	end)
+	
 	connect(LP.Idled, function()
 		if antiAfk then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end
 	end)
 
-	section(PlayerPg, "Utility")
+	--// SERVER HOP & SMALL SERVER UTILITIES
+	local function switchServer(findLowest)
+		local servers = {}
+		local req = request or http_request or (syn and syn.request) or (http and http.request)
+		if req then
+			local api = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=" .. (findLowest and "Asc" or "Desc") .. "&limit=100"
+			local success, result = pcall(function()
+				return HttpService:JSONDecode(req({Url = api}).Body)
+			end)
+			if success and result and result.data then
+				for _, v in ipairs(result.data) do
+					if type(v) == "table" and v.playing and v.maxPlayers and v.playing < v.maxPlayers and v.id ~= game.JobId then
+						table.insert(servers, v.id)
+					end
+				end
+			end
+		end
+		if #servers > 0 then
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[findLowest and 1 or math.random(1, #servers)], LP)
+		else
+			TeleportService:Teleport(game.PlaceId, LP)
+		end
+	end
+
+	section(PlayerPg, "Utility & Server")
+	button(PlayerPg, "Small Server", function() switchServer(true) end)
+	button(PlayerPg, "Server Hop", function() switchServer(false) end)
 	button(PlayerPg, "Reset Karakter", function()
 		local h = getHum()
 		if h then h.Health = 0 end
 	end)
 	button(PlayerPg, "Rejoin Server", function()
-		local TS = game:GetService("TeleportService")
-		if game.JobId ~= "" then TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) else TS:Teleport(game.PlaceId, LP) end
+		if game.JobId ~= "" then TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) else TeleportService:Teleport(game.PlaceId, LP) end
 	end)
 
 	connect(LP.CharacterAdded, function(char)
@@ -1355,6 +1634,18 @@ do
 		end)
 	end
 
+	section(SettingsPg, "Manajemen Konfigurasi (Write / Load)")
+	buttonRow(SettingsPg, {
+		{ text = "WRITE SETTINGS", color = C.Good, callback = function()
+			saveSettings()
+			notify("Settings", "Semua pengaturan berhasil disimpan (Write)!", C.Good)
+		end },
+		{ text = "LOAD SETTINGS", color = CFG.Accent, callback = function()
+			loadSettings()
+			notify("Settings", "Pengaturan berhasil dimuat ulang (Load)!", CFG.Accent)
+		end },
+	})
+
 	section(SettingsPg, "Zona Bahaya")
 	button(SettingsPg, "Destroy Virgoboy Hub", function() cleanup() end)
 end
@@ -1546,6 +1837,8 @@ cleanup = function()
 	for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
 	table.clear(connections)
 	pcall(stopFly)
+	if flingConnection then flingConnection:Disconnect() end
+	if brightConnection then brightConnection:Disconnect() end
 	flying, noclip, infJump, esp = false, false, false, false
 	pcall(function() Gui:Destroy() end)
 	_G.VirgoboyHubCleanup = nil
