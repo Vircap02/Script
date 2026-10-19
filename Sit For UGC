@@ -13,13 +13,10 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master & Auto Refund Toggle
+-- Status Master 
 local masterEnabled = true
-local autoRefundEnabled = true
 
-getgenv().AutoRefundV2 = autoRefundEnabled
-
--- Durasi Rejoin Timer (90 Menit = 5400 Detik)
+-- Durasi Rejoin Timer (10 Menit = 600 Detik)
 local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -162,14 +159,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- 6. Auto Refund (Diganti Total Menggunakan Loadstring Baru)
-task.spawn(function()
-    pcall(function()
-        loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
-    end)
-end)
-
--- Main Frame (Disesuaikan ukurannya untuk memuat semua komponen tombol)
+-- Main Frame (Disesuaikan ukurannya untuk memuat tombol Pilih Server)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 287)
@@ -335,13 +325,13 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Refund Toggle (Diperbarui untuk Mengontrol/Reload Script Eksternal Jika Diperlukan)
+-- 2. Tombol Auto Refund (Diubah Menjadi Once / Eksekusi Sekali Klik)
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 36)
-RefundButton.BackgroundColor3 = Color3.fromRGB(255, 119, 238)
-RefundButton.Text = "<b>AUTO REFUND: ON</b>"
+RefundButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
+RefundButton.Text = "<b>⚡ AUTO REFUND</b>"
 RefundButton.RichText = true
-RefundButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+RefundButton.TextColor3 = Color3.fromRGB(255, 150, 240)
 RefundButton.TextSize = 13
 RefundButton.Font = Enum.Font.GothamBold
 RefundButton.AutoButtonColor = false
@@ -352,29 +342,14 @@ RefundCorner.CornerRadius = UDim.new(0, 10)
 RefundCorner.Parent = RefundButton
 
 local RefundStroke = Instance.new("UIStroke")
-RefundStroke.Color = Color3.fromRGB(255, 119, 238)
+RefundStroke.Color = Color3.fromRGB(153, 102, 255)
 RefundStroke.Thickness = 1.5
 RefundStroke.Parent = RefundButton
 
 RefundButton.MouseButton1Click:Connect(function()
-    autoRefundEnabled = not autoRefundEnabled
-    getgenv().AutoRefundV2 = autoRefundEnabled
-
-    local targetBg = autoRefundEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
-    local targetText = autoRefundEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
-    local targetBorder = autoRefundEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 50, 95)
-    local statusText = autoRefundEnabled and "<b>AUTO REFUND: ON</b>" or "<b>AUTO REFUND: OFF</b>"
-
-    RefundButton.Text = statusText
-    TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
-    TweenService:Create(RefundButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
-    TweenService:Create(RefundStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
-    
-    if autoRefundEnabled then
-        pcall(function()
-            loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
-        end)
-    end
+    pcall(function()
+        loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
+    end)
 end)
 
 -- 3. Tombol Manual Rejoin Server
@@ -431,7 +406,7 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Label Display Rejoin Timer (90 Menit)
+-- 5. Label Display Rejoin Timer (10 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -449,14 +424,14 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 1, 0)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 10:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer 90 Menit
+-- Task Countdown Timer 10 Menit
 task.spawn(function()
     while timeRemaining > 0 do
         task.wait(1)
@@ -525,8 +500,6 @@ end)
 
 CloseBtn.MouseButton1Click:Connect(function()
     masterEnabled = false
-    autoRefundEnabled = false
-    getgenv().AutoRefundV2 = false
 
     local tweenClose = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
