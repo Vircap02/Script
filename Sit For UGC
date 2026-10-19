@@ -1,5 +1,5 @@
 -- ========================================================
---   ROBLOX AUTO-HUB GUI (AUTO ON UPON EXECUTION)
+--   ROBLOX AUTO-HUB GUI (WITH AUTO EXECUTE TOGGLE)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -13,8 +13,9 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master 
+-- Status Master & Auto Execute
 local masterEnabled = true
+local autoExecuteEnabled = false -- Default: OFF (Ubah ke true jika ingin default ON)
 
 -- Target Koordinat untuk Auto Balik
 local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
@@ -36,6 +37,19 @@ local FreeRemote = KnitServices and KnitServices:FindFirstChild("RewardService")
 local PlaytimeRemote = KnitServices and KnitServices:FindFirstChild("PlaytimeService") 
     and KnitServices.PlaytimeService:FindFirstChild("RF") 
     and KnitServices.PlaytimeService.RF:FindFirstChild("Claim")
+
+-- Fungsi Helper untuk Rejoin / Teleport dengan Auto Execute
+local function safeTeleport()
+    if autoExecuteEnabled and queue_on_teleport then
+        pcall(function()
+            queue_on_teleport([[
+                task.wait(3)
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Sit%20For%20UGC"))()
+            ]])
+        end)
+    end
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end
 
 -- ========================================================
 --                    LOGIKA WORKER (MASTER)
@@ -192,11 +206,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame
+-- Main Frame (Diperbesar ukuran tingginya untuk muat tombol baru)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 287)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -143)
+MainFrame.Size = UDim2.new(0, 280, 0, 325)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -162)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -358,7 +372,42 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Refund (Tipe Once)
+-- 2. Tombol Auto Execute Toggle
+local AutoExecButton = Instance.new("TextButton")
+AutoExecButton.Size = UDim2.new(1, 0, 0, 36)
+AutoExecButton.BackgroundColor3 = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
+AutoExecButton.Text = autoExecuteEnabled and "<b>AUTO EXECUTE: ON</b>" or "<b>AUTO EXECUTE: OFF</b>"
+AutoExecButton.RichText = true
+AutoExecButton.TextColor3 = autoExecuteEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
+AutoExecButton.TextSize = 13
+AutoExecButton.Font = Enum.Font.GothamBold
+AutoExecButton.AutoButtonColor = false
+AutoExecButton.Parent = Container
+
+local AutoExecCorner = Instance.new("UICorner")
+AutoExecCorner.CornerRadius = UDim.new(0, 10)
+AutoExecCorner.Parent = AutoExecButton
+
+local AutoExecStroke = Instance.new("UIStroke")
+AutoExecStroke.Color = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 50, 95)
+AutoExecStroke.Thickness = 1.5
+AutoExecStroke.Parent = AutoExecButton
+
+AutoExecButton.MouseButton1Click:Connect(function()
+    autoExecuteEnabled = not autoExecuteEnabled
+
+    local targetBg = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
+    local targetText = autoExecuteEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
+    local targetBorder = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 50, 95)
+    local statusText = autoExecuteEnabled and "<b>AUTO EXECUTE: ON</b>" or "<b>AUTO EXECUTE: OFF</b>"
+
+    AutoExecButton.Text = statusText
+    TweenService:Create(AutoExecButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
+    TweenService:Create(AutoExecButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
+    TweenService:Create(AutoExecStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
+end)
+
+-- 3. Tombol Auto Refund (Tipe Once)
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 36)
 RefundButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -385,7 +434,7 @@ RefundButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 3. Tombol Manual Rejoin Server
+-- 4. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
 RejoinButton.Size = UDim2.new(1, 0, 0, 36)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -407,12 +456,10 @@ RejoinStroke.Thickness = 1.5
 RejoinStroke.Parent = RejoinButton
 
 RejoinButton.MouseButton1Click:Connect(function()
-    pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end)
+    safeTeleport()
 end)
 
--- 4. Tombol Pilih Server
+-- 5. Tombol Pilih Server
 local ServerButton = Instance.new("TextButton")
 ServerButton.Size = UDim2.new(1, 0, 0, 36)
 ServerButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -439,7 +486,7 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Label Display Rejoin Timer (90 Menit)
+-- 6. Label Display Rejoin Timer (90 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -478,9 +525,7 @@ task.spawn(function()
     
     TimerLabel.Text = "<b>Rejoining...</b>"
     task.wait(1)
-    pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end)
+    safeTeleport()
 end)
 
 -- Animasi Buka, Minimize, dan Close GUI
