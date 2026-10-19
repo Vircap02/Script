@@ -45,7 +45,7 @@ local masterEnabled = true
 local autoExecuteEnabled = configData.autoExecute
 
 -- Target Koordinat untuk Auto Balik
-local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
+local TARGET_POSITION = ""
 local MAX_DISTANCE = 15 -- Batas jarak maksimal (dalam stud) sebelum ditarik balik
 
 -- Durasi Rejoin Timer (mengambil dari config file)
