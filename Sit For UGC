@@ -396,22 +396,6 @@ task.spawn(function()
     end)
 end)
 
--- Pengecekan Auto Execute saat Teleport (Menyesuaikan status toggle)
-RunService.Stepped:Connect(function()
-    pcall(function()
-        if queue_on_teleport then
-            if autoExecuteEnabled then
-                queue_on_teleport([[
-                    task.wait(3)
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Sit%20For%20UGC"))()
-                ]])
-            else
-                queue_on_teleport("") -- Membatalkan/mengosongkan antrean auto execute tanpa menghapus fungsi lain
-            end
-        end
-    end)
-end)
-
 -- Animasi Buka, Minimize, dan Close GUI
 local originalSize = MainFrame.Size
 local originalPos = MainFrame.Position
