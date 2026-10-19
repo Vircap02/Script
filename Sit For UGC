@@ -13,12 +13,10 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master & Lock Position Toggle
+-- Status Master 
 local masterEnabled = true
-local lockPositionEnabled = false
-local targetLockPosition = Vector3.new(69.44, 3.00, -80.41)
 
--- Durasi Rejoin Timer (90 Menit)
+-- Durasi Rejoin Timer (10 Menit = 600 Detik)
 local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -106,31 +104,15 @@ task.spawn(function()
     end
 end)
 
--- 4. Anti-Fling & Lock Position Permanen
+-- 4. Anti-Fling
 RunService.Stepped:Connect(function()
     if masterEnabled then
         pcall(function()
             local character = LocalPlayer.Character
             if character then
-                local rootPart = character:FindFirstChild("HumanoidRootPart")
-                
-                -- Logika Lock Position & Anchor Permanen
-                if lockPositionEnabled and rootPart then
-                    rootPart.CFrame = CFrame.new(targetLockPosition)
-                    rootPart.AssemblyLinearVelocity = Vector3.zero
-                    rootPart.AssemblyAngularVelocity = Vector3.zero
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Anchored = (part == rootPart) -- Hanya RootPart yang di-anchor agar posisi stabil
-                        end
-                    end
-                end
-
                 for _, part in ipairs(character:GetDescendants()) do
                     if part:IsA("BasePart") then
-                        if not lockPositionEnabled then
-                            part.CanCollide = false
-                        end
+                        part.CanCollide = false
                         if part.AssemblyLinearVelocity.Magnitude > 100 or part.AssemblyAngularVelocity.Magnitude > 100 then
                             part.AssemblyLinearVelocity = Vector3.zero
                             part.AssemblyAngularVelocity = Vector3.zero
@@ -177,11 +159,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan ukurannya untuk memuat tambahan tombol)
+-- Main Frame (Disesuaikan ukurannya untuk memuat tombol Pilih Server)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 330)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -165)
+MainFrame.Size = UDim2.new(0, 280, 0, 287)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -143)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -343,53 +325,7 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Lock Position Toggle (Baru)
-local LockButton = Instance.new("TextButton")
-LockButton.Size = UDim2.new(1, 0, 0, 36)
-LockButton.BackgroundColor3 = Color3.fromRGB(70, 55, 90)
-LockButton.Text = "<b>LOCK POSITION: OFF</b>"
-LockButton.RichText = true
-LockButton.TextColor3 = Color3.fromRGB(200, 185, 220)
-LockButton.TextSize = 13
-LockButton.Font = Enum.Font.GothamBold
-LockButton.AutoButtonColor = false
-LockButton.Parent = Container
-
-local LockCorner = Instance.new("UICorner")
-LockCorner.CornerRadius = UDim.new(0, 10)
-LockCorner.Parent = LockButton
-
-local LockStroke = Instance.new("UIStroke")
-LockStroke.Color = Color3.fromRGB(70, 50, 95)
-LockStroke.Thickness = 1.5
-LockStroke.Parent = LockButton
-
-LockButton.MouseButton1Click:Connect(function()
-    lockPositionEnabled = not lockPositionEnabled
-
-    local targetBg = lockPositionEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 55, 90)
-    local targetText = lockPositionEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
-    local targetBorder = lockPositionEnabled and Color3.fromRGB(255, 119, 238) or Color3.fromRGB(70, 50, 95)
-    local statusText = lockPositionEnabled and "<b>LOCK POSITION: ON</b>" or "<b>LOCK POSITION: OFF</b>"
-
-    LockButton.Text = statusText
-    TweenService:Create(LockButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundColor3 = targetBg}):Play()
-    TweenService:Create(LockButton, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {TextColor3 = targetText}):Play()
-    TweenService:Create(LockStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
-    
-    -- Jika dimatikan, unanchor karakter
-    if not lockPositionEnabled then
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then root.Anchored = false end
-            end
-        end)
-    end
-end)
-
--- 3. Tombol Auto Refund (Once)
+-- 2. Tombol Auto Refund (Diubah Menjadi Once / Eksekusi Sekali Klik)
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 36)
 RefundButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -416,7 +352,7 @@ RefundButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 4. Tombol Manual Rejoin Server
+-- 3. Tombol Manual Rejoin Server
 local RejoinButton = Instance.new("TextButton")
 RejoinButton.Size = UDim2.new(1, 0, 0, 36)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -443,7 +379,7 @@ RejoinButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Tombol Pilih Server
+-- 4. Tombol Pilih Server
 local ServerButton = Instance.new("TextButton")
 ServerButton.Size = UDim2.new(1, 0, 0, 36)
 ServerButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -470,7 +406,7 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 6. Label Display Rejoin Timer (90 Menit)
+-- 5. Label Display Rejoin Timer (10 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -488,14 +424,14 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 1, 0)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 10:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer
+-- Task Countdown Timer 10 Menit
 task.spawn(function()
     while timeRemaining > 0 do
         task.wait(1)
@@ -507,6 +443,7 @@ task.spawn(function()
         end
     end
     
+    -- Teleport kembali ke server yang sama saat Waktu Habis
     TimerLabel.Text = "<b>Rejoining...</b>"
     task.wait(1)
     pcall(function()
@@ -563,15 +500,6 @@ end)
 
 CloseBtn.MouseButton1Click:Connect(function()
     masterEnabled = false
-    lockPositionEnabled = false
-
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char then
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then root.Anchored = false end
-        end
-    end)
 
     local tweenClose = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
