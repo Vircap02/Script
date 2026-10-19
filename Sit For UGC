@@ -1,5 +1,5 @@
 -- ========================================================
---   ROBLOX AUTO-HUB GUI (WITH CUSTOM AUTO REJOIN TIMER)
+--   ROBLOX AUTO-HUB GUI (WITH PERSISTENT AUTO-EXECUTE & TIMER)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -13,16 +13,21 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Status Master & Auto Execute
+-- Menggunakan getgenv() agar status tersimpan saat rejoin
+getgenv().AutoHubSaved = getgenv().AutoHubSaved or {
+    autoExecute = false,
+    rejoinMinutes = 90
+}
+
 local masterEnabled = true
-local autoExecuteEnabled = false -- Default: OFF (Ubah ke true jika ingin default ON)
+local autoExecuteEnabled = getgenv().AutoHubSaved.autoExecute
 
 -- Target Koordinat untuk Auto Balik
 local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
 local MAX_DISTANCE = 15 -- Batas jarak maksimal (dalam stud) sebelum ditarik balik
 
--- Durasi Rejoin Timer Default (90 Menit dalam detik)
-local REJOIN_TIME = 90 * 60
+-- Durasi Rejoin Timer (mengambil dari memori tersimpan)
+local REJOIN_TIME = getgenv().AutoHubSaved.rejoinMinutes * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -40,6 +45,9 @@ local PlaytimeRemote = KnitServices and KnitServices:FindFirstChild("PlaytimeSer
 
 -- Fungsi Helper untuk Rejoin / Teleport dengan Auto Execute
 local function safeTeleport()
+    -- Simpan status terbaru ke global sebelum pindah server
+    getgenv().AutoHubSaved.autoExecute = autoExecuteEnabled
+    
     if autoExecuteEnabled and queue_on_teleport then
         pcall(function()
             queue_on_teleport([[
@@ -206,7 +214,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Diperbesar ukuran tingginya untuk muat pengaturan timer)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 375)
@@ -372,7 +380,7 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Execute Toggle
+-- 2. Tombol Auto Execute Toggle (Sinkron dengan memori)
 local AutoExecButton = Instance.new("TextButton")
 AutoExecButton.Size = UDim2.new(1, 0, 0, 36)
 AutoExecButton.BackgroundColor3 = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
@@ -395,6 +403,7 @@ AutoExecStroke.Parent = AutoExecButton
 
 AutoExecButton.MouseButton1Click:Connect(function()
     autoExecuteEnabled = not autoExecuteEnabled
+    getgenv().AutoHubSaved.autoExecute = autoExecuteEnabled -- Simpan perubahan
 
     local targetBg = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
     local targetText = autoExecuteEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
@@ -488,7 +497,7 @@ end)
 
 -- 6. Label Display Rejoin Timer & Pengaturan Manual
 local TimerFrame = Instance.new("Frame")
-TimerFrame.Size = UDim2.new(1, 0, 0, 72) -- Dipertinggi untuk muat TextBox & Tombol Set
+TimerFrame.Size = UDim2.new(1, 0, 0, 72)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
 TimerFrame.Parent = Container
 
@@ -504,19 +513,19 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 0, 32)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 00:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Input Box untuk Atur Menit Manual
+-- Input Box untuk Atur Menit Manual (Menampilkan nilai tersimpan)
 local TimerInput = Instance.new("TextBox")
 TimerInput.Size = UDim2.new(0, 150, 0, 26)
 TimerInput.Position = UDim2.new(0, 8, 0, 36)
 TimerInput.BackgroundColor3 = Color3.fromRGB(25, 18, 40)
-TimerInput.Text = "90"
+TimerInput.Text = tostring(getgenv().AutoHubSaved.rejoinMinutes)
 TimerInput.PlaceholderText = "Menit..."
 TimerInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 TimerInput.TextSize = 12
@@ -549,10 +558,11 @@ local SetCorner = Instance.new("UICorner")
 SetCorner.CornerRadius = UDim.new(0, 6)
 SetCorner.Parent = SetTimerBtn
 
--- Logika Tombol SET Timer
+-- Logika Tombol SET Timer (Menyimpan ke memori agar tersimpan saat rejoin)
 SetTimerBtn.MouseButton1Click:Connect(function()
     local inputMinutes = tonumber(TimerInput.Text)
     if inputMinutes and inputMinutes > 0 then
+        getgenv().AutoHubSaved.rejoinMinutes = inputMinutes
         REJOIN_TIME = inputMinutes * 60
         timeRemaining = REJOIN_TIME
         SetTimerBtn.Text = "<b>SUCCESS!</b>"
