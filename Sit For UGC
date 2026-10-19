@@ -483,6 +483,16 @@ task.spawn(function()
     end)
 end)
 
+-- Auto Execute Support saat Rejoin (queue_on_teleport)
+pcall(function()
+    if queue_on_teleport then
+        queue_on_teleport([[
+            task.wait(3)
+            loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/gadoy7y5u4"))()
+        ]])
+    end
+end)
+
 -- Animasi Buka, Minimize, dan Close GUI
 local originalSize = MainFrame.Size
 local originalPos = MainFrame.Position
