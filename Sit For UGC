@@ -466,10 +466,9 @@ RejoinStroke.Parent = RejoinButton
 
 RejoinButton.MouseButton1Click:Connect(function()
     pcall(function()
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
 end)
-
 -- 4. Tombol Pilih Server (Tambahan Baru)
 local ServerButton = Instance.new("TextButton")
 ServerButton.Size = UDim2.new(1, 0, 0, 36)
@@ -534,11 +533,11 @@ task.spawn(function()
         end
     end
     
-    -- Teleport/Rejoin saat Waktu Habis
+    -- Teleport kembali ke server yang sama saat Waktu Habis
     TimerLabel.Text = "<b>Rejoining...</b>"
     task.wait(1)
     pcall(function()
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
 end)
 
