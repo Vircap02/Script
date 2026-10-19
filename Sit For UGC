@@ -1,5 +1,5 @@
 -- ========================================================
---   ROBLOX AUTO-HUB GUI (WITH AUTO EXECUTE TOGGLE)
+--   ROBLOX AUTO-HUB GUI (WITH CUSTOM AUTO REJOIN TIMER)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -21,7 +21,7 @@ local autoExecuteEnabled = false -- Default: OFF (Ubah ke true jika ingin defaul
 local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
 local MAX_DISTANCE = 15 -- Batas jarak maksimal (dalam stud) sebelum ditarik balik
 
--- Durasi Rejoin Timer (90 Menit)
+-- Durasi Rejoin Timer Default (90 Menit dalam detik)
 local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -206,11 +206,11 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Diperbesar ukuran tingginya untuk muat tombol baru)
+-- Main Frame (Diperbesar ukuran tingginya untuk muat pengaturan timer)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 325)
-MainFrame.Position = UDim2.new(0.5, -140, 0.5, -162)
+MainFrame.Size = UDim2.new(0, 280, 0, 375)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -187)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -486,9 +486,9 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 6. Label Display Rejoin Timer (90 Menit)
+-- 6. Label Display Rejoin Timer & Pengaturan Manual
 local TimerFrame = Instance.new("Frame")
-TimerFrame.Size = UDim2.new(1, 0, 0, 36)
+TimerFrame.Size = UDim2.new(1, 0, 0, 72) -- Dipertinggi untuk muat TextBox & Tombol Set
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
 TimerFrame.Parent = Container
 
@@ -502,7 +502,7 @@ TimerStroke.Thickness = 1
 TimerStroke.Parent = TimerFrame
 
 local TimerLabel = Instance.new("TextLabel")
-TimerLabel.Size = UDim2.new(1, 0, 1, 0)
+TimerLabel.Size = UDim2.new(1, 0, 0, 32)
 TimerLabel.BackgroundTransparency = 1
 TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
 TimerLabel.RichText = true
@@ -511,21 +511,78 @@ TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer 90 Menit
+-- Input Box untuk Atur Menit Manual
+local TimerInput = Instance.new("TextBox")
+TimerInput.Size = UDim2.new(0, 150, 0, 26)
+TimerInput.Position = UDim2.new(0, 8, 0, 36)
+TimerInput.BackgroundColor3 = Color3.fromRGB(25, 18, 40)
+TimerInput.Text = "90"
+TimerInput.PlaceholderText = "Menit..."
+TimerInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+TimerInput.TextSize = 12
+TimerInput.Font = Enum.Font.Gotham
+TimerInput.ClearTextOnFocus = false
+TimerInput.Parent = TimerFrame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 6)
+InputCorner.Parent = TimerInput
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = Color3.fromRGB(120, 80, 180)
+InputStroke.Thickness = 1
+InputStroke.Parent = TimerInput
+
+-- Tombol Set Timer Manual
+local SetTimerBtn = Instance.new("TextButton")
+SetTimerBtn.Size = UDim2.new(0, 92, 0, 26)
+SetTimerBtn.Position = UDim2.new(0, 166, 0, 36)
+SetTimerBtn.BackgroundColor3 = Color3.fromRGB(153, 102, 255)
+SetTimerBtn.Text = "<b>SET TIMER</b>"
+SetTimerBtn.RichText = true
+SetTimerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SetTimerBtn.TextSize = 11
+SetTimerBtn.Font = Enum.Font.GothamBold
+SetTimerBtn.Parent = TimerFrame
+
+local SetCorner = Instance.new("UICorner")
+SetCorner.CornerRadius = UDim.new(0, 6)
+SetCorner.Parent = SetTimerBtn
+
+-- Logika Tombol SET Timer
+SetTimerBtn.MouseButton1Click:Connect(function()
+    local inputMinutes = tonumber(TimerInput.Text)
+    if inputMinutes and inputMinutes > 0 then
+        REJOIN_TIME = inputMinutes * 60
+        timeRemaining = REJOIN_TIME
+        SetTimerBtn.Text = "<b>SUCCESS!</b>"
+        task.wait(1)
+        SetTimerBtn.Text = "<b>SET TIMER</b>"
+    else
+        SetTimerBtn.Text = "<b>INVALID!</b>"
+        task.wait(1)
+        SetTimerBtn.Text = "<b>SET TIMER</b>"
+    end
+end)
+
+-- Task Countdown Timer Loop
 task.spawn(function()
-    while timeRemaining > 0 do
+    while true do
         task.wait(1)
         if masterEnabled then
-            timeRemaining = timeRemaining - 1
-            local minutes = math.floor(timeRemaining / 60)
-            local seconds = timeRemaining % 60
-            TimerLabel.Text = string.format("<b>Auto Rejoin: %02d:%02d</b>", minutes, seconds)
+            if timeRemaining > 0 then
+                timeRemaining = timeRemaining - 1
+                local minutes = math.floor(timeRemaining / 60)
+                local seconds = timeRemaining % 60
+                TimerLabel.Text = string.format("<b>Auto Rejoin: %02d:%02d</b>", minutes, seconds)
+            else
+                TimerLabel.Text = "<b>Rejoining...</b>"
+                task.wait(1)
+                safeTeleport()
+                break
+            end
         end
     end
-    
-    TimerLabel.Text = "<b>Rejoining...</b>"
-    task.wait(1)
-    safeTeleport()
 end)
 
 -- Animasi Buka, Minimize, dan Close GUI
