@@ -1,5 +1,5 @@
 -- ========================================================
---   ROBLOX AUTO-HUB GUI (WITH PERSISTENT AUTO-EXECUTE & TIMER)
+--   ROBLOX AUTO-HUB GUI (WITH FILE CONFIG PERSISTENCE)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -10,24 +10,46 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Menggunakan getgenv() agar status tersimpan saat rejoin
-getgenv().AutoHubSaved = getgenv().AutoHubSaved or {
+-- Sistem File Config (Agar tersimpan permanen di folder executor)
+local CONFIG_FILE = "AutoHubConfig.json"
+local configData = {
     autoExecute = false,
     rejoinMinutes = 90
 }
 
+-- Load Config jika filenya sudah ada
+if writefile and readfile and isfile and isfile(CONFIG_FILE) then
+    local success, decoded = pcall(function()
+        return HttpService:JSONDecode(readfile(CONFIG_FILE))
+    end)
+    if success and type(decoded) == "table" then
+        if decoded.autoExecute ~= nil then configData.autoExecute = decoded.autoExecute end
+        if decoded.rejoinMinutes ~= nil then configData.rejoinMinutes = decoded.rejoinMinutes end
+    end
+end
+
+-- Fungsi untuk menyimpan config ke file
+local function saveConfig()
+    if writefile then
+        pcall(function()
+            writefile(CONFIG_FILE, HttpService:JSONEncode(configData))
+        end)
+    end
+end
+
 local masterEnabled = true
-local autoExecuteEnabled = getgenv().AutoHubSaved.autoExecute
+local autoExecuteEnabled = configData.autoExecute
 
 -- Target Koordinat untuk Auto Balik
 local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
 local MAX_DISTANCE = 15 -- Batas jarak maksimal (dalam stud) sebelum ditarik balik
 
--- Durasi Rejoin Timer (mengambil dari memori tersimpan)
-local REJOIN_TIME = getgenv().AutoHubSaved.rejoinMinutes * 60
+-- Durasi Rejoin Timer (mengambil dari config file)
+local REJOIN_TIME = configData.rejoinMinutes * 60
 local timeRemaining = REJOIN_TIME
 
 -- References Remotes & Services
@@ -45,8 +67,7 @@ local PlaytimeRemote = KnitServices and KnitServices:FindFirstChild("PlaytimeSer
 
 -- Fungsi Helper untuk Rejoin / Teleport dengan Auto Execute
 local function safeTeleport()
-    -- Simpan status terbaru ke global sebelum pindah server
-    getgenv().AutoHubSaved.autoExecute = autoExecuteEnabled
+    saveConfig() -- Simpan sebelum teleport
     
     if autoExecuteEnabled and queue_on_teleport then
         pcall(function()
@@ -380,7 +401,7 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Execute Toggle (Sinkron dengan memori)
+-- 2. Tombol Auto Execute Toggle (Sinkron dengan Config File)
 local AutoExecButton = Instance.new("TextButton")
 AutoExecButton.Size = UDim2.new(1, 0, 0, 36)
 AutoExecButton.BackgroundColor3 = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
@@ -403,7 +424,8 @@ AutoExecStroke.Parent = AutoExecButton
 
 AutoExecButton.MouseButton1Click:Connect(function()
     autoExecuteEnabled = not autoExecuteEnabled
-    getgenv().AutoHubSaved.autoExecute = autoExecuteEnabled -- Simpan perubahan
+    configData.autoExecute = autoExecuteEnabled
+    saveConfig() -- Simpan perubahan ke file secara otomatis
 
     local targetBg = autoExecuteEnabled and Color3.fromRGB(100, 200, 120) or Color3.fromRGB(70, 55, 90)
     local targetText = autoExecuteEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 185, 220)
@@ -520,12 +542,12 @@ TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Input Box untuk Atur Menit Manual (Menampilkan nilai tersimpan)
+-- Input Box untuk Atur Menit Manual (Menampilkan nilai tersimpan dari file)
 local TimerInput = Instance.new("TextBox")
 TimerInput.Size = UDim2.new(0, 150, 0, 26)
 TimerInput.Position = UDim2.new(0, 8, 0, 36)
 TimerInput.BackgroundColor3 = Color3.fromRGB(25, 18, 40)
-TimerInput.Text = tostring(getgenv().AutoHubSaved.rejoinMinutes)
+TimerInput.Text = tostring(configData.rejoinMinutes)
 TimerInput.PlaceholderText = "Menit..."
 TimerInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 TimerInput.TextSize = 12
@@ -558,13 +580,15 @@ local SetCorner = Instance.new("UICorner")
 SetCorner.CornerRadius = UDim.new(0, 6)
 SetCorner.Parent = SetTimerBtn
 
--- Logika Tombol SET Timer (Menyimpan ke memori agar tersimpan saat rejoin)
+-- Logika Tombol SET Timer (Menyimpan ke file konfigurasi lokal)
 SetTimerBtn.MouseButton1Click:Connect(function()
     local inputMinutes = tonumber(TimerInput.Text)
     if inputMinutes and inputMinutes > 0 then
-        getgenv().AutoHubSaved.rejoinMinutes = inputMinutes
+        configData.rejoinMinutes = inputMinutes
         REJOIN_TIME = inputMinutes * 60
         timeRemaining = REJOIN_TIME
+        saveConfig() -- Simpan permanen ke file executor
+        
         SetTimerBtn.Text = "<b>SUCCESS!</b>"
         task.wait(1)
         SetTimerBtn.Text = "<b>SET TIMER</b>"
