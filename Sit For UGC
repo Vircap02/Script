@@ -16,7 +16,11 @@ local LocalPlayer = Players.LocalPlayer
 -- Status Master 
 local masterEnabled = true
 
--- Durasi Rejoin Timer (10 Menit = 600 Detik)
+-- Target Koordinat untuk Auto Balik
+local TARGET_POSITION = Vector3.new(69.44, 3.00, -80.41)
+local MAX_DISTANCE = 15 -- Batas jarak maksimal (dalam stud) sebelum ditarik balik
+
+-- Durasi Rejoin Timer (90 Menit)
 local REJOIN_TIME = 90 * 60
 local timeRemaining = REJOIN_TIME
 
@@ -36,6 +40,35 @@ local PlaytimeRemote = KnitServices and KnitServices:FindFirstChild("PlaytimeSer
 -- ========================================================
 --                    LOGIKA WORKER (MASTER)
 -- ========================================================
+
+-- 0. Auto Teleport ke Koordinat Saat Executed & Penjaga Posisi
+task.spawn(function()
+    task.wait(1) -- Tunggu karakter selesai loading awal
+    pcall(function()
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+        if rootPart then
+            rootPart.CFrame = CFrame.new(TARGET_POSITION)
+        end
+    end)
+
+    -- Loop penjaga posisi (jika jarak terlalu jauh, kembalikan posisi)
+    while true do
+        if masterEnabled then
+            pcall(function()
+                local character = LocalPlayer.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    local distance = (rootPart.Position - TARGET_POSITION).Magnitude
+                    if distance > MAX_DISTANCE then
+                        rootPart.CFrame = CFrame.new(TARGET_POSITION)
+                    end
+                end
+            end)
+        end
+        task.wait(1)
+    end
+end)
 
 -- 1. Auto Free Rewards
 task.spawn(function()
@@ -159,7 +192,7 @@ else
     ScreenGui.Parent = (CoreGui:FindFirstChild("RobloxGui") and CoreGui) or LocalPlayer.PlayerGui
 end
 
--- Main Frame (Disesuaikan ukurannya untuk memuat tombol Pilih Server)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 280, 0, 287)
@@ -325,7 +358,7 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Color = targetBorder}):Play()
 end)
 
--- 2. Tombol Auto Refund (Diubah Menjadi Once / Eksekusi Sekali Klik)
+-- 2. Tombol Auto Refund (Tipe Once)
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 36)
 RefundButton.BackgroundColor3 = Color3.fromRGB(50, 35, 75)
@@ -406,7 +439,7 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 5. Label Display Rejoin Timer (10 Menit)
+-- 5. Label Display Rejoin Timer (90 Menit)
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 36)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -424,14 +457,14 @@ TimerStroke.Parent = TimerFrame
 local TimerLabel = Instance.new("TextLabel")
 TimerLabel.Size = UDim2.new(1, 0, 1, 0)
 TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "<b>Auto Rejoin: 10:00</b>"
+TimerLabel.Text = "<b>Auto Rejoin: 90:00</b>"
 TimerLabel.RichText = true
 TimerLabel.TextColor3 = Color3.fromRGB(255, 200, 250)
 TimerLabel.TextSize = 12
 TimerLabel.Font = Enum.Font.GothamBold
 TimerLabel.Parent = TimerFrame
 
--- Task Countdown Timer 10 Menit
+-- Task Countdown Timer 90 Menit
 task.spawn(function()
     while timeRemaining > 0 do
         task.wait(1)
@@ -443,22 +476,11 @@ task.spawn(function()
         end
     end
     
-    -- Teleport kembali ke server yang sama saat Waktu Habis
     TimerLabel.Text = "<b>Rejoining...</b>"
     task.wait(1)
     pcall(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
-end)
-
--- Auto Execute Support saat Rejoin
-pcall(function()
-    if queue_on_teleport then
-        queue_on_teleport([[
-            task.wait(3)
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Sit%20For%20UGC"))()
-        ]])
-    end
 end)
 
 -- Animasi Buka, Minimize, dan Close GUI
