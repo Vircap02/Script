@@ -1,486 +1,211 @@
-local p = game.Players.LocalPlayer
-local rs = game:GetService("RunService")
-local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
+local CoreGui = game:GetService("CoreGui")
 
-pcall(function() GuiService:SetGameplayPausedNotificationEnabled(false) end)
+local p = Players.LocalPlayer
 
-local kaActive, kaRange = false, 9999
-local autoRespawnActive = false
-local matchmakingActive, matchmakingThread = false, nil
+-- Status variabel
+local autoResetLoopActive = false
+local matchmakingActive = false
+local matchmakingThread = nil
+local inMatch = false
 
-local autoFollowActive = false
-local selectedPlayerName = nil
-local currentTarget = nil
-local autoEquipActive = false
-local autoRespawnWeaponActive = false
-
--- Anti-Fling Ringan
+-- Listener status matchmaking dari server
 task.spawn(function()
-    while task.wait(0.1) do
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if player ~= p and player.Character then
-                for _, part in pairs(player.Character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                        if part.AssemblyLinearVelocity.Magnitude > 50 then 
-                            part.AssemblyLinearVelocity = Vector3.zero 
-                        end
+    local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+    if remotes then
+        local matchStatus = remotes:WaitForChild("MatchmakingStatus", 10)
+        if matchStatus then
+            matchStatus.OnClientEvent:Connect(function(data)
+                if data and data.status then
+                    if data.status == "MatchFound" then
+                        inMatch = true
+                    elseif data.status == "MatchOver" or data.status == "Cancelled" then
+                        inMatch = false
                     end
                 end
-            end
-        end
-    end
-end)
-
--- Loop Auto Equip / Unequip All
-task.spawn(function()
-    while task.wait(0.2) do
-        local char, bp = p.Character, p:FindFirstChild("Backpack")
-        if autoEquipActive then
-            if char and bp then 
-                for _, t in pairs(bp:GetChildren()) do 
-                    if t:IsA("Tool") then 
-                        t.Parent = char 
-                    end 
-                end 
-            end
-        end
-    end
-end)
-
--- Loop Auto Respawn ketika memegang senjata (Tool)
-task.spawn(function()
-    local wasHoldingTool = false
-    while task.wait(0.2) do
-        if autoRespawnWeaponActive then
-            local char = p.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local equippedTool = char and char:FindFirstChildOfClass("Tool")
-            
-            if hum and hum.Health > 0 then
-                if equippedTool then
-                    if not wasHoldingTool then
-                        wasHoldingTool = true
-                        task.wait(0.5) 
-                        if char and char:FindFirstChildOfClass("Humanoid") and char.Humanoid.Health > 0 then
-                            char.Humanoid.Health = 0
-                        end
-                    end
-                else
-                    wasHoldingTool = false
-                end
-            else
-                wasHoldingTool = false
-            end
-        else
-            wasHoldingTool = false
-        end
-    end
-end)
-
--- Logika Pencarian Target
-local function GetNextTarget()
-    if selectedPlayerName then
-        local targetPlr = game.Players:FindFirstChild(selectedPlayerName)
-        if targetPlr then
-            return targetPlr
-        end
-    end
-
-    for _, player in ipairs(game.Players:GetPlayers()) do
-        if player ~= p and player.Character then
-            local hum = player.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hum and hum.Health > 0 and hrp then
-                return player
-            end
-        end
-    end
-    return nil
-end
-
--- Loop Kill Aura
-task.spawn(function()
-    while task.wait(0.05) do
-        if kaActive then
-            local char = p.Character
-            if char and char:FindFirstChildOfClass("Humanoid") and char.Humanoid.Health > 0 then
-                local tool = char:FindFirstChildOfClass("Tool")
-                if not tool then
-                    local bp = p:FindFirstChild("Backpack")
-                    if bp then
-                        local bpTool = bp:FindFirstChildOfClass("Tool")
-                        if bpTool then bpTool.Parent = char tool = bpTool end
-                    end
-                end
-
-                local ps = game.Players:GetPlayers()
-                for i = 2, #ps do
-                    local v = ps[i].Character
-                    if v and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                        if p:DistanceFromCharacter(v.HumanoidRootPart.Position) <= kaRange then
-                            if tool and tool:FindFirstChild("Handle") then
-                                tool:Activate()
-                                local handle = tool.Handle
-                                for _, part in ipairs(v:GetChildren()) do
-                                    if part:IsA("BasePart") then
-                                        firetouchinterest(handle, part, 0)
-                                        firetouchinterest(handle, part, 1)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Loop Teleport ke Depan Hadapan Target (Hanya aktif jika memegang Tool/Senjata)
-task.spawn(function()
-    while task.wait(0.03) do
-        if autoFollowActive then
-            local myChar = p.Character
-            local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-            local myHrp = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            local equippedTool = myChar and myChar:FindFirstChildOfClass("Tool")
-            
-            if equippedTool and myHrp and myHum and myHum.Health > 0 then
-                if not selectedPlayerName then
-                    if not currentTarget or not currentTarget.Parent or not currentTarget.Character or not currentTarget.Character:FindFirstChildOfClass("Humanoid") or currentTarget.Character.Humanoid.Health <= 0 then
-                        currentTarget = GetNextTarget()
-                    end
-                else
-                    currentTarget = GetNextTarget()
-                end
-
-                if currentTarget and currentTarget.Character then
-                    local targetHum = currentTarget.Character:FindFirstChildOfClass("Humanoid")
-                    local targetHrp = currentTarget.Character:FindFirstChild("HumanoidRootPart")
-                    
-                    if targetHum and targetHum.Health > 0 and targetHrp then
-                        local frontCFrame = targetHrp.CFrame * CFrame.new(0, 0, -3) * CFrame.Angles(0, math.pi, 0)
-                        myHrp.CFrame = frontCFrame
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- GUI Setup
-local g = Instance.new("ScreenGui")
-g.Name = "DavidHub_Fix"
-g.ResetOnSpawn = false
-
-local success = pcall(function() g.Parent = game:GetService("CoreGui") end)
-if not success or not g.Parent then 
-    g.Parent = p:FindFirstChild("PlayerGui") or p:WaitForChild("PlayerGui", 5) 
-end
-
-local MainFrame = Instance.new("Frame", g)
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 280)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -140)
-MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
-
-local TitleBar = Instance.new("Frame", MainFrame)
-TitleBar.Size = UDim2.new(1, 0, 0, 26)
-TitleBar.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
-TitleBar.BorderSizePixel = 0
-
-local TitleText = Instance.new("TextLabel", TitleBar)
-TitleText.Size = UDim2.new(1, -35, 1, 0)
-TitleText.Position = UDim2.new(0, 8, 0, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "David Hub 🗿"
-TitleText.TextColor3 = Color3.fromRGB(240, 240, 240)
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 11
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-
-local MiniBtn = Instance.new("TextButton", TitleBar)
-MiniBtn.Size = UDim2.new(0, 20, 0, 20)
-MiniBtn.Position = UDim2.new(1, -23, 0, 3)
-MiniBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-MiniBtn.Text = "-"
-MiniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MiniBtn.Font = Enum.Font.GothamBold
-MiniBtn.TextSize = 14
-Instance.new("UICorner", MiniBtn).CornerRadius = UDim.new(0, 4)
-
-local ToggleIcon = Instance.new("TextButton", g)
-ToggleIcon.Name = "ToggleIcon"
-ToggleIcon.Size = UDim2.new(0, 38, 0, 38)
-ToggleIcon.Position = UDim2.new(0, 15, 0.4, 0)
-ToggleIcon.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
-ToggleIcon.Text = "D"
-ToggleIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleIcon.Font = Enum.Font.GothamBold
-ToggleIcon.TextSize = 18
-ToggleIcon.Visible = false
-ToggleIcon.Active = true
-ToggleIcon.Draggable = true
-Instance.new("UICorner", ToggleIcon).CornerRadius = UDim.new(1, 0)
-
-local isMinimized = false
-local function ToggleMinimize()
-    isMinimized = not isMinimized
-    MainFrame.Visible = not isMinimized
-    ToggleIcon.Visible = isMinimized
-end
-MiniBtn.MouseButton1Click:Connect(ToggleMinimize)
-ToggleIcon.MouseButton1Click:Connect(ToggleMinimize)
-
-local TabBar = Instance.new("Frame", MainFrame)
-TabBar.Size = UDim2.new(1, -12, 0, 22)
-TabBar.Position = UDim2.new(0, 6, 0, 30)
-TabBar.BackgroundTransparency = 1
-
-local function CreateTabBtn(text, pos)
-    local btn = Instance.new("TextButton", TabBar)
-    btn.Size = UDim2.new(0.315, 0, 1, 0)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(160, 160, 170)
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 10
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    return btn
-end
-
-local CombatTabBtn = CreateTabBtn("Combat", UDim2.new(0, 0, 0, 0))
-local ToolsTabBtn = CreateTabBtn("Tools", UDim2.new(0.34, 0, 0, 0))
-local MatchTabBtn = CreateTabBtn("Match", UDim2.new(0.68, 0, 0, 0))
-
-local ContentContainer = Instance.new("Frame", MainFrame)
-ContentContainer.Size = UDim2.new(1, -12, 1, -58)
-ContentContainer.Position = UDim2.new(0, 6, 0, 54)
-ContentContainer.BackgroundTransparency = 1
-
-local function CreatePage()
-    local page = Instance.new("Frame", ContentContainer)
-    page.Size = UDim2.new(1, 0, 1, 0)
-    page.BackgroundTransparency = 1
-    page.Visible = false
-    return page
-end
-
-local CombatPage, ToolsPage, MatchPage = CreatePage(), CreatePage(), CreatePage()
-
-local function SwitchTab(targetPage, targetBtn)
-    CombatPage.Visible, ToolsPage.Visible, MatchPage.Visible = false, false, false
-    CombatTabBtn.BackgroundColor3, ToolsTabBtn.BackgroundColor3, MatchTabBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45), Color3.fromRGB(35, 35, 45), Color3.fromRGB(35, 35, 45)
-    CombatTabBtn.TextColor3, ToolsTabBtn.TextColor3, MatchTabBtn.TextColor3 = Color3.fromRGB(160, 160, 170), Color3.fromRGB(160, 160, 170), Color3.fromRGB(160, 160, 170)
-    targetPage.Visible = true
-    targetBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    targetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-end
-
-CombatTabBtn.MouseButton1Click:Connect(function() SwitchTab(CombatPage, CombatTabBtn) end)
-ToolsTabBtn.MouseButton1Click:Connect(function() SwitchTab(ToolsPage, ToolsTabBtn) end)
-MatchTabBtn.MouseButton1Click:Connect(function() SwitchTab(MatchPage, MatchTabBtn) end)
-SwitchTab(CombatPage, CombatTabBtn)
-
-local function CreateButton(parent, text, pos, size, color)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = size
-    btn.Position = pos
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 10
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    return btn
-end
-
-local kaToggle = CreateButton(CombatPage, "Kill Aura: OFF", UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 22), Color3.fromRGB(180, 50, 50))
-kaToggle.MouseButton1Click:Connect(function()
-    kaActive = not kaActive
-    kaToggle.Text = kaActive and "Kill Aura: ON" or "Kill Aura: OFF"
-    kaToggle.BackgroundColor3 = kaActive and Color3.fromRGB(40, 140, 60) or Color3.fromRGB(180, 50, 50)
-end)
-
-local followToggle = CreateButton(CombatPage, "TP Follow Front: OFF", UDim2.new(0, 0, 0, 25), UDim2.new(1, 0, 0, 22), Color3.fromRGB(180, 50, 50))
-followToggle.MouseButton1Click:Connect(function()
-    autoFollowActive = not autoFollowActive
-    followToggle.Text = autoFollowActive and "TP Follow Front: ON" or "TP Follow Front: OFF"
-    followToggle.BackgroundColor3 = autoFollowActive and Color3.fromRGB(40, 140, 60) or Color3.fromRGB(180, 50, 50)
-    if autoFollowActive then
-        currentTarget = GetNextTarget()
-    else
-        currentTarget = nil
-    end
-end)
-
-local PlayerDropdown = CreateButton(CombatPage, "Select Player: Auto", UDim2.new(0, 0, 0, 50), UDim2.new(1, 0, 0, 22), Color3.fromRGB(45, 45, 60))
-local PlayerListScroll = Instance.new("ScrollingFrame", CombatPage)
-PlayerListScroll.Size = UDim2.new(1, 0, 0, 60)
-PlayerListScroll.Position = UDim2.new(0, 0, 0, 74)
-PlayerListScroll.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
-PlayerListScroll.Visible = false
-PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-PlayerListScroll.ScrollBarThickness = 3
-Instance.new("UICorner", PlayerListScroll).CornerRadius = UDim.new(0, 4)
-
-local UIListLayout = Instance.new("UIListLayout", PlayerListScroll)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 2)
-
-local function UpdatePlayerList()
-    for _, child in ipairs(PlayerListScroll:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-    
-    local autoBtn = Instance.new("TextButton", PlayerListScroll)
-    autoBtn.Size = UDim2.new(1, -6, 0, 18)
-    autoBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    autoBtn.Text = "Auto (Random)"
-    autoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    autoBtn.Font = Enum.Font.GothamMedium
-    autoBtn.TextSize = 9
-    Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 3)
-    autoBtn.MouseButton1Click:Connect(function()
-        selectedPlayerName = nil
-        PlayerDropdown.Text = "Select Player: Auto"
-        PlayerListScroll.Visible = false
-        currentTarget = GetNextTarget()
-    end)
-    
-    for _, plr in ipairs(game.Players:GetPlayers()) do
-        if plr ~= p then
-            local pBtn = Instance.new("TextButton", PlayerListScroll)
-            pBtn.Size = UDim2.new(1, -6, 0, 18)
-            pBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            pBtn.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
-            pBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-            pBtn.Font = Enum.Font.GothamMedium
-            pBtn.TextSize = 9
-            Instance.new("UICorner", pBtn).CornerRadius = UDim.new(0, 3)
-            
-            pBtn.MouseButton1Click:Connect(function()
-                selectedPlayerName = plr.Name
-                PlayerDropdown.Text = "Locked: " .. plr.DisplayName
-                PlayerListScroll.Visible = false
-                currentTarget = GetNextTarget()
             end)
         end
     end
-    PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 4)
+end)
+
+-- Loop untuk Auto Reset
+task.spawn(function()
+    while task.wait(0.3) do
+        if autoResetLoopActive and inMatch then
+            local char = p.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if char and hum and hum.Health > 0 then
+                hum.Health = 0
+            end
+        end
+    end
+end)
+
+-- Membuat ScreenGui bertema Battle
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DavidHubBattle"
+ScreenGui.ResetOnSpawn = false
+pcall(function()
+    ScreenGui.Parent = CoreGui
+end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = p:WaitForChild("PlayerGui")
 end
 
-PlayerDropdown.MouseButton1Click:Connect(function()
-    PlayerListScroll.Visible = not PlayerListScroll.Visible
-    if PlayerListScroll.Visible then UpdatePlayerList() end
+-- Main Frame (Battle Theme: Dark Metal / Red Accents)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 270)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -135)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- UICorner untuk Main Frame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+-- UIStroke (Garis tepi merah ala Battle)
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(180, 40, 40)
+MainStroke.Thickness = 2
+MainStroke.Parent = MainFrame
+
+-- Top Bar (Header)
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundColor3 = Color3.fromRGB(35, 30, 35)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 8)
+TopBarCorner.Parent = TopBar
+
+-- Judul Hub
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.Text = "⚔️ DAVID HUB - BATTLE"
+Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+-- Tombol Close (X)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -15)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+CloseBtn.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
 end)
 
-local RangeBox = Instance.new("TextBox", CombatPage)
-RangeBox.Size = UDim2.new(1, 0, 0, 22)
-RangeBox.Position = UDim2.new(0, 0, 0, 138)
-RangeBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-RangeBox.Text = tostring(kaRange)
-RangeBox.PlaceholderText = "Masukkan Jarak (Default: 9999)"
-RangeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-RangeBox.Font = Enum.Font.GothamMedium
-RangeBox.TextSize = 10
-Instance.new("UICorner", RangeBox).CornerRadius = UDim.new(0, 4)
+-- Container untuk Menu Konten
+local ContentContainer = Instance.new("ScrollingFrame")
+ContentContainer.Size = UDim2.new(1, -20, 1, -55)
+ContentContainer.Position = UDim2.new(0, 10, 0, 48)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.BorderSizePixel = 0
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 190)
+ContentContainer.ScrollBarThickness = 4
+ContentContainer.Parent = MainFrame
 
-RangeBox.FocusLost:Connect(function()
-    local val = tonumber(RangeBox.Text)
-    if val then kaRange = val else RangeBox.Text = tostring(kaRange) end
-end)
+local UIList = Instance.new("UIListLayout")
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 10)
+UIList.Parent = ContentContainer
 
--- Tombol di Tab Tools
-local EquipToggleBtn = CreateButton(ToolsPage, "Equip All: OFF", UDim2.new(0, 0, 0, 0), UDim2.new(0.48, 0, 0, 22), Color3.fromRGB(180, 50, 50))
-local UnequipBtn = CreateButton(ToolsPage, "Unequip All", UDim2.new(0.52, 0, 0, 0), UDim2.new(0.48, 0, 0, 22), Color3.fromRGB(160, 40, 40))
-local RespawnBtn = CreateButton(ToolsPage, "Respawn", UDim2.new(0, 0, 0, 26), UDim2.new(0.48, 0, 0, 22), Color3.fromRGB(180, 100, 40))
-local RejoinBtn = CreateButton(ToolsPage, "Rejoin Server", UDim2.new(0.52, 0, 0, 26), UDim2.new(0.48, 0, 0, 22), Color3.fromRGB(40, 100, 160))
-local AutoRespawnWpnBtn = CreateButton(ToolsPage, "Auto Respawn Wpn: OFF", UDim2.new(0, 0, 0, 52), UDim2.new(1, 0, 0, 22), Color3.fromRGB(180, 50, 50))
-local IYBtn = CreateButton(ToolsPage, "Infinite Yield", UDim2.new(0, 0, 0, 78), UDim2.new(1, 0, 0, 22), Color3.fromRGB(110, 40, 150))
+-- Fungsi pembantu membuat Toggle
+local function CreateBattleToggle(name, callback)
+    local ToggleContainer = Instance.new("Frame")
+    ToggleContainer.Size = UDim2.new(1, 0, 0, 42)
+    ToggleContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    ToggleContainer.BorderSizePixel = 0
+    ToggleContainer.Parent = ContentContainer
 
-EquipToggleBtn.MouseButton1Click:Connect(function()
-    autoEquipActive = not autoEquipActive
-    EquipToggleBtn.Text = autoEquipActive and "Equip All: ON" or "Equip All: OFF"
-    EquipToggleBtn.BackgroundColor3 = autoEquipActive and Color3.fromRGB(40, 140, 60) or Color3.fromRGB(180, 50, 50)
-    
-    local char, bp = p.Character, p:FindFirstChild("Backpack")
-    if autoEquipActive then
-        if char and bp then for _, t in pairs(bp:GetChildren()) do if t:IsA("Tool") then t.Parent = char end end end
-    else
-        if char and bp then for _, t in pairs(char:GetChildren()) do if t:IsA("Tool") then t.Parent = bp end end end
-    end
-end)
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.Parent = ToggleContainer
 
-UnequipBtn.MouseButton1Click:Connect(function()
-    autoEquipActive = false
-    EquipToggleBtn.Text = "Equip All: OFF"
-    EquipToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    
-    local char, bp = p.Character, p:FindFirstChild("Backpack")
-    if char and bp then for _, t in pairs(char:GetChildren()) do if t:IsA("Tool") then t.Parent = bp end end end
-end)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -70, 1, 0)
+    Label.Position = UDim2.new(0, 12, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Font = Enum.Font.GothamMedium
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    Label.TextSize = 13
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = ToggleContainer
 
-RespawnBtn.MouseButton1Click:Connect(function()
-    local char = p.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        char.Humanoid.Health = 0
-    end
-end)
+    local SwitchBtn = Instance.new("TextButton")
+    SwitchBtn.Size = UDim2.new(0, 45, 0, 24)
+    SwitchBtn.Position = UDim2.new(1, -55, 0.5, -12)
+    SwitchBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+    SwitchBtn.AutoButtonColor = false
+    SwitchBtn.Text = ""
+    SwitchBtn.Parent = ToggleContainer
 
-RejoinBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
-    end)
-end)
+    local SwitchCorner = Instance.new("UICorner")
+    SwitchCorner.CornerRadius = UDim.new(1, 0)
+    SwitchCorner.Parent = SwitchBtn
 
-AutoRespawnWpnBtn.MouseButton1Click:Connect(function()
-    autoRespawnWeaponActive = not autoRespawnWeaponActive
-    AutoRespawnWpnBtn.Text = autoRespawnWeaponActive and "Auto Respawn Wpn: ON" or "Auto Respawn Wpn: OFF"
-    AutoRespawnWpnBtn.BackgroundColor3 = autoRespawnWeaponActive and Color3.fromRGB(40, 140, 60) or Color3.fromRGB(180, 50, 50)
-end)
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 18, 0, 18)
+    Circle.Position = UDim2.new(0, 3, 0.5, -9)
+    Circle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    Circle.Parent = SwitchBtn
 
-IYBtn.MouseButton1Click:Connect(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-end)
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = Circle
 
--- Tombol Tab Match
-local MatchBtn = CreateButton(MatchPage, "Match Auto: OFF", UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 26), Color3.fromRGB(70, 50, 60))
-MatchBtn.MouseButton1Click:Connect(function()
-    matchmakingActive = not matchmakingActive
-    
-    if matchmakingActive then
-        MatchBtn.Text = "Match Auto: ON"
-        MatchBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 60)
-        
-        if matchmakingThread then 
-            task.cancel(matchmakingThread) 
-            matchmakingThread = nil 
+    local active = false
+    SwitchBtn.MouseButton1Click:Connect(function()
+        active = not active
+        if active then
+            SwitchBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            Circle:TweenPosition(UDim2.new(1, -21, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        else
+            SwitchBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+            Circle:TweenPosition(UDim2.new(0, 3, 0.5, -9), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
         end
-        
+        callback(active)
+    end)
+end
+
+-- 1. Toggle Auto Matchmaking Request
+CreateBattleToggle("Auto Matchmaking Request", function(Value)
+    matchmakingActive = Value
+    if matchmakingActive then
         matchmakingThread = task.spawn(function()
             while matchmakingActive do
                 local char = p.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
-                
                 if char and hum and hum.Health > 0 then
                     pcall(function() 
-                        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("MatchmakingRequest"):FireServer() 
+                        ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("MatchmakingRequest"):FireServer() 
                     end)
-                    
-                    local elapsed = 0
-                    while elapsed < 3 and matchmakingActive do
-                        task.wait(0.2)
-                        elapsed = elapsed + 0.2
-                    end
+                    task.wait(3)
                 else
                     p.CharacterAdded:Wait()
                     task.wait(2)
@@ -488,12 +213,37 @@ MatchBtn.MouseButton1Click:Connect(function()
             end
         end)
     else
-        MatchBtn.Text = "Match Auto: OFF"
-        MatchBtn.BackgroundColor3 = Color3.fromRGB(70, 50, 60)
-        
         if matchmakingThread then 
-            task.cancel(matchmakingThread) 
+            task.cancel(matchmakingThread)
             matchmakingThread = nil 
         end
+    end
+end)
+
+-- 2. Toggle Auto Reset Loop
+CreateBattleToggle("Auto Reset Loop", function(Value)
+    autoResetLoopActive = Value
+end)
+
+-- 3. Tombol Rejoin Server
+local RejoinBtn = Instance.new("TextButton")
+RejoinBtn.Size = UDim2.new(1, 0, 0, 42)
+RejoinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+RejoinBtn.Font = Enum.Font.GothamBold
+RejoinBtn.Text = "🔄 REJOIN SERVER"
+RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RejoinBtn.TextSize = 13
+RejoinBtn.Parent = ContentContainer
+
+local RejoinCorner = Instance.new("UICorner")
+RejoinCorner.CornerRadius = UDim.new(0, 6)
+RejoinCorner.Parent = RejoinBtn
+
+RejoinBtn.MouseButton1Click:Connect(function()
+    RejoinBtn.Text = "REJOINING..."
+    if #Players:GetPlayers() <= 1 then
+        TeleportService:Teleport(game.PlaceId, p)
+    else
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
     end
 end)
