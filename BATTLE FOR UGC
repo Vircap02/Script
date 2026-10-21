@@ -30,14 +30,16 @@ task.spawn(function()
     end
 end)
 
--- Loop untuk Auto Reset
+-- Loop untuk Auto Reset (DIPERBAIKI menggunakan BreakJoints agar mati di Server)
 task.spawn(function()
     while task.wait(0.3) do
         if autoResetLoopActive and inMatch then
             local char = p.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if char and hum and hum.Health > 0 then
-                hum.Health = 0
+                pcall(function()
+                    char:BreakJoints()
+                end)
             end
         end
     end
@@ -54,11 +56,11 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = p:WaitForChild("PlayerGui")
 end
 
--- Main Frame (Battle Theme: Dark Metal / Red Accents) - Diperbesar sedikit untuk memuat dropdown baru
+-- Main Frame (Battle Theme: Dark Metal / Red Accents)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 340)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -170)
+MainFrame.Size = UDim2.new(0, 320, 0, 270)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -135)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -94,7 +96,7 @@ Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚔️ DAVID HUB - BATTLE"
+Title.Text = "⚔️ BATTLE FOR UGC"
 Title.TextColor3 = Color3.fromRGB(240, 240, 240)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -125,7 +127,7 @@ ContentContainer.Size = UDim2.new(1, -20, 1, -55)
 ContentContainer.Position = UDim2.new(0, 10, 0, 48)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.BorderSizePixel = 0
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 270)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 190)
 ContentContainer.ScrollBarThickness = 4
 ContentContainer.Parent = MainFrame
 
@@ -225,117 +227,7 @@ CreateBattleToggle("Auto Reset Loop", function(Value)
     autoResetLoopActive = Value
 end)
 
--- 3. Dropdown & Tombol TP to Player
-local selectedTargetPlayer = nil
-
-local TPContainer = Instance.new("Frame")
-TPContainer.Size = UDim2.new(1, 0, 0, 42)
-TPContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-TPContainer.BorderSizePixel = 0
-TPContainer.ClipsDescendants = true
-TPContainer.Parent = ContentContainer
-
-local TPCorner = Instance.new("UICorner")
-TPCorner.CornerRadius = UDim.new(0, 6)
-TPCorner.Parent = TPContainer
-
-local TPBtn = Instance.new("TextButton")
-TPBtn.Size = UDim2.new(0.4, 0, 1, 0)
-TPBtn.Position = UDim2.new(0.6, 0, 0, 0)
-TPBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-TPBtn.Font = Enum.Font.GothamBold
-TPBtn.Text = "⚡ TP TO PLAYER"
-TPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TPBtn.TextSize = 12
-TPBtn.Parent = TPContainer
-
-local DropdownBtn = Instance.new("TextButton")
-DropdownBtn.Size = UDim2.new(0.6, -5, 1, 0)
-DropdownBtn.Position = UDim2.new(0, 0, 0, 0)
-DropdownBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-DropdownBtn.Font = Enum.Font.GothamMedium
-DropdownBtn.Text = " Pilih Player ▼"
-DropdownBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-DropdownBtn.TextSize = 12
-DropdownBtn.TextXAlignment = Enum.TextXAlignment.Left
-DropdownBtn.Parent = TPContainer
-
--- List Dropdown Container (Pop-up ke bawah)
-local DropdownListFrame = Instance.new("ScrollingFrame")
-DropdownListFrame.Size = UDim2.new(1, 0, 0, 120)
-DropdownListFrame.Position = UDim2.new(0, 0, 0, 45)
-DropdownListFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-DropdownListFrame.BorderSizePixel = 0
-DropdownListFrame.Visible = false
-DropdownListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-DropdownListFrame.ScrollBarThickness = 4
-DropdownListFrame.ZIndex = 5
-DropdownListFrame.Parent = TPContainer
-
-local DropdownListLayout = Instance.new("UIListLayout")
-DropdownListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-DropdownListLayout.Parent = DropdownListFrame
-
-local isDropdownOpen = false
-
-DropdownBtn.MouseButton1Click:Connect(function()
-    isDropdownOpen = not isDropdownOpen
-    if isDropdownOpen then
-        TPContainer.Size = UDim2.new(1, 0, 0, 170)
-        ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 400)
-        DropdownListFrame.Visible = true
-        
-        -- Bersihkan list lama & refresh player
-        for _, child in ipairs(DropdownListFrame:GetChildren()) do
-            if child:IsA("TextButton") then
-                child:Destroy()
-            end
-        end
-        
-        local count = 0
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= p then
-                count = count + 1
-                local plrBtn = Instance.new("TextButton")
-                plrBtn.Size = UDim2.new(1, 0, 0, 30)
-                plrBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-                plrBtn.Font = Enum.Font.Gotham
-                plrBtn.Text = "  " .. plr.Name
-                plrBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-                plrBtn.TextSize = 12
-                plrBtn.TextXAlignment = Enum.TextXAlignment.Left
-                plrBtn.ZIndex = 6
-                plrBtn.Parent = DropdownListFrame
-                
-                plrBtn.MouseButton1Click:Connect(function()
-                    selectedTargetPlayer = plr
-                    DropdownBtn.Text = " " .. plr.Name .. " ▼"
-                    isDropdownOpen = false
-                    TPContainer.Size = UDim2.new(1, 0, 0, 42)
-                    ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 270)
-                    DropdownListFrame.Visible = false
-                end)
-            end
-        end
-        DropdownListFrame.CanvasSize = UDim2.new(0, 0, 0, count * 30)
-    else
-        TPContainer.Size = UDim2.new(1, 0, 0, 42)
-        ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 270)
-        DropdownListFrame.Visible = false
-    end
-end)
-
-TPBtn.MouseButton1Click:Connect(function()
-    if selectedTargetPlayer and selectedTargetPlayer.Character and selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local targetHRP = selectedTargetPlayer.Character.HumanoidRootPart
-        local myChar = p.Character
-        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-            myChar.HumanoidRootPart.CFrame = targetHRP.CFrame + Vector3.new(0, 3, 0)
-        end
-    end
-end)
-
--- 4. Tombol Rejoin Server
+-- 3. Tombol Rejoin Server
 local RejoinBtn = Instance.new("TextButton")
 RejoinBtn.Size = UDim2.new(1, 0, 0, 42)
 RejoinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
