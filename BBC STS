@@ -619,7 +619,7 @@ local function LoadMainScript()
     end
 
     local function start_run()
-        local current_timer = math.random(120, 150)
+        local current_timer = math.random(105, 110)
         S_COLLECT = math.random(2, 5)
         
         ShowNotify("Anti-Cheat Bypass", "Timer: " .. current_timer .. "s | Target Sisa: " .. S_COLLECT)
