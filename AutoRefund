@@ -126,7 +126,7 @@ local function CustomNotify(title, itemName, itemId, rawIconId, currencyInfo, is
     IdLabel.Size = UDim2.new(1, -102, 0, 16)
     IdLabel.Position = UDim2.new(0, 98, 0, 52)
     IdLabel.BackgroundTransparency = 1
-    IdLabel.Text = tostring(itemId)
+    IdLabel.Text = "ID: " .. tostring(itemId)
     IdLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
     IdLabel.TextSize = 11
     IdLabel.Font = Enum.Font.Gotham
@@ -192,7 +192,7 @@ local function CustomNotify(title, itemName, itemId, rawIconId, currencyInfo, is
 end
 
 -- Notifikasi Berhasil di-Execute / Load
-CustomNotify("Auto Refund Virgo x Yono Loaded!", "Script Successfully Executed", "Status: Active", "rbxassetid://85145339544435", "Protection: Running", true)
+CustomNotify("Auto Refund Virgo x Yono Loaded!", "Script Successfully Executed", "Active", "rbxassetid://85145339544435", "Protection: Running", true)
 
 -- Helper untuk mendeteksi currency / token di dalam leaderstats map
 local function getCurrencyStatus()
@@ -235,6 +235,7 @@ MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, assetId, i
         local currStatus = getCurrencyStatus()
         local currText = currStatus and ("Currency (" .. currStatus .. ") - Safe") or "Balance Protected & Refunded"
 
-        CustomNotify("Refund Success!", "Item: " .. tostring(itemName), "ID: " .. tostring(assetId), rawIconId, currText, false)
+        -- Diperbaiki agar parameter itemId dikirim angka aslinya (assetId) agar rbxthumb bisa meload foto item
+        CustomNotify("Refund Success!", itemName, assetId, rawIconId, currText, false)
     end
 end)
