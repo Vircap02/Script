@@ -1020,7 +1020,7 @@ themeObjectsToUpdate[autoRefundBtn] = "BackgroundColor3"
 autoRefundBtn.MouseButton1Click:Connect(function()
     showNotify("Executing...", "Menjalankan Auto Refund...", 2)
     pcall(function()
-        loadstring(game:HttpGet("https://flowauth.net/v1/loaders/Auto-Refund.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
     end)
 end)
 -- ====================================================
