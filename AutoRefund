@@ -1,1 +1,241 @@
-loadstring(game:HttpGet("https://flowauth.net/v1/loaders/AutoRefund.lua"))()
+local MarketplaceService = game:GetService("MarketplaceService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local ParentGui = pcall(function() return CoreGui end) and CoreGui or LocalPlayer:WaitForChild("PlayerGui")
+
+-- Bersihkan GUI lama jika ada
+if ParentGui:FindFirstChild("VirgoHubz") then
+    ParentGui.VirgoHubz:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "VirgoHubz"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = ParentGui
+
+-- Container Notifikasi (Pojok Kanan Bawah)
+local NotifContainer = Instance.new("Frame")
+NotifContainer.Name = "NotifContainer"
+NotifContainer.Size = UDim2.new(0, 340, 1, -40)
+NotifContainer.Position = UDim2.new(1, -355, 0, 20)
+NotifContainer.BackgroundTransparency = 1
+NotifContainer.Parent = ScreenGui
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = NotifContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 12)
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+
+-- Fungsi Notifikasi (Icon di Samping Kiri, Teks di Kanan)
+local function CustomNotify(title, itemName, itemId, rawIconId, currencyInfo, isCustomIcon)
+    local NotifFrame = Instance.new("Frame")
+    NotifFrame.Size = UDim2.new(1, 0, 0, 105)
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    NotifFrame.BorderSizePixel = 0
+    NotifFrame.BackgroundTransparency = 1
+    NotifFrame.ClipsDescendants = true
+    NotifFrame.Parent = NotifContainer
+
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 14)
+    UICorner.Parent = NotifFrame
+
+    local UIGradient = Instance.new("UIGradient")
+    UIGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 22, 35)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 14, 20))
+    })
+    UIGradient.Rotation = 45
+    UIGradient.Parent = NotifFrame
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Color = Color3.fromRGB(255, 105, 180)
+    UIStroke.Transparency = 1
+    UIStroke.Thickness = 1.8
+    UIStroke.Parent = NotifFrame
+
+    local Shadow = Instance.new("Frame")
+    Shadow.Size = UDim2.new(1, 10, 1, 10)
+    Shadow.Position = UDim2.new(0, -5, 0, -5)
+    Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    Shadow.BackgroundTransparency = 1
+    Shadow.ZIndex = NotifFrame.ZIndex - 1
+    Shadow.Parent = NotifFrame
+    local ShadowCorner = Instance.new("UICorner")
+    ShadowCorner.CornerRadius = UDim.new(0, 18)
+    ShadowCorner.Parent = Shadow
+
+    -- Icon Item di Samping Kiri
+    local IconImage = Instance.new("ImageLabel")
+    IconImage.Size = UDim2.new(0, 75, 0, 75)
+    IconImage.Position = UDim2.new(0, 14, 0.5, -37)
+    IconImage.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    IconImage.ImageTransparency = 1
+    IconImage.Parent = NotifFrame
+
+    if isCustomIcon then
+        IconImage.Image = rawIconId
+    elseif rawIconId and rawIconId > 0 then
+        IconImage.Image = "rbxassetid://" .. tostring(rawIconId)
+    else
+        IconImage.Image = "rbxthumb://type=Asset&id=" .. tostring(itemId) .. "&w=150&h=150"
+    end
+
+    local IconCorner = Instance.new("UICorner")
+    IconCorner.CornerRadius = UDim.new(0, 10)
+    IconCorner.Parent = IconImage
+    
+    local IconStroke = Instance.new("UIStroke")
+    IconStroke.Color = Color3.fromRGB(60, 50, 75)
+    IconStroke.Thickness = 1
+    IconStroke.Parent = IconImage
+
+    -- Title
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, -102, 0, 20)
+    TitleLabel.Position = UDim2.new(0, 98, 0, 10)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 105, 180)
+    TitleLabel.TextSize = 14
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.TextTransparency = 1
+    TitleLabel.Parent = NotifFrame
+
+    -- Item Name
+    local ItemLabel = Instance.new("TextLabel")
+    ItemLabel.Size = UDim2.new(1, -102, 0, 18)
+    ItemLabel.Position = UDim2.new(0, 98, 0, 32)
+    ItemLabel.BackgroundTransparency = 1
+    ItemLabel.Text = tostring(itemName)
+    ItemLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+    ItemLabel.TextSize = 12
+    ItemLabel.Font = Enum.Font.GothamMedium
+    ItemLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ItemLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    ItemLabel.TextTransparency = 1
+    ItemLabel.Parent = NotifFrame
+
+    -- ID / Subtitle
+    local IdLabel = Instance.new("TextLabel")
+    IdLabel.Size = UDim2.new(1, -102, 0, 16)
+    IdLabel.Position = UDim2.new(0, 98, 0, 52)
+    IdLabel.BackgroundTransparency = 1
+    IdLabel.Text = "ID: " .. tostring(itemId)
+    IdLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+    IdLabel.TextSize = 11
+    IdLabel.Font = Enum.Font.Gotham
+    IdLabel.TextXAlignment = Enum.TextXAlignment.Left
+    IdLabel.TextTransparency = 1
+    IdLabel.Parent = NotifFrame
+
+    -- Currency Info
+    if currencyInfo then
+        local CurrLabel = Instance.new("TextLabel")
+        CurrLabel.Size = UDim2.new(1, -102, 0, 16)
+        CurrLabel.Position = UDim2.new(0, 98, 0, 70)
+        CurrLabel.BackgroundTransparency = 1
+        CurrLabel.Text = currencyInfo
+        CurrLabel.TextColor3 = Color3.fromRGB(85, 255, 127)
+        CurrLabel.TextSize = 11
+        CurrLabel.Font = Enum.Font.GothamBold
+        CurrLabel.TextXAlignment = Enum.TextXAlignment.Left
+        CurrLabel.TextTransparency = 1
+        CurrLabel.Parent = NotifFrame
+    end
+
+    -- Progress Bar
+    local ProgressBar = Instance.new("Frame")
+    ProgressBar.Size = UDim2.new(1, 0, 0, 4)
+    ProgressBar.Position = UDim2.new(0, 0, 1, -4)
+    ProgressBar.BackgroundColor3 = Color3.fromRGB(255, 105, 180)
+    ProgressBar.BorderSizePixel = 0
+    ProgressBar.Parent = NotifFrame
+
+    -- Animasi Muncul
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {BackgroundTransparency = 0.05}):Play()
+    TweenService:Create(UIStroke, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
+    TweenService:Create(Shadow, TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
+
+    for _, v in ipairs(NotifFrame:GetChildren()) do
+        if v:IsA("TextLabel") then
+            TweenService:Create(v, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        elseif v:IsA("ImageLabel") then
+            TweenService:Create(v, TweenInfo.new(0.3), {ImageTransparency = 0}):Play()
+        end
+    end
+
+    local duration = 5
+    TweenService:Create(ProgressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 4)}):Play()
+
+    task.delay(duration, function()
+        local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1})
+        TweenService:Create(UIStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+        TweenService:Create(Shadow, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        for _, v in ipairs(NotifFrame:GetChildren()) do
+            if v:IsA("TextLabel") then
+                TweenService:Create(v, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+            elseif v:IsA("ImageLabel") then
+                TweenService:Create(v, TweenInfo.new(0.3), {ImageTransparency = 1}):Play()
+            end
+        end
+        fadeOut:Play()
+        fadeOut.Completed:Connect(function()
+            NotifFrame:Destroy()
+        end)
+    end)
+end
+
+-- Notifikasi Berhasil di-Execute / Load
+CustomNotify("Auto Refund Virgo x Yono Loaded!", "Script Successfully Executed", "Active", "rbxassetid://85145339544435", "Protection: Running", true)
+
+-- Helper untuk mendeteksi currency / token di dalam leaderstats map
+local function getCurrencyStatus()
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    if leaderstats then
+        for _, stat in ipairs(leaderstats:GetChildren()) do
+            if stat:IsA("IntValue") or stat:IsA("NumberValue") then
+                return stat.Name .. ": " .. tostring(stat.Value)
+            end
+        end
+    end
+    return nil
+end
+
+-- Otomatis Berjalan di Belakang Layar (Background Auto-Refund & Currency Checker)
+MarketplaceService.PromptPurchaseRequestedV2:Connect(function(player, assetId, isRequirement, equipIfPurchased)
+    if player == LocalPlayer then
+        -- Paksa batalkan transaksi berulang kali secara instan di background
+        task.spawn(function()
+            for i = 1, 10 do
+                MarketplaceService:SignalPromptPurchaseFinished(player, assetId, false)
+                task.wait(0.02)
+            end
+        end)
+        
+        -- Ambil info detail item
+        local itemName = "Unknown Item"
+        local rawIconId = nil
+        pcall(function()
+            local info = MarketplaceService:GetProductInfo(assetId, Enum.InfoType.Asset)
+            if info then
+                itemName = info.Name or "Unknown Item"
+                if info.IconImageAssetId and info.IconImageAssetId > 0 then
+                    rawIconId = info.IconImageAssetId
+                end
+            end
+        end)
+        
+        task.wait(0.3)
+        local currStatus = getCurrencyStatus()
+        local currText = currStatus and ("Currency (" .. currStatus .. ") - Safe") or "Balance Protected & Refunded"
+
+        -- Diperbaiki agar parameter itemId dikirim angka aslinya (assetId) agar rbxthumb bisa meload foto item
+        CustomNotify("Refund Success!", itemName, assetId, rawIconId, currText, false)
+    end
+end)
