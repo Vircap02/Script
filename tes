@@ -1,0 +1,121 @@
+-- ==========================================
+-- SEASOULS HALLOWEEN - PROTECTED LOADER
+-- ==========================================
+
+-- Ganti password di bawah ini sesuai keinginan Anda
+local CORRECT_PASSWORD = "VircapPassword123" 
+
+-- Link Raw GitHub script asli Anda
+local TARGET_SCRIPT_URL = "https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Seasouls%20Halloween"
+
+-- ==========================================
+-- MEMBUAT TAMPILAN GUI KEY SYSTEM
+-- ==========================================
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Hapus GUI lama jika ada agar tidak menumpuk
+if PlayerGui:FindFirstChild("SeasoulsKeySystem") then
+    PlayerGui.SeasoulsKeySystem:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SeasoulsKeySystem"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Main Frame (Background Hitam Elegan ala Halloween/Dark Theme)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 380, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -100)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- Judul
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.Text = "🎃 SEASOULS HALLOWEEN 🎃"
+Title.TextColor3 = Color3.fromRGB(255, 140, 0)
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- Subtitle / Info
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(1, 0, 0, 30)
+Subtitle.Position = UDim2.new(0, 0, 0, 45)
+Subtitle.BackgroundTransparency = 1
+Subtitle.Text = "Masukkan Password untuk Memuat Script"
+Subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+Subtitle.TextSize = 13
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.Parent = MainFrame
+
+-- Kotak Input Password (TextBox)
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0, 320, 0, 40)
+TextBox.Position = UDim2.new(0.5, -160, 0, 85)
+TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.PlaceholderText = "Ketik password di sini..."
+TextBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 110)
+TextBox.TextSize = 14
+TextBox.Font = Enum.Font.Gotham
+TextBox.ClearTextOnFocus = false
+TextBox.Parent = MainFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 6)
+BoxCorner.Parent = TextBox
+
+-- Tombol Submit / Unlock
+local SubmitBtn = Instance.new("TextButton")
+SubmitBtn.Size = UDim2.new(0, 320, 0, 35)
+SubmitBtn.Position = UDim2.new(0.5, -160, 0, 138)
+SubmitBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 0)
+SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SubmitBtn.Text = "UNLOCKED / JALANKAN"
+SubmitBtn.TextSize = 14
+SubmitBtn.Font = Enum.Font.GothamBold
+SubmitBtn.Parent = MainFrame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 6)
+BtnCorner.Parent = SubmitBtn
+
+-- ==========================================
+-- LOGIKA VERIFIKASI PASSWORD
+-- ==========================================
+SubmitBtn.MouseButton1Click:Connect(function()
+    if TextBox.Text == CORRECT_PASSWORD then
+        SubmitBtn.Text = "SUKSES! Memuat script..."
+        SubmitBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+        task.wait(0.8)
+        
+        -- Tutup GUI Key System
+        ScreenGui:Destroy()
+        
+        -- Download dan Jalankan Script Asli Anda dari GitHub
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(TARGET_SCRIPT_URL))()
+        end)
+        
+        if not success then
+            warn("Gagal memuat script utama: " .. tostring(err))
+        end
+    else
+        -- Efek jika password salah
+        SubmitBtn.Text = "PASSWORD SALAH!"
+        SubmitBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+        task.wait(1.5)
+        SubmitBtn.Text = "UNLOCKED / JALANKAN"
+        SubmitBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 0)
+    end
+end)
