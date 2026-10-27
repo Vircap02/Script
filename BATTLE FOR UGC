@@ -8,8 +8,23 @@ local p = Players.LocalPlayer
 -- Status variabel
 local autoResetLoopActive = false
 local matchmakingActive = false
-local matchmakingThread = nil
 local inMatch = false
+local autoRejoinMatchActive = false
+
+-- Fungsi untuk mengirim request matchmaking secara aman (bukan loop mentah)
+local function TryRequestMatchmaking()
+    if matchmakingActive and not inMatch then
+        pcall(function() 
+            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            if remotes then
+                local req = remotes:FindFirstChild("MatchmakingRequest")
+                if req then
+                    req:FireServer()
+                end
+            end
+        end)
+    end
+end
 
 -- Listener status matchmaking dari server
 task.spawn(function()
@@ -21,8 +36,22 @@ task.spawn(function()
                 if data and data.status then
                     if data.status == "MatchFound" then
                         inMatch = true
+                        -- Jika fitur Auto Rejoin Match aktif saat match ditemukan
+                        if autoRejoinMatchActive then
+                            task.wait(0.5)
+                            if #Players:GetPlayers() <= 1 then
+                                TeleportService:Teleport(game.PlaceId, p)
+                            else
+                                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
+                            end
+                        end
                     elseif data.status == "MatchOver" or data.status == "Cancelled" then
                         inMatch = false
+                        -- Jika match dibatalkan/selesai dan toggle auto matchmaking masih nyala, trigger lagi otomatis
+                        if matchmakingActive then
+                            task.wait(1)
+                            TryRequestMatchmaking()
+                        end
                     end
                 end
             end)
@@ -30,16 +59,20 @@ task.spawn(function()
     end
 end)
 
--- Loop untuk Auto Reset (DIPERBAIKI menggunakan BreakJoints agar mati di Server)
+-- Loop untuk Auto Reset (Menunggu karakter benar-benar berdiri/hidup normal agar tidak bug)
 task.spawn(function()
     while task.wait(0.3) do
         if autoResetLoopActive and inMatch then
             local char = p.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if char and hum and hum.Health > 0 then
-                pcall(function()
-                    char:BreakJoints()
-                end)
+            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+            
+            -- Pastikan karakter ada, humanoid ada, rootPart ada (spawn sempurna), dan darah > 0
+            if char and hum and rootPart and hum.Health > 0 then
+                task.wait(0.5) -- Jeda setengah detik setelah berdiri agar aman dari state mati
+                if autoResetLoopActive and inMatch and hum.Health > 0 then
+                    hum.Health = 0
+                end
             end
         end
     end
@@ -59,8 +92,8 @@ end
 -- Main Frame (Battle Theme: Dark Metal / Red Accents)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 270)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -135)
+MainFrame.Size = UDim2.new(0, 320, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -127,7 +160,7 @@ ContentContainer.Size = UDim2.new(1, -20, 1, -55)
 ContentContainer.Position = UDim2.new(0, 10, 0, 48)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.BorderSizePixel = 0
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 190)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 240)
 ContentContainer.ScrollBarThickness = 4
 ContentContainer.Parent = MainFrame
 
@@ -144,9 +177,9 @@ local function CreateBattleToggle(name, callback)
     ToggleContainer.BorderSizePixel = 0
     ToggleContainer.Parent = ContentContainer
 
-    local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 6)
-    ToggleCorner.Parent = ToggleContainer
+    local ToggleContainerCorner = Instance.new("UICorner")
+    ToggleContainerCorner.CornerRadius = UDim.new(0, 6)
+    ToggleContainerCorner.Parent = ToggleContainer
 
     local Label = Instance.new("TextLabel")
     Label.Size = UDim2.new(1, -70, 1, 0)
@@ -195,30 +228,11 @@ local function CreateBattleToggle(name, callback)
     end)
 end
 
--- 1. Toggle Auto Matchmaking Request
+-- 1. Toggle Auto Matchmaking Request (Diubah jadi sistem Trigger/Event, tidak pakai loop)
 CreateBattleToggle("Auto Matchmaking Request", function(Value)
     matchmakingActive = Value
     if matchmakingActive then
-        matchmakingThread = task.spawn(function()
-            while matchmakingActive do
-                local char = p.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if char and hum and hum.Health > 0 then
-                    pcall(function() 
-                        ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("MatchmakingRequest"):FireServer() 
-                    end)
-                    task.wait(3)
-                else
-                    p.CharacterAdded:Wait()
-                    task.wait(2)
-                end
-            end
-        end)
-    else
-        if matchmakingThread then 
-            task.cancel(matchmakingThread)
-            matchmakingThread = nil 
-        end
+        TryRequestMatchmaking()
     end
 end)
 
@@ -227,14 +241,19 @@ CreateBattleToggle("Auto Reset Loop", function(Value)
     autoResetLoopActive = Value
 end)
 
--- 3. Tombol Rejoin Server
+-- 3. Toggle Auto Rejoin Match
+CreateBattleToggle("Auto Rejoin Match", function(Value)
+    autoRejoinMatchActive = Value
+end)
+
+-- 4. Tombol Rejoin Server Manual
 local RejoinBtn = Instance.new("TextButton")
 RejoinBtn.Size = UDim2.new(1, 0, 0, 42)
 RejoinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 RejoinBtn.Font = Enum.Font.GothamBold
 RejoinBtn.Text = "🔄 REJOIN SERVER"
 RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RejoinBtn.TextSize = 13
+RejoinBtn.TextSize= 13
 RejoinBtn.Parent = ContentContainer
 
 local RejoinCorner = Instance.new("UICorner")
