@@ -159,19 +159,28 @@ end
 -- --- GAME LOGIC ---
 local Knit = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services
 
--- Fly Tween (Hanya untuk Obby)
-local function flyTween(targetCF)
-    if not Root then return end
-    local TS = game:GetService("TweenService")
-    local flyHeight = 250
-    local upCF = CFrame.new(Root.Position.X, flyHeight, Root.Position.Z)
-    local acrossCF = CFrame.new(targetCF.X, flyHeight, targetCF.Z)
+-- Fungsi Touch Portal dengan Hitung Mundur 20 Detik
+local function touchPortalWithDelay(portalPart, buttonInstance)
+    if not Root or not portalPart then return end
     
-    TS:Create(Root, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = upCF}):Play()
-    task.wait(1.6)
-    TS:Create(Root, TweenInfo.new(2.5, Enum.EasingStyle.Linear), {CFrame = acrossCF}):Play()
-    task.wait(2.6)
-    TS:Create(Root, TweenInfo.new(1.5, Enum.EasingStyle.Linear), {CFrame = targetCF}):Play()
+    local originalText = buttonInstance.Text
+    
+    -- Hitung mundur 20 detik
+    task.spawn(function()
+        for i = 30, 1, -1 do
+            buttonInstance.Text = "Tunggu " .. i .. "s..."
+            task.wait(1)
+        end
+        
+        -- Eksekusi firetouchinterest setelah 20 detik
+        pcall(function()
+            firetouchinterest(Root, portalPart, 0)
+            task.wait(0.1)
+            firetouchinterest(Root, portalPart, 1)
+        end)
+        
+        buttonInstance.Text = originalText
+    end)
 end
 
 -- 1. AUTOMATION
@@ -228,12 +237,30 @@ AddButton(WorldTeleCat, "Teleport ke Kartu", function()
     game:GetService("TeleportService"):Teleport(91592804393438, game.Players.LocalPlayer)
 end)
 
--- 4. OBBY (FLY TWEEN)
+-- 4. OBBY (FIRETOUCHINTEREST DENGAN DELAY 20 DETIK)
 local ObbyCat = CreateCategory("FINISH OBBY")
-AddButton(ObbyCat, "Robot World", function() flyTween(workspace.Areas.Robot.Goal.CFrame) end)
-AddButton(ObbyCat, "Space World", function() flyTween(workspace.Areas.Space.Goal.CFrame) end)
-AddButton(ObbyCat, "Ninja World", function() flyTween(workspace.Areas.Ninja.Goal.CFrame) end)
-AddButton(ObbyCat, "AniOtodama World", function() flyTween(workspace.Areas.AniOtodama.Goal.CFrame) end)
+
+-- Membuat tombol secara manual agar teks bisa berubah saat hitung mundur
+local function AddObbyButton(parent, txt, portalPath)
+    local btn = Instance.new("TextButton")
+    btn.Parent = parent
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    btn.Text = txt
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 10
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    
+    btn.MouseButton1Click:Connect(function()
+        touchPortalWithDelay(portalPath, btn)
+    end)
+end
+
+AddObbyButton(ObbyCat, "Robot World", workspace.Areas.Robot.ToEntrance.PortalPart)
+AddObbyButton(ObbyCat, "Space World", workspace.Areas.Space.ToEntrance.PortalPart)
+AddObbyButton(ObbyCat, "Ninja World", workspace.Areas.Ninja.ToEntrance.PortalPart)
+AddObbyButton(ObbyCat, "AniOtodama World", workspace.Areas.AniOtodama.ToEntrance.PortalPart)
 
 -- 5. SHOP & DECK
 local ShopCat = CreateCategory("SHOP CARD")
