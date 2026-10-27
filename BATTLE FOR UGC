@@ -5,25 +5,40 @@ local CoreGui = game:GetService("CoreGui")
 
 local p = Players.LocalPlayer
 
--- Status variabel
+-- Status variabel (Auto Matchmaking langsung diset true agar otomatis aktif saat di-execute)
 local autoResetLoopActive = false
-local matchmakingActive = false
+local matchmakingActive = true 
 local inMatch = false
 local autoRejoinMatchActive = false
 
--- Fungsi untuk mengirim request matchmaking secara aman (bukan loop mentah)
+-- Variabel referensi visual untuk toggle Auto Matchmaking
+local matchmakingSwitchBtn = nil
+local matchmakingCircle = nil
+
+-- Fungsi untuk mengirim request matchmaking dengan menunggu karakter spawn sempurna terlebih dahulu
 local function TryRequestMatchmaking()
-    if matchmakingActive and not inMatch then
-        pcall(function() 
-            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-            if remotes then
-                local req = remotes:FindFirstChild("MatchmakingRequest")
-                if req then
-                    req:FireServer()
-                end
+    task.spawn(function()
+        while matchmakingActive and not inMatch do
+            local char = p.Character or p.CharacterAdded:Wait()
+            local hum = char:WaitForChild("Humanoid", 5)
+            local rootPart = char:WaitForChild("HumanoidRootPart", 5)
+            
+            -- Pastikan karakter benar-benar hidup dan sudah spawn sempurna (tidak dalam kondisi mati)
+            if char and hum and rootPart and hum.Health > 0 then
+                pcall(function() 
+                    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                    if remotes then
+                        local req = remotes:FindFirstChild("MatchmakingRequest")
+                        if req then
+                            req:FireServer()
+                        end
+                    end
+                end)
+                break -- Berhenti dari loop pengecekan jika request sudah berhasil dikirim
             end
-        end)
-    end
+            task.wait(1) -- Cek ulang setiap 1 detik jika karakter belum siap
+        end
+    end)
 end
 
 -- Listener status matchmaking dari server
@@ -47,7 +62,7 @@ task.spawn(function()
                         end
                     elseif data.status == "MatchOver" or data.status == "Cancelled" then
                         inMatch = false
-                        -- Jika match dibatalkan/selesai dan toggle auto matchmaking masih nyala, trigger lagi otomatis
+                        -- Jika match dibatalkan/selesai dan toggle auto matchmaking masih nyala, trigger lagi setelah karakter spawn
                         if matchmakingActive then
                             task.wait(1)
                             TryRequestMatchmaking()
@@ -67,7 +82,6 @@ task.spawn(function()
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             local rootPart = char and char:FindFirstChild("HumanoidRootPart")
             
-            -- Pastikan karakter ada, humanoid ada, rootPart ada (spawn sempurna), dan darah > 0
             if char and hum and rootPart and hum.Health > 0 then
                 task.wait(0.5) -- Jeda setengah detik setelah berdiri agar aman dari state mati
                 if autoResetLoopActive and inMatch and hum.Health > 0 then
@@ -170,7 +184,7 @@ UIList.Padding = UDim.new(0, 10)
 UIList.Parent = ContentContainer
 
 -- Fungsi pembantu membuat Toggle
-local function CreateBattleToggle(name, callback)
+local function CreateBattleToggle(name, defaultState, callback)
     local ToggleContainer = Instance.new("Frame")
     ToggleContainer.Size = UDim2.new(1, 0, 0, 42)
     ToggleContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
@@ -195,7 +209,7 @@ local function CreateBattleToggle(name, callback)
     local SwitchBtn = Instance.new("TextButton")
     SwitchBtn.Size = UDim2.new(0, 45, 0, 24)
     SwitchBtn.Position = UDim2.new(1, -55, 0.5, -12)
-    SwitchBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+    SwitchBtn.BackgroundColor3 = defaultState and Color3.fromRGB(180, 40, 40) or Color3.fromRGB(70, 70, 80)
     SwitchBtn.AutoButtonColor = false
     SwitchBtn.Text = ""
     SwitchBtn.Parent = ToggleContainer
@@ -206,7 +220,7 @@ local function CreateBattleToggle(name, callback)
 
     local Circle = Instance.new("Frame")
     Circle.Size = UDim2.new(0, 18, 0, 18)
-    Circle.Position = UDim2.new(0, 3, 0.5, -9)
+    Circle.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
     Circle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     Circle.Parent = SwitchBtn
 
@@ -214,7 +228,12 @@ local function CreateBattleToggle(name, callback)
     CircleCorner.CornerRadius = UDim.new(1, 0)
     CircleCorner.Parent = Circle
 
-    local active = false
+    if name == "Auto Matchmaking Request" then
+        matchmakingSwitchBtn = SwitchBtn
+        matchmakingCircle = Circle
+    end
+
+    local active = defaultState
     SwitchBtn.MouseButton1Click:Connect(function()
         active = not active
         if active then
@@ -228,8 +247,8 @@ local function CreateBattleToggle(name, callback)
     end)
 end
 
--- 1. Toggle Auto Matchmaking Request (Diubah jadi sistem Trigger/Event, tidak pakai loop)
-CreateBattleToggle("Auto Matchmaking Request", function(Value)
+-- 1. Toggle Auto Matchmaking Request
+CreateBattleToggle("Auto Matchmaking Request", true, function(Value)
     matchmakingActive = Value
     if matchmakingActive then
         TryRequestMatchmaking()
@@ -237,12 +256,12 @@ CreateBattleToggle("Auto Matchmaking Request", function(Value)
 end)
 
 -- 2. Toggle Auto Reset Loop
-CreateBattleToggle("Auto Reset Loop", function(Value)
+CreateBattleToggle("Auto Reset Loop", false, function(Value)
     autoResetLoopActive = Value
 end)
 
 -- 3. Toggle Auto Rejoin Match
-CreateBattleToggle("Auto Rejoin Match", function(Value)
+CreateBattleToggle("Auto Rejoin Match", false, function(Value)
     autoRejoinMatchActive = Value
 end)
 
@@ -253,7 +272,7 @@ RejoinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 RejoinBtn.Font = Enum.Font.GothamBold
 RejoinBtn.Text = "🔄 REJOIN SERVER"
 RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RejoinBtn.TextSize= 13
+RejoinBtn.TextSize = 13
 RejoinBtn.Parent = ContentContainer
 
 local RejoinCorner = Instance.new("UICorner")
@@ -268,3 +287,6 @@ RejoinBtn.MouseButton1Click:Connect(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
     end
 end)
+
+-- Jalankan fungsi request matchmaking otomatis setelah di-execute dengan menunggu karakter siap
+TryRequestMatchmaking()
