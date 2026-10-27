@@ -54,7 +54,7 @@ local listMap = {
     },
     {
         Nama = "🧑‍🦰 Tokyo Anime",
-        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/Script/refs/heads/main/TokyoAnime.lua"))()]]
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Tokyo%20Anime"))()]]
     },
     {
         Nama = "👩‍🦰 Kingdom of essentia Tycoon",
