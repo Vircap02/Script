@@ -798,16 +798,16 @@ local function LoadMainScript()
         end
     end)
 
-    CreateButton("🏆 CHECK UGC MENU", function()
+    CreateButton("🏆 CHECK ", function()
         pcall(function()
-            local args = { "MULTIUgc6" }
+            local args = { "MULTIUgc7" }
             pcall(function()
                 game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("MULTIUgcLeaderboardService"):WaitForChild("RF"):WaitForChild("GetUgcScreenData"):InvokeServer(unpack(args))
             end)
 
             local showPanelEvent = LP.PlayerGui:WaitForChild("PlayerUi"):WaitForChild("Popups"):WaitForChild("UGCPanel"):WaitForChild("ShowUGCPanel")
             if showPanelEvent then
-                showPanelEvent:Fire("MULTIUgc6")
+                showPanelEvent:Fire("MULTIUgc7")
             end
             
             ShowNotify("UGC System", "Membuka Menu Leaderboard UGC...")
