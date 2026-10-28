@@ -525,7 +525,6 @@ local function LoadMainScript()
             local rB = oR and oR:FindFirstChild("ReplayButton")
             
             if rB and rB.Visible and rB.AbsoluteSize.X > 0 then
-                -- DELAY SETELAH REPLAY DIHAPUS (Langsung klik tanpa jeda 2.5 detik)
                 local ins = GS:GetGuiInset()
                 local pX = rB.AbsolutePosition.X + (rB.AbsoluteSize.X / 2)
                 local pY = rB.AbsolutePosition.Y + (rB.AbsoluteSize.Y / 2) + ins.Y
@@ -752,10 +751,17 @@ local function LoadMainScript()
                 while A_LOOP do
                     if not A_RUN then
                         pcall(start_run)
-                        local w = 0
-                        while A_LOOP and w < 15 do
-                            if cR() then task.wait(1); break end -- Jeda check dipercepat
-                            task.wait(0.5); w = w + 0.5
+                        
+                        -- BERHENTI / MENUNGGU HINGGA TOMBOL REPLAY DITEKAN
+                        ShowNotify("Auto Replay", "Menunggu Replay Button muncul...")
+                        local clicked = false
+                        while A_LOOP and not clicked do
+                            if cR() then
+                                clicked = true
+                                ShowNotify("Auto Replay", "Replay Button diklik! Memulai ulang...")
+                                task.wait(1.5) -- Jeda sebentar setelah replay ditekan sebelum run berikutnya
+                            end
+                            task.wait(0.5)
                         end
                     end
                     task.wait(0.5)
