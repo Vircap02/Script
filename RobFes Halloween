@@ -90,6 +90,7 @@ end
 
 local COL_BG = Color3.fromRGB(18, 18, 20)
 local MIN_NORMAL = Color3.fromRGB(40, 40, 45)
+local CLOSE_NORMAL = Color3.fromRGB(160, 40, 40)
 
 local STROKE_CS = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
@@ -123,7 +124,7 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
-local FULL_H = 460 -- Diperbesar sedikit agar pas menampung tombol To Base di setiap tab
+local FULL_H = 460
 local MINI_H = 42
 
 local main = Instance.new("Frame")
@@ -140,7 +141,7 @@ Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 animStroke(main, 1.5)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 0, 16)
+title.Size = UDim2.new(1, -65, 0, 16)
 title.Position = UDim2.new(0, 12, 0, 8)
 title.BackgroundTransparency = 1
 title.Text = "ROBFES HALLOWEEN"
@@ -159,7 +160,7 @@ tGrad.Color = ColorSequence.new({
 tGrad.Parent = title
 
 local desc = Instance.new("TextLabel")
-desc.Size = UDim2.new(1, -40, 0, 10)
+desc.Size = UDim2.new(1, -65, 0, 10)
 desc.Position = UDim2.new(0, 12, 0, 22)
 desc.BackgroundTransparency = 1
 desc.Text = "Halloween Edition - Virgoboy"
@@ -169,10 +170,30 @@ desc.TextColor3 = Color3.fromRGB(110, 110, 115)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
+-- Tombol Close (X) di pojok kanan atas
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -28, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+-- Tombol Minimize (-)
 local minimized = false
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
-minBtn.Position = UDim2.new(1, -30, 0, 8)
+minBtn.Position = UDim2.new(1, -54, 0, 8)
 minBtn.BackgroundColor3 = MIN_NORMAL
 minBtn.Text = "-"
 minBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -904,7 +925,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 7. DRAGGABLE & ANIMASI GARIS BORDER
+-- 7. DRAGGABLE & ANIMASI GARIS BORDER (Mendukung Mobile Touch & Mouse)
 --------------------------------------------------------------------------------
 do
     local dragging, dragStart, startPos = false, nil, nil
@@ -940,7 +961,7 @@ do
     end)
 end
 
-RunService.RenderStepped:Connect(function()
+RunService.RenderSentStepped = RunService.RenderStepped:Connect(function()
     local off = Vector2.new(math.sin(tick() * 2.8), 0)
     for _, g in ipairs(allGrads) do
         g.Offset = off
