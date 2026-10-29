@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SPEED LIGHT ROBFES - CUSTOM ACE GUI (ESP REAL-TIME FIXED FOR MODELS)
+-- SPEED LIGHT ROBFES - CUSTOM ACE GUI (ESP REAL-TIME FIXED FOR MODELS) + TAB TELEPORT ITEM
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 
@@ -22,6 +23,9 @@ local autoRebirthActive = false
 -- Status Variable (Tab 2: ESP & Auto Teleport Exit)
 local espActive = false
 local autoAnomalyTpActive = false
+
+-- Status Variable (Tab 3: Halloween Item Loop TP)
+local autoHalloweenLoopActive = false
 
 -- Target Teleport Position (Default)
 local targetPosition = Vector3.new(-1110.21, 297.81, 1464.90)
@@ -58,8 +62,26 @@ local function getAnomaliesFolder()
     return Workspace:FindFirstChild("RuntimeAnomalies")
 end
 
+local function getHalloweenFolder()
+    return Workspace:FindFirstChild("LocalHalloweenCollections")
+end
+
+local function getTargetCFrame(item)
+    if item:IsA("BasePart") then
+        return item.CFrame
+    elseif item:IsA("Model") then
+        if item.PrimaryPart then
+            return item.PrimaryPart.CFrame
+        else
+            local part = item:FindFirstChildWhichIsA("BasePart", true)
+            if part then return part.CFrame end
+        end
+    end
+    return nil
+end
+
 --------------------------------------------------------------------------------
--- 1. PEMBUATAN CUSTOM GUI (ACE THEME DENGAN DUA TAB)
+-- 1. PEMBUATAN CUSTOM GUI (ACE THEME DENGAN TIGA TAB)
 --------------------------------------------------------------------------------
 local coreGui = CoreGui
 if coreGui:FindFirstChild("AceSniperUI") then
@@ -68,7 +90,6 @@ end
 
 local COL_BG = Color3.fromRGB(18, 18, 20)
 local MIN_NORMAL = Color3.fromRGB(40, 40, 45)
-local MIN_HOVER = Color3.fromRGB(25, 25, 28)
 
 local STROKE_CS = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
@@ -102,7 +123,7 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
-local FULL_H = 460
+local FULL_H = 460 -- Diperbesar sedikit agar pas menampung tombol To Base di setiap tab
 local MINI_H = 42
 
 local main = Instance.new("Frame")
@@ -173,7 +194,7 @@ minBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- SISTEM TAB (TAB 1: MAIN, TAB 2: ESP)
+-- SISTEM TAB (TAB 1: MAIN, TAB 2: ESP, TAB 3: HALLOWEEN ITEM)
 --------------------------------------------------------------------------------
 local tabHeader = Instance.new("Frame")
 tabHeader.Size = UDim2.new(1, -16, 0, 26)
@@ -182,36 +203,48 @@ tabHeader.BackgroundTransparency = 1
 tabHeader.Parent = main
 
 local tabMainBtn = Instance.new("TextButton")
-tabMainBtn.Size = UDim2.new(0.5, -4, 1, 0)
+tabMainBtn.Size = UDim2.new(0.33, -3, 1, 0)
 tabMainBtn.Position = UDim2.new(0, 0, 0, 0)
 tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
 tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
 tabMainBtn.Text = "Keyboard"
 tabMainBtn.Font = Enum.Font.GothamBold
-tabMainBtn.TextSize = 11
+tabMainBtn.TextSize = 10
 tabMainBtn.BorderSizePixel = 0
 tabMainBtn.Parent = tabHeader
 Instance.new("UICorner", tabMainBtn).CornerRadius = UDim.new(0, 5)
 
 local tabEspBtn = Instance.new("TextButton")
-tabEspBtn.Size = UDim2.new(0.5, -4, 1, 0)
-tabEspBtn.Position = UDim2.new(0.5, 4, 0, 0)
+tabEspBtn.Size = UDim2.new(0.33, -3, 1, 0)
+tabEspBtn.Position = UDim2.new(0.33, 3, 0, 0)
 tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
 tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 tabEspBtn.Text = "Cari Anomali"
 tabEspBtn.Font = Enum.Font.GothamBold
-tabEspBtn.TextSize = 11
+tabEspBtn.TextSize = 10
 tabEspBtn.BorderSizePixel = 0
 tabEspBtn.Parent = tabHeader
 Instance.new("UICorner", tabEspBtn).CornerRadius = UDim.new(0, 5)
+
+local tabItemBtn = Instance.new("TextButton")
+tabItemBtn.Size = UDim2.new(0.33, -3, 1, 0)
+tabItemBtn.Position = UDim2.new(0.66, 6, 0, 0)
+tabItemBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
+tabItemBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+tabItemBtn.Text = "Tower Robfes"
+tabItemBtn.Font = Enum.Font.GothamBold
+tabItemBtn.TextSize = 9.5
+tabItemBtn.BorderSizePixel = 0
+tabItemBtn.Parent = tabHeader
+Instance.new("UICorner", tabItemBtn).CornerRadius = UDim.new(0, 5)
 
 local tab1Container = Instance.new("ScrollingFrame")
 tab1Container.Size = UDim2.new(1, -16, 1, -74)
 tab1Container.Position = UDim2.new(0, 8, 0, 68)
 tab1Container.BackgroundTransparency = 1
 tab1Container.BorderSizePixel = 0
-tab1Container.CanvasSize = UDim2.new(0, 0, 0, 410)
-tab1Container.ScrollBarThickness = 4
+tab1Container.CanvasSize = UDim2.new(0, 0, 0, 390)
+tab1Container.ScrollBarThickness = 3
 tab1Container.Visible = true
 tab1Container.Parent = main
 
@@ -220,33 +253,51 @@ tab2Container.Size = UDim2.new(1, -16, 1, -74)
 tab2Container.Position = UDim2.new(0, 8, 0, 68)
 tab2Container.BackgroundTransparency = 1
 tab2Container.BorderSizePixel = 0
-tab2Container.CanvasSize = UDim2.new(0, 0, 0, 250)
-tab2Container.ScrollBarThickness = 4
+tab2Container.CanvasSize = UDim2.new(0, 0, 0, 290)
+tab2Container.ScrollBarThickness = 3
 tab2Container.Visible = false
 tab2Container.Parent = main
+
+local tab3Container = Instance.new("ScrollingFrame")
+tab3Container.Size = UDim2.new(1, -16, 1, -74)
+tab3Container.Position = UDim2.new(0, 8, 0, 68)
+tab3Container.BackgroundTransparency = 1
+tab3Container.BorderSizePixel = 0
+tab3Container.CanvasSize = UDim2.new(0, 0, 0, 220)
+tab3Container.ScrollBarThickness = 3
+tab3Container.Visible = false
+tab3Container.Parent = main
 
 tabMainBtn.MouseButton1Click:Connect(function()
     tab1Container.Visible = true
     tab2Container.Visible = false
-    tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
-    tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
-    tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
-    tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tab3Container.Visible = false
+    tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70); tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
+    tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tabItemBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabItemBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 end)
 
 tabEspBtn.MouseButton1Click:Connect(function()
     tab1Container.Visible = false
     tab2Container.Visible = true
-    tabEspBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
-    tabEspBtn.TextColor3 = Color3.new(1, 1, 1)
-    tabMainBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
-    tabMainBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tab3Container.Visible = false
+    tabEspBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70); tabEspBtn.TextColor3 = Color3.new(1, 1, 1)
+    tabMainBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabMainBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tabItemBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabItemBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+tabItemBtn.MouseButton1Click:Connect(function()
+    tab1Container.Visible = false
+    tab2Container.Visible = false
+    tab3Container.Visible = true
+    tabItemBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70); tabItemBtn.TextColor3 = Color3.new(1, 1, 1)
+    tabMainBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabMainBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38); tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 end)
 
 --------------------------------------------------------------------------------
--- 2. KONTROL TAB 1 (MAIN FEATURES)
+-- STYLING HELPER
 --------------------------------------------------------------------------------
-
 local function styleButton(btn, color)
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -258,58 +309,71 @@ local function styleButton(btn, color)
     corner.Parent = btn
 end
 
+--------------------------------------------------------------------------------
+-- 2. KONTROL TAB 1 (MAIN FEATURES)
+--------------------------------------------------------------------------------
+local spacing = 33
+local currentY = 5
+
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, 0, 0, 28)
-toggleBtn.Position = UDim2.new(0, 0, 0, 5)
+toggleBtn.Position = UDim2.new(0, 0, 0, currentY)
 toggleBtn.Text = "Auto Collect: OFF"
 styleButton(toggleBtn, Color3.fromRGB(180, 50, 50))
 toggleBtn.Parent = tab1Container
+currentY = currentY + spacing
 
 local winBtn = Instance.new("TextButton")
 winBtn.Size = UDim2.new(1, 0, 0, 28)
-winBtn.Position = UDim2.new(0, 0, 0, 38)
+winBtn.Position = UDim2.new(0, 0, 0, currentY)
 winBtn.Text = "Auto Win: OFF"
 styleButton(winBtn, Color3.fromRGB(180, 50, 50))
 winBtn.Parent = tab1Container
+currentY = currentY + spacing
 
 local stageDropdownMain = Instance.new("TextButton")
 stageDropdownMain.Size = UDim2.new(1, 0, 0, 28)
-stageDropdownMain.Position = UDim2.new(0, 0, 0, 71)
+stageDropdownMain.Position = UDim2.new(0, 0, 0, currentY)
 stageDropdownMain.Text = "Stage: " .. stageWaypoints[1].name
 styleButton(stageDropdownMain, Color3.fromRGB(50, 40, 70))
 stageDropdownMain.Parent = tab1Container
+currentY = currentY + spacing
 
 local stageBtn = Instance.new("TextButton")
 stageBtn.Size = UDim2.new(1, 0, 0, 28)
-stageBtn.Position = UDim2.new(0, 0, 0, 104)
+stageBtn.Position = UDim2.new(0, 0, 0, currentY)
 stageBtn.Text = "Auto Stage: OFF"
 styleButton(stageBtn, Color3.fromRGB(180, 50, 50))
 stageBtn.Parent = tab1Container
+currentY = currentY + spacing
 
 local levelBtn = Instance.new("TextButton")
 levelBtn.Size = UDim2.new(1, 0, 0, 28)
-levelBtn.Position = UDim2.new(0, 0, 0, 137)
+levelBtn.Position = UDim2.new(0, 0, 0, currentY)
 levelBtn.Text = "Auto Level: OFF"
 styleButton(levelBtn, Color3.fromRGB(180, 50, 50))
 levelBtn.Parent = tab1Container
+currentY = currentY + spacing
 
 local rebirthBtn = Instance.new("TextButton")
 rebirthBtn.Size = UDim2.new(1, 0, 0, 28)
-rebirthBtn.Position = UDim2.new(0, 0, 0, 170)
+rebirthBtn.Position = UDim2.new(0, 0, 0, currentY)
 rebirthBtn.Text = "Auto Rebirth: OFF"
 styleButton(rebirthBtn, Color3.fromRGB(180, 50, 50))
 rebirthBtn.Parent = tab1Container
+currentY = currentY + spacing
 
 local markBtn = Instance.new("TextButton")
 markBtn.Size = UDim2.new(1, 0, 0, 28)
-markBtn.Position = UDim2.new(0, 0, 0, 203)
+markBtn.Position = UDim2.new(0, 0, 0, currentY)
 markBtn.Text = "📍 Tandai Posisi Saat Ini"
 styleButton(markBtn, Color3.fromRGB(110, 40, 180))
 markBtn.Parent = tab1Container
+currentY = currentY + 22
 
 local posLabel = Instance.new("TextLabel")
-posLabel.Size = UDim2.new(1, 0, 0, 18)
-posLabel.Position = UDim2.new(0, 0, 0, 236)
+posLabel.Size = UDim2.new(1, 0, 0, 16)
+posLabel.Position = UDim2.new(0, 0, 0, currentY)
 posLabel.BackgroundTransparency = 1
 posLabel.Text = "Posisi: " .. string.format("%.1f, %.1f, %.1f", targetPosition.X, targetPosition.Y, targetPosition.Z)
 posLabel.TextColor3 = Color3.fromRGB(200, 180, 230)
@@ -317,13 +381,27 @@ posLabel.TextSize = 10
 posLabel.Font = Enum.Font.Gotham
 posLabel.TextXAlignment = Enum.TextXAlignment.Center
 posLabel.Parent = tab1Container
+currentY = currentY + 20
 
 local tpBtn = Instance.new("TextButton")
 tpBtn.Size = UDim2.new(1, 0, 0, 28)
-tpBtn.Position = UDim2.new(0, 0, 0, 260)
+tpBtn.Position = UDim2.new(0, 0, 0, currentY)
 tpBtn.Text = "🚀 TP ke Posisi Ditandai"
 styleButton(tpBtn, Color3.fromRGB(220, 110, 10))
 tpBtn.Parent = tab1Container
+currentY = currentY + spacing
+
+-- Tombol To Base Tab 1
+local toBaseBtn1 = Instance.new("TextButton")
+toBaseBtn1.Size = UDim2.new(1, 0, 0, 28)
+toBaseBtn1.Position = UDim2.new(0, 0, 0, currentY)
+toBaseBtn1.Text = "🏠 To Base"
+styleButton(toBaseBtn1, Color3.fromRGB(40, 110, 180))
+toBaseBtn1.Parent = tab1Container
+
+toBaseBtn1.MouseButton1Click:Connect(function()
+    TeleportService:Teleport(85107982488928, player)
+end)
 
 local dropdownList = Instance.new("ScrollingFrame")
 dropdownList.Size = UDim2.new(1, 0, 0, 140)
@@ -332,7 +410,7 @@ dropdownList.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 dropdownList.BorderSizePixel = 0
 dropdownList.Visible = false
 dropdownList.CanvasSize = UDim2.new(0, 0, 0, #stageWaypoints * 25)
-dropdownList.ScrollBarThickness = 4
+dropdownList.ScrollBarThickness = 3
 dropdownList.ZIndex = 20
 dropdownList.Parent = tab1Container
 
@@ -366,12 +444,11 @@ stageDropdownMain.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- 3. KONTROL TAB 2 (ESP, AUTO TP TO EXIT, & REAL-TIME DETAIL ANOMALY)
+-- 3. KONTROL TAB 2 (ESP & AUTO TP EXIT)
 --------------------------------------------------------------------------------
-
 local espToggleBtn = Instance.new("TextButton")
 espToggleBtn.Size = UDim2.new(1, 0, 0, 32)
-espToggleBtn.Position = UDim2.new(0, 0, 0, 10)
+espToggleBtn.Position = UDim2.new(0, 0, 0, 5)
 espToggleBtn.Text = "ESP Anomalies: OFF"
 styleButton(espToggleBtn, Color3.fromRGB(180, 50, 50))
 espToggleBtn.Parent = tab2Container
@@ -389,7 +466,7 @@ end)
 
 local autoAnomalyTpBtn = Instance.new("TextButton")
 autoAnomalyTpBtn.Size = UDim2.new(1, 0, 0, 32)
-autoAnomalyTpBtn.Position = UDim2.new(0, 0, 0, 50)
+autoAnomalyTpBtn.Position = UDim2.new(0, 0, 0, 42)
 autoAnomalyTpBtn.Text = "Auto Teleport Exit: OFF"
 styleButton(autoAnomalyTpBtn, Color3.fromRGB(180, 50, 50))
 autoAnomalyTpBtn.Parent = tab2Container
@@ -407,7 +484,7 @@ end)
 
 local detailTitle = Instance.new("TextLabel")
 detailTitle.Size = UDim2.new(1, 0, 0, 16)
-detailTitle.Position = UDim2.new(0, 0, 0, 92)
+detailTitle.Position = UDim2.new(0, 0, 0, 80)
 detailTitle.BackgroundTransparency = 1
 detailTitle.Text = "📋 Detail Anomali (Real-Time):"
 detailTitle.TextColor3 = Color3.fromRGB(255, 140, 0)
@@ -417,8 +494,8 @@ detailTitle.TextXAlignment = Enum.TextXAlignment.Left
 detailTitle.Parent = tab2Container
 
 local anomalyDetailBox = Instance.new("TextLabel")
-anomalyDetailBox.Size = UDim2.new(1, 0, 0, 110)
-anomalyDetailBox.Position = UDim2.new(0, 0, 0, 114)
+anomalyDetailBox.Size = UDim2.new(1, 0, 0, 100)
+anomalyDetailBox.Position = UDim2.new(0, 0, 0, 100)
 anomalyDetailBox.BackgroundColor3 = Color3.fromRGB(25, 22, 32)
 anomalyDetailBox.TextColor3 = Color3.fromRGB(200, 200, 210)
 anomalyDetailBox.TextSize = 9.5
@@ -432,10 +509,67 @@ anomalyDetailBox.Parent = tab2Container
 Instance.new("UICorner", anomalyDetailBox).CornerRadius = UDim.new(0, 6)
 animStroke(anomalyDetailBox, 1)
 
+-- Tombol To Base Tab 2
+local toBaseBtn2 = Instance.new("TextButton")
+toBaseBtn2.Size = UDim2.new(1, 0, 0, 32)
+toBaseBtn2.Position = UDim2.new(0, 0, 0, 210)
+toBaseBtn2.Text = "🏠 To Base"
+styleButton(toBaseBtn2, Color3.fromRGB(40, 110, 180))
+toBaseBtn2.Parent = tab2Container
+
+toBaseBtn2.MouseButton1Click:Connect(function()
+    TeleportService:Teleport(85107982488928, player)
+end)
+
+--------------------------------------------------------------------------------
+-- 3.1 KONTROL TAB 3 (HALLOWEEN ITEM LOOP TELEPORT)
+--------------------------------------------------------------------------------
+local halloweenLoopToggle = Instance.new("TextButton")
+halloweenLoopToggle.Size = UDim2.new(1, 0, 0, 38)
+halloweenLoopToggle.Position = UDim2.new(0, 0, 0, 5)
+halloweenLoopToggle.Text = "Loop TP Item: OFF"
+styleButton(halloweenLoopToggle, Color3.fromRGB(180, 50, 50))
+halloweenLoopToggle.Parent = tab3Container
+
+halloweenLoopToggle.MouseButton1Click:Connect(function()
+    autoHalloweenLoopActive = not autoHalloweenLoopActive
+    if autoHalloweenLoopActive then
+        halloweenLoopToggle.Text = "Loop TP Item: ON"
+        halloweenLoopToggle.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+    else
+        halloweenLoopToggle.Text = "Loop TP Item: OFF"
+        halloweenLoopToggle.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+local halloweenStatusLabel = Instance.new("TextLabel")
+halloweenStatusLabel.Size = UDim2.new(1, 0, 0, 70)
+halloweenStatusLabel.Position = UDim2.new(0, 0, 0, 48)
+halloweenStatusLabel.BackgroundTransparency = 1
+halloweenStatusLabel.Text = "Status: Siap menjalankan loop teleport berurutan ke item Halloween."
+halloweenStatusLabel.TextColor3 = Color3.fromRGB(200, 180, 230)
+halloweenStatusLabel.TextSize = 9.5
+halloweenStatusLabel.Font = Enum.Font.Gotham
+halloweenStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
+halloweenStatusLabel.TextYAlignment = Enum.TextYAlignment.Top
+halloweenStatusLabel.TextWrapped = true
+halloweenStatusLabel.Parent = tab3Container
+
+-- Tombol To Base Tab 3
+local toBaseBtn3 = Instance.new("TextButton")
+toBaseBtn3.Size = UDim2.new(1, 0, 0, 38)
+toBaseBtn3.Position = UDim2.new(0, 0, 0, 130)
+toBaseBtn3.Text = "🏠 To Base"
+styleButton(toBaseBtn3, Color3.fromRGB(40, 110, 180))
+toBaseBtn3.Parent = tab3Container
+
+toBaseBtn3.MouseButton1Click:Connect(function()
+    TeleportService:Teleport(85107982488928, player)
+end)
+
 --------------------------------------------------------------------------------
 -- 4. LOGIKA AKSI TOMBOL TAB 1 (MAIN)
 --------------------------------------------------------------------------------
-
 markBtn.MouseButton1Click:Connect(function()
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -514,9 +648,7 @@ RunService.RenderStepped:Connect(function()
     local detailLog = ""
     local count = 0
 
-    -- Mendeteksi semua objek langsung di dalam folder RuntimeAnomalies (baik Model maupun Part)
     for _, item in ipairs(anomaliesFolder:GetChildren()) do
-        -- Cari bagian fisik utama (BasePart atau PrimaryPart dari Model)
         local primaryPart = nil
         if item:IsA("Model") then
             primaryPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart", true)
@@ -528,7 +660,6 @@ RunService.RenderStepped:Connect(function()
             activeItems[item] = true
             count = count + 1
 
-            -- ESP Visual (Highlight & Billboard)
             if espActive then
                 if not espCache[item] then
                     espCache[item] = {}
@@ -575,7 +706,6 @@ RunService.RenderStepped:Connect(function()
                 removeEsp(item)
             end
 
-            -- Update Detail Real-Time di Kotak GUI
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local dist = math.floor((player.Character.HumanoidRootPart.Position - primaryPart.Position).Magnitude)
                 if count <= 5 then
@@ -586,7 +716,7 @@ RunService.RenderStepped:Connect(function()
     end
 
     if count == 0 then
-        anomalyDetailBox.Text = "  Tidak ada anomali terdeteksi, Tekan HIJAU."
+        anomalyDetailBox.Text = "  Tidak ada anomali terdeteksi."
     else
         if count > 5 then
             anomalyDetailBox.Text = detailLog .. "  ...dan " .. (count - 5) .. " anomali lainnya."
@@ -603,8 +733,59 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- 6. BACKGROUND TASK LOOPS (AUTO TELEPORT TO EXIT & FITUR UTAMA)
+-- 6. BACKGROUND TASK LOOPS (AUTO TELEPORT & HALLOWEEN ITEM LOOP)
 --------------------------------------------------------------------------------
+task.spawn(function()
+    while gui.Parent do
+        if autoHalloweenLoopActive then
+            pcall(function()
+                local folder = getHalloweenFolder()
+                local char = player.Character
+                local humanoidRootPart = char and char:FindFirstChild("HumanoidRootPart")
+
+                if not folder then
+                    halloweenStatusLabel.Text = "Status: Folder 'LocalHalloweenCollections' tidak ditemukan!"
+                    task.wait(1)
+                elseif not humanoidRootPart then
+                    halloweenStatusLabel.Text = "Status: Karakter/HumanoidRootPart tidak ditemukan!"
+                    task.wait(1)
+                else
+                    local items = folder:GetChildren()
+                    if #items == 0 then
+                        halloweenStatusLabel.Text = "Status: Semua item sudah habis terkumpul!"
+                        task.wait(1)
+                    else
+                        local nearestItem = nil
+                        local shortestDistance = math.huge
+                        local nearestCFrame = nil
+
+                        for _, item in ipairs(items) do
+                            if not autoHalloweenLoopActive then break end
+                            local cf = getTargetCFrame(item)
+                            if cf then
+                                local dist = (humanoidRootPart.Position - cf.Position).Magnitude
+                                if dist < shortestDistance then
+                                    shortestDistance = dist
+                                    nearestItem = item
+                                    nearestCFrame = cf
+                                end
+                            end
+                        end
+
+                        if nearestItem and nearestCFrame and autoHalloweenLoopActive then
+                            humanoidRootPart.CFrame = nearestCFrame + Vector3.new(0, 3, 0)
+                            halloweenStatusLabel.Text = "Status: TP ke " .. nearestItem.Name .. " (" .. math.floor(shortestDistance) .. " stud)"
+                            task.wait(0.3)
+                        end
+                    end
+                end
+            end)
+        else
+            halloweenStatusLabel.Text = "Status: Loop TP Item dalam keadaan OFF."
+        end
+        task.wait(0.1)
+    end
+end)
 
 task.spawn(function()
     while gui.Parent do
@@ -725,7 +906,6 @@ end)
 --------------------------------------------------------------------------------
 -- 7. DRAGGABLE & ANIMASI GARIS BORDER
 --------------------------------------------------------------------------------
-
 do
     local dragging, dragStart, startPos = false, nil, nil
     main.InputBegan:Connect(function(i)
