@@ -1,0 +1,768 @@
+-- ==============================================================================
+-- SPEED LIGHT ROBFES - CUSTOM ACE GUI (ESP REAL-TIME FIXED FOR MODELS)
+-- ==============================================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+
+-- Status Variable (Tab 1: Main)
+local autoFarmActive = false
+local autoWinActive = false
+local autoStageActive = false
+local autoLevelActive = false
+local autoRebirthActive = false
+
+-- Status Variable (Tab 2: ESP & Auto Teleport Exit)
+local espActive = false
+local autoAnomalyTpActive = false
+
+-- Target Teleport Position (Default)
+local targetPosition = Vector3.new(-1110.21, 297.81, 1464.90)
+
+-- Daftar Stage / Waypoints Beserta Nama/Labelnya
+local stageWaypoints = {
+    {name = "Auto (Berurutan Maju)", pos = nil},
+    {name = "Stage 1 (744.07, 26.68, -222.48)", pos = Vector3.new(744.07, 26.68, -222.48)},
+    {name = "Stage 2 (512.77, 26.68, -223.46)", pos = Vector3.new(512.77, 26.68, -223.46)},
+    {name = "Stage 3 (247.15, 94.85, -221.16)", pos = Vector3.new(247.15, 94.85, -221.16)},
+    {name = "Stage 4 (-106.43, 94.85, -221.16)", pos = Vector3.new(-106.43, 94.85, -221.16)},
+    {name = "Stage 5 (-402.18, 94.85, -221.19)", pos = Vector3.new(-402.18, 94.85, -221.19)},
+    {name = "Stage 6 (-454.79, 19.85, -724.23)", pos = Vector3.new(-454.79, 19.85, -724.23)},
+    {name = "Stage 7 (-457.41, 19.85, -941.73)", pos = Vector3.new(-457.41, 19.85, -941.73)},
+    {name = "Stage 8 (-457.40, 285.35, -1030.92)", pos = Vector3.new(-457.40, 285.35, -1030.92)},
+    {name = "Stage 9 (-457.40, 282.75, -2999.09)", pos = Vector3.new(-457.40, 282.75, -2999.09)},
+    {name = "Stage 10 (-456.88, 282.75, -3390.84)", pos = Vector3.new(-456.88, 282.75, -3390.84)},
+    {name = "Stage 11 (-1364.03, 282.75, -4462.01)", pos = Vector3.new(-1364.03, 282.75, -4462.01)},
+    {name = "Stage 12 (-1581.38, 158.75, -4060.50)", pos = Vector3.new(-1581.38, 158.75, -4060.50)},
+    {name = "Stage 13 (-1584.03, 166.75, 59.82)", pos = Vector3.new(-1584.03, 166.75, 59.82)}
+}
+
+local selectedStageIndex = 1
+
+local function getTargetFolder()
+    local sys = Workspace:FindFirstChild("System")
+    if sys then
+        return sys:FindFirstChild("Rewards")
+    end
+    return nil
+end
+
+local function getAnomaliesFolder()
+    return Workspace:FindFirstChild("RuntimeAnomalies")
+end
+
+--------------------------------------------------------------------------------
+-- 1. PEMBUATAN CUSTOM GUI (ACE THEME DENGAN DUA TAB)
+--------------------------------------------------------------------------------
+local coreGui = CoreGui
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+local COL_BG = Color3.fromRGB(18, 18, 20)
+local MIN_NORMAL = Color3.fromRGB(40, 40, 45)
+local MIN_HOVER = Color3.fromRGB(25, 25, 28)
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 35)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(140, 145, 150)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(240, 240, 245)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(240, 240, 245)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(140, 145, 150)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 35)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+local FULL_H = 460
+local MINI_H = 42
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 290, 0, FULL_H)
+main.Position = UDim2.new(0.5, -145, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 0, 16)
+title.Position = UDim2.new(0, 12, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "ROBFES HALLOWEEN"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 200, 205)),
+    ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 205)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -40, 0, 10)
+desc.Position = UDim2.new(0, 12, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Halloween Edition - Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(110, 110, 115)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -30, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local tween = TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Size = minimized and UDim2.new(0, 290, 0, MINI_H) or UDim2.new(0, 290, 0, FULL_H)
+    })
+    tween:Play()
+    minBtn.Text = minimized and "+" or "-"
+end)
+
+--------------------------------------------------------------------------------
+-- SISTEM TAB (TAB 1: MAIN, TAB 2: ESP)
+--------------------------------------------------------------------------------
+local tabHeader = Instance.new("Frame")
+tabHeader.Size = UDim2.new(1, -16, 0, 26)
+tabHeader.Position = UDim2.new(0, 8, 0, 38)
+tabHeader.BackgroundTransparency = 1
+tabHeader.Parent = main
+
+local tabMainBtn = Instance.new("TextButton")
+tabMainBtn.Size = UDim2.new(0.5, -4, 1, 0)
+tabMainBtn.Position = UDim2.new(0, 0, 0, 0)
+tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
+tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
+tabMainBtn.Text = "Keyboard"
+tabMainBtn.Font = Enum.Font.GothamBold
+tabMainBtn.TextSize = 11
+tabMainBtn.BorderSizePixel = 0
+tabMainBtn.Parent = tabHeader
+Instance.new("UICorner", tabMainBtn).CornerRadius = UDim.new(0, 5)
+
+local tabEspBtn = Instance.new("TextButton")
+tabEspBtn.Size = UDim2.new(0.5, -4, 1, 0)
+tabEspBtn.Position = UDim2.new(0.5, 4, 0, 0)
+tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
+tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+tabEspBtn.Text = "Cari Anomali"
+tabEspBtn.Font = Enum.Font.GothamBold
+tabEspBtn.TextSize = 11
+tabEspBtn.BorderSizePixel = 0
+tabEspBtn.Parent = tabHeader
+Instance.new("UICorner", tabEspBtn).CornerRadius = UDim.new(0, 5)
+
+local tab1Container = Instance.new("ScrollingFrame")
+tab1Container.Size = UDim2.new(1, -16, 1, -74)
+tab1Container.Position = UDim2.new(0, 8, 0, 68)
+tab1Container.BackgroundTransparency = 1
+tab1Container.BorderSizePixel = 0
+tab1Container.CanvasSize = UDim2.new(0, 0, 0, 410)
+tab1Container.ScrollBarThickness = 4
+tab1Container.Visible = true
+tab1Container.Parent = main
+
+local tab2Container = Instance.new("ScrollingFrame")
+tab2Container.Size = UDim2.new(1, -16, 1, -74)
+tab2Container.Position = UDim2.new(0, 8, 0, 68)
+tab2Container.BackgroundTransparency = 1
+tab2Container.BorderSizePixel = 0
+tab2Container.CanvasSize = UDim2.new(0, 0, 0, 250)
+tab2Container.ScrollBarThickness = 4
+tab2Container.Visible = false
+tab2Container.Parent = main
+
+tabMainBtn.MouseButton1Click:Connect(function()
+    tab1Container.Visible = true
+    tab2Container.Visible = false
+    tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
+    tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
+    tabEspBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
+    tabEspBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+tabEspBtn.MouseButton1Click:Connect(function()
+    tab1Container.Visible = false
+    tab2Container.Visible = true
+    tabEspBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
+    tabEspBtn.TextColor3 = Color3.new(1, 1, 1)
+    tabMainBtn.BackgroundColor3 = Color3.fromRGB(30, 28, 38)
+    tabMainBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+--------------------------------------------------------------------------------
+-- 2. KONTROL TAB 1 (MAIN FEATURES)
+--------------------------------------------------------------------------------
+
+local function styleButton(btn, color)
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamBold
+    btn.BorderSizePixel = 0
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+end
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, 0, 0, 28)
+toggleBtn.Position = UDim2.new(0, 0, 0, 5)
+toggleBtn.Text = "Auto Collect: OFF"
+styleButton(toggleBtn, Color3.fromRGB(180, 50, 50))
+toggleBtn.Parent = tab1Container
+
+local winBtn = Instance.new("TextButton")
+winBtn.Size = UDim2.new(1, 0, 0, 28)
+winBtn.Position = UDim2.new(0, 0, 0, 38)
+winBtn.Text = "Auto Win: OFF"
+styleButton(winBtn, Color3.fromRGB(180, 50, 50))
+winBtn.Parent = tab1Container
+
+local stageDropdownMain = Instance.new("TextButton")
+stageDropdownMain.Size = UDim2.new(1, 0, 0, 28)
+stageDropdownMain.Position = UDim2.new(0, 0, 0, 71)
+stageDropdownMain.Text = "Stage: " .. stageWaypoints[1].name
+styleButton(stageDropdownMain, Color3.fromRGB(50, 40, 70))
+stageDropdownMain.Parent = tab1Container
+
+local stageBtn = Instance.new("TextButton")
+stageBtn.Size = UDim2.new(1, 0, 0, 28)
+stageBtn.Position = UDim2.new(0, 0, 0, 104)
+stageBtn.Text = "Auto Stage: OFF"
+styleButton(stageBtn, Color3.fromRGB(180, 50, 50))
+stageBtn.Parent = tab1Container
+
+local levelBtn = Instance.new("TextButton")
+levelBtn.Size = UDim2.new(1, 0, 0, 28)
+levelBtn.Position = UDim2.new(0, 0, 0, 137)
+levelBtn.Text = "Auto Level: OFF"
+styleButton(levelBtn, Color3.fromRGB(180, 50, 50))
+levelBtn.Parent = tab1Container
+
+local rebirthBtn = Instance.new("TextButton")
+rebirthBtn.Size = UDim2.new(1, 0, 0, 28)
+rebirthBtn.Position = UDim2.new(0, 0, 0, 170)
+rebirthBtn.Text = "Auto Rebirth: OFF"
+styleButton(rebirthBtn, Color3.fromRGB(180, 50, 50))
+rebirthBtn.Parent = tab1Container
+
+local markBtn = Instance.new("TextButton")
+markBtn.Size = UDim2.new(1, 0, 0, 28)
+markBtn.Position = UDim2.new(0, 0, 0, 203)
+markBtn.Text = "📍 Tandai Posisi Saat Ini"
+styleButton(markBtn, Color3.fromRGB(110, 40, 180))
+markBtn.Parent = tab1Container
+
+local posLabel = Instance.new("TextLabel")
+posLabel.Size = UDim2.new(1, 0, 0, 18)
+posLabel.Position = UDim2.new(0, 0, 0, 236)
+posLabel.BackgroundTransparency = 1
+posLabel.Text = "Posisi: " .. string.format("%.1f, %.1f, %.1f", targetPosition.X, targetPosition.Y, targetPosition.Z)
+posLabel.TextColor3 = Color3.fromRGB(200, 180, 230)
+posLabel.TextSize = 10
+posLabel.Font = Enum.Font.Gotham
+posLabel.TextXAlignment = Enum.TextXAlignment.Center
+posLabel.Parent = tab1Container
+
+local tpBtn = Instance.new("TextButton")
+tpBtn.Size = UDim2.new(1, 0, 0, 28)
+tpBtn.Position = UDim2.new(0, 0, 0, 260)
+tpBtn.Text = "🚀 TP ke Posisi Ditandai"
+styleButton(tpBtn, Color3.fromRGB(220, 110, 10))
+tpBtn.Parent = tab1Container
+
+local dropdownList = Instance.new("ScrollingFrame")
+dropdownList.Size = UDim2.new(1, 0, 0, 140)
+dropdownList.Position = UDim2.new(0, 0, 0, 102)
+dropdownList.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+dropdownList.BorderSizePixel = 0
+dropdownList.Visible = false
+dropdownList.CanvasSize = UDim2.new(0, 0, 0, #stageWaypoints * 25)
+dropdownList.ScrollBarThickness = 4
+dropdownList.ZIndex = 20
+dropdownList.Parent = tab1Container
+
+Instance.new("UICorner", dropdownList).CornerRadius = UDim.new(0, 6)
+animStroke(dropdownList, 1)
+
+for i, stageData in ipairs(stageWaypoints) do
+    local optionBtn = Instance.new("TextButton")
+    optionBtn.Size = UDim2.new(1, -6, 0, 24)
+    optionBtn.Position = UDim2.new(0, 3, 0, (i - 1) * 25)
+    optionBtn.BackgroundColor3 = Color3.fromRGB(35, 30, 50)
+    optionBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    optionBtn.TextSize = 10
+    optionBtn.Font = Enum.Font.Gotham
+    optionBtn.TextXAlignment = Enum.TextXAlignment.Left
+    optionBtn.Text = "  " .. stageData.name
+    optionBtn.ZIndex = 21
+    optionBtn.Parent = dropdownList
+
+    Instance.new("UICorner", optionBtn).CornerRadius = UDim.new(0, 4)
+
+    optionBtn.MouseButton1Click:Connect(function()
+        selectedStageIndex = i
+        stageDropdownMain.Text = "Stage: " .. stageData.name
+        dropdownList.Visible = false
+    end)
+end
+
+stageDropdownMain.MouseButton1Click:Connect(function()
+    dropdownList.Visible = not dropdownList.Visible
+end)
+
+--------------------------------------------------------------------------------
+-- 3. KONTROL TAB 2 (ESP, AUTO TP TO EXIT, & REAL-TIME DETAIL ANOMALY)
+--------------------------------------------------------------------------------
+
+local espToggleBtn = Instance.new("TextButton")
+espToggleBtn.Size = UDim2.new(1, 0, 0, 32)
+espToggleBtn.Position = UDim2.new(0, 0, 0, 10)
+espToggleBtn.Text = "ESP Anomalies: OFF"
+styleButton(espToggleBtn, Color3.fromRGB(180, 50, 50))
+espToggleBtn.Parent = tab2Container
+
+espToggleBtn.MouseButton1Click:Connect(function()
+    espActive = not espActive
+    if espActive then
+        espToggleBtn.Text = "ESP Anomalies: ON"
+        espToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+    else
+        espToggleBtn.Text = "ESP Anomalies: OFF"
+        espToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+local autoAnomalyTpBtn = Instance.new("TextButton")
+autoAnomalyTpBtn.Size = UDim2.new(1, 0, 0, 32)
+autoAnomalyTpBtn.Position = UDim2.new(0, 0, 0, 50)
+autoAnomalyTpBtn.Text = "Auto Teleport Exit: OFF"
+styleButton(autoAnomalyTpBtn, Color3.fromRGB(180, 50, 50))
+autoAnomalyTpBtn.Parent = tab2Container
+
+autoAnomalyTpBtn.MouseButton1Click:Connect(function()
+    autoAnomalyTpActive = not autoAnomalyTpActive
+    if autoAnomalyTpActive then
+        autoAnomalyTpBtn.Text = "Auto Teleport Exit: ON"
+        autoAnomalyTpBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+    else
+        autoAnomalyTpBtn.Text = "Auto Teleport Exit: OFF"
+        autoAnomalyTpBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+local detailTitle = Instance.new("TextLabel")
+detailTitle.Size = UDim2.new(1, 0, 0, 16)
+detailTitle.Position = UDim2.new(0, 0, 0, 92)
+detailTitle.BackgroundTransparency = 1
+detailTitle.Text = "📋 Detail Anomali (Real-Time):"
+detailTitle.TextColor3 = Color3.fromRGB(255, 140, 0)
+detailTitle.TextSize = 10.5
+detailTitle.Font = Enum.Font.GothamBold
+detailTitle.TextXAlignment = Enum.TextXAlignment.Left
+detailTitle.Parent = tab2Container
+
+local anomalyDetailBox = Instance.new("TextLabel")
+anomalyDetailBox.Size = UDim2.new(1, 0, 0, 110)
+anomalyDetailBox.Position = UDim2.new(0, 0, 0, 114)
+anomalyDetailBox.BackgroundColor3 = Color3.fromRGB(25, 22, 32)
+anomalyDetailBox.TextColor3 = Color3.fromRGB(200, 200, 210)
+anomalyDetailBox.TextSize = 9.5
+anomalyDetailBox.Font = Enum.Font.Code
+anomalyDetailBox.TextXAlignment = Enum.TextXAlignment.Left
+anomalyDetailBox.TextYAlignment = Enum.TextYAlignment.Top
+anomalyDetailBox.TextWrapped = true
+anomalyDetailBox.Text = "  Menunggu deteksi anomali..."
+anomalyDetailBox.Parent = tab2Container
+
+Instance.new("UICorner", anomalyDetailBox).CornerRadius = UDim.new(0, 6)
+animStroke(anomalyDetailBox, 1)
+
+--------------------------------------------------------------------------------
+-- 4. LOGIKA AKSI TOMBOL TAB 1 (MAIN)
+--------------------------------------------------------------------------------
+
+markBtn.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        targetPosition = char.HumanoidRootPart.Position
+        posLabel.Text = "Posisi: " .. string.format("%.1f, %.1f, %.1f", targetPosition.X, targetPosition.Y, targetPosition.Z)
+        local origText = markBtn.Text
+        markBtn.Text = "✓ Posisi Tersimpan!"
+        task.delay(1, function()
+            markBtn.Text = origText
+        end)
+    end
+end)
+
+tpBtn.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+    end
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    autoFarmActive = not autoFarmActive
+    toggleBtn.Text = "Auto Collect: " .. (autoFarmActive and "ON" or "OFF")
+    toggleBtn.BackgroundColor3 = autoFarmActive and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(180, 50, 50)
+end)
+
+winBtn.MouseButton1Click:Connect(function()
+    autoWinActive = not autoWinActive
+    winBtn.Text = "Auto Win: " .. (autoWinActive and "ON" or "OFF")
+    winBtn.BackgroundColor3 = autoWinActive and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(180, 50, 50)
+end)
+
+stageBtn.MouseButton1Click:Connect(function()
+    autoStageActive = not autoStageActive
+    stageBtn.Text = "Auto Stage: " .. (autoStageActive and "ON" or "OFF")
+    stageBtn.BackgroundColor3 = autoStageActive and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(180, 50, 50)
+end)
+
+levelBtn.MouseButton1Click:Connect(function()
+    autoLevelActive = not autoLevelActive
+    levelBtn.Text = "Auto Level: " .. (autoLevelActive and "ON" or "OFF")
+    levelBtn.BackgroundColor3 = autoLevelActive and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(180, 50, 50)
+end)
+
+rebirthBtn.MouseButton1Click:Connect(function()
+    autoRebirthActive = not autoRebirthActive
+    rebirthBtn.Text = "Auto Rebirth: " .. (autoRebirthActive and "ON" or "OFF")
+    rebirthBtn.BackgroundColor3 = autoRebirthActive and Color3.fromRGB(40, 160, 60) or Color3.fromRGB(180, 50, 50)
+end)
+
+--------------------------------------------------------------------------------
+-- 5. SISTEM ENGINE ESP & REAL-TIME DETAIL (MENGENALI MODEL & PART)
+--------------------------------------------------------------------------------
+local espCache = {}
+
+local function removeEsp(item)
+    if espCache[item] then
+        if espCache[item].highlight then espCache[item].highlight:Destroy() end
+        if espCache[item].billboard then espCache[item].billboard:Destroy() end
+        espCache[item] = nil
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local anomaliesFolder = getAnomaliesFolder()
+
+    if not anomaliesFolder then
+        anomalyDetailBox.Text = "  [ Folder RuntimeAnomalies Tidak Ada ]"
+        for item, _ in pairs(espCache) do
+            removeEsp(item)
+        end
+        return
+    end
+
+    local activeItems = {}
+    local detailLog = ""
+    local count = 0
+
+    -- Mendeteksi semua objek langsung di dalam folder RuntimeAnomalies (baik Model maupun Part)
+    for _, item in ipairs(anomaliesFolder:GetChildren()) do
+        -- Cari bagian fisik utama (BasePart atau PrimaryPart dari Model)
+        local primaryPart = nil
+        if item:IsA("Model") then
+            primaryPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart", true)
+        elseif item:IsA("BasePart") then
+            primaryPart = item
+        end
+
+        if primaryPart then
+            activeItems[item] = true
+            count = count + 1
+
+            -- ESP Visual (Highlight & Billboard)
+            if espActive then
+                if not espCache[item] then
+                    espCache[item] = {}
+                    
+                    local hl = Instance.new("Highlight")
+                    hl.Adornee = item
+                    hl.FillColor = Color3.fromRGB(255, 100, 0)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.5
+                    hl.OutlineTransparency = 0
+                    hl.Parent = CoreGui
+                    espCache[item].highlight = hl
+
+                    local bb = Instance.new("BillboardGui")
+                    bb.Adornee = primaryPart
+                    bb.Size = UDim2.new(0, 150, 0, 40)
+                    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+                    bb.AlwaysOnTop = true
+                    bb.Parent = CoreGui
+
+                    local textLabel = Instance.new("TextLabel")
+                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                    textLabel.BackgroundTransparency = 1
+                    textLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+                    textLabel.TextStrokeTransparency = 0
+                    textLabel.TextSize = 12
+                    textLabel.Font = Enum.Font.GothamBold
+                    textLabel.Parent = bb
+
+                    espCache[item].billboard = bb
+                    espCache[item].text = textLabel
+                end
+
+                local data = espCache[item]
+                if data.highlight then data.highlight.Enabled = true end
+                if data.billboard and data.text then
+                    data.billboard.Enabled = true
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local dist = math.floor((player.Character.HumanoidRootPart.Position - primaryPart.Position).Magnitude)
+                        data.text.Text = item.Name .. " [" .. dist .. "m]"
+                    end
+                end
+            else
+                removeEsp(item)
+            end
+
+            -- Update Detail Real-Time di Kotak GUI
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = math.floor((player.Character.HumanoidRootPart.Position - primaryPart.Position).Magnitude)
+                if count <= 5 then
+                    detailLog = detailLog .. " • " .. item.Name .. " (" .. dist .. "m)\n"
+                end
+            end
+        end
+    end
+
+    if count == 0 then
+        anomalyDetailBox.Text = "  Tidak ada anomali terdeteksi, Tekan HIJAU."
+    else
+        if count > 5 then
+            anomalyDetailBox.Text = detailLog .. "  ...dan " .. (count - 5) .. " anomali lainnya."
+        else
+            anomalyDetailBox.Text = detailLog
+        end
+    end
+
+    for item, data in pairs(espCache) do
+        if not activeItems[item] or not item.Parent then
+            removeEsp(item)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 6. BACKGROUND TASK LOOPS (AUTO TELEPORT TO EXIT & FITUR UTAMA)
+--------------------------------------------------------------------------------
+
+task.spawn(function()
+    while gui.Parent do
+        if autoAnomalyTpActive then
+            pcall(function()
+                local currentCharacter = player.Character
+                if currentCharacter then
+                    local currentRoot = currentCharacter:FindFirstChild("HumanoidRootPart")
+                    if currentRoot then
+                        local exitPart = Workspace:FindFirstChild("Exit")
+                        if exitPart and exitPart:IsA("BasePart") then
+                            currentRoot.CFrame = exitPart.CFrame
+                        end
+                    end
+                end
+            end)
+            task.wait(1)
+        end
+        task.wait(0.5)
+    end
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if autoFarmActive then
+            local targetFolder = getTargetFolder()
+            if targetFolder then
+                local currentCharacter = player.Character
+                if currentCharacter then
+                    local currentRoot = currentCharacter:FindFirstChild("HumanoidRootPart")
+                    if currentRoot then
+                        for _, obj in ipairs(targetFolder:GetDescendants()) do
+                            if not autoFarmActive or not gui.Parent then break end
+                            if obj:IsA("BasePart") then
+                                pcall(function()
+                                    firetouchinterest(currentRoot, obj, 0)
+                                    task.wait()
+                                    firetouchinterest(currentRoot, obj, 1)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if autoWinActive then
+            pcall(function()
+                local currentCharacter = player.Character
+                if currentCharacter then
+                    local currentRoot = currentCharacter:FindFirstChild("HumanoidRootPart")
+                    if currentRoot then
+                        currentRoot.CFrame = CFrame.new(-1581.59, 165.07, 82.19)
+                    end
+                end
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if autoStageActive then
+            pcall(function()
+                local currentCharacter = player.Character
+                if currentCharacter then
+                    local currentRoot = currentCharacter:FindFirstChild("HumanoidRootPart")
+                    if currentRoot then
+                        if selectedStageIndex == 1 then
+                            for i = 2, #stageWaypoints do
+                                if not autoStageActive or not gui.Parent or selectedStageIndex ~= 1 then break end
+                                currentRoot.CFrame = CFrame.new(stageWaypoints[i].pos)
+                                task.wait(2)
+                            end
+                        else
+                            local chosenPos = stageWaypoints[selectedStageIndex].pos
+                            if chosenPos then
+                                currentRoot.CFrame = CFrame.new(chosenPos)
+                            end
+                            task.wait(2)
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if autoLevelActive then
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remote"):WaitForChild("MovingPlayer"):FireServer(true)
+            end)
+        end
+        task.wait(0.2)
+    end
+end)
+
+task.spawn(function()
+    while gui.Parent do
+        if autoRebirthActive then
+            pcall(function()
+                ReplicatedStorage:WaitForChild("Remote"):WaitForChild("Main"):WaitForChild("ExecuteRebirth"):FireServer()
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 7. DRAGGABLE & ANIMASI GARIS BORDER
+--------------------------------------------------------------------------------
+
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    main.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            local abs = main.AbsolutePosition
+            main.Position = UDim2.new(0, abs.X, 0, abs.Y)
+            dragging = true
+            dragStart = i.Position
+            startPos = main.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local gs = main.AbsoluteSize
+            main.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+            )
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+RunService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
