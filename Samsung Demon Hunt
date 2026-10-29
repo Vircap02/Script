@@ -1,0 +1,292 @@
+-- Load the library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau"))()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+
+local camera = Workspace.CurrentCamera
+local player = Players.LocalPlayer
+
+-- Status & Pengaturan
+local isEnabled = false
+local isAutoTrapEnabled = false
+local isAutoCollectEnabled = false
+local isAutoClaimEnabled = false
+local isPumpkinEspEnabled = false
+local maxDistance = 500
+local toggleKey = Enum.KeyCode.R
+
+-- Variable untuk cooldown Auto Trap
+local lastTrapTime = 0
+local trapCooldown = 1
+
+local TARGET_NAMES = {
+    ["DhokaebiTinyHordePrefabV2"] = true,
+    ["DhokaebiWealthPrefab v2"] = true
+}
+
+-- Penyimpanan objek ESP Pumpkin
+local pumpkinHighlights = {}
+
+-- Membuat Window arod UI
+local Window = Library:CreateWindow("Demon Hunt - Script Hub", "shield")
+
+Window:Section("─── Main Controls ───")
+
+-- Toggle Aimbot
+local AimbotToggle = Window:Toggle("Enable Aimbot", false, function(v)
+    isEnabled = v
+    print("Aimbot Status: " .. (isEnabled and "ON" or "OFF"))
+end, "zap")
+
+-- Toggle Auto Trap
+local AutoTrapToggle = Window:Toggle("Auto Trap", false, function(v)
+    isAutoTrapEnabled = v
+    print("Auto Trap Status: " .. (isAutoTrapEnabled and "ON" or "OFF"))
+end, "box")
+
+-- Toggle Auto Collect Galaxy Star
+local AutoCollectToggle = Window:Toggle("Auto Collect Galaxy Star", false, function(v)
+    isAutoCollectEnabled = v
+    print("Auto Collect Status: " .. (isAutoCollectEnabled and "ON" or "OFF"))
+end, "star")
+
+-- Toggle Auto Spam Claim UGC
+local AutoClaimToggle = Window:Toggle("Auto Spam Claim UGC", false, function(v)
+    isAutoClaimEnabled = v
+    print("Auto Spam Claim Status: " .. (isAutoClaimEnabled and "ON" or "OFF"))
+end, "award")
+
+Window:Section("─── ESP Controls ───")
+
+-- Toggle ESP Pumpkins
+local PumpkinEspToggle = Window:Toggle("Pumpkin ESP", false, function(v)
+    isPumpkinEspEnabled = v
+    print("Pumpkin ESP Status: " .. (isPumpkinEspEnabled and "ON" or "OFF"))
+    
+    if not isPumpkinEspEnabled then
+        -- Hapus semua Highlight jika dimatikan
+        for _, highlight in pairs(pumpkinHighlights) do
+            if highlight then highlight:Destroy() end
+        end
+        pumpkinHighlights = {}
+    end
+end, "eye")
+
+Window:Section("─── Server & Teleport ───")
+
+-- Tombol Teleport ke Lobby
+Window:Button("Back to Lobby", function()
+    print("Teleporting to Lobby...")
+    local success, err = pcall(function()
+        TeleportService:Teleport(80792575359537, player)
+    end)
+    if not success then
+        warn("Gagal teleport ke lobby: " .. tostring(err))
+    end
+end, "home")
+
+-- Tombol Rejoin Server
+Window:Button("Rejoin Server", function()
+    print("Rejoining server...")
+    local success, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end)
+    if not success then
+        TeleportService:Teleport(game.PlaceId, player)
+    end
+end, "refresh-cw")
+
+-- Slider untuk Jarak Maksimum Target Aimbot
+Window:Slider("Max Distance", 100, 2000, 500, function(v)
+    maxDistance = v
+end)
+
+-- Keybind untuk Toggle Aimbot via Keyboard
+Window:Keybind("Toggle Key", Enum.KeyCode.R, function(key)
+    if key then
+        toggleKey = key
+    end
+    print("Toggle Key updated to:", key and key.Name or "none")
+end, "keyboard")
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == toggleKey then
+        isEnabled = not isEnabled
+        print("Aimbot Status (Keybind): " .. (isEnabled and "ON" or "OFF"))
+    end
+end)
+
+local function getClosestTarget()
+    local closestTarget = nil
+    local shortestDistance = maxDistance
+
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and TARGET_NAMES[obj.Name] and obj:FindFirstChild("HumanoidRootPart") then
+            local rootPart = obj.HumanoidRootPart
+            local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if myRoot then
+                local distance = (rootPart.Position - myRoot.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestTarget = rootPart
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+local function throwTrap()
+    local args = {
+        vector.create(-0.7273741960525513, -0.6696033477783203, 0.15019415318965912),
+        0.2193500132610401,
+        vector.create(-86.34370422363281, 59.35619354248047, 178.98056030273438)
+    }
+    
+    pcall(function()
+        ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("DemonTrapService"):WaitForChild("RF"):WaitForChild("ThrowTrap"):InvokeServer(unpack(args))
+    end)
+end
+
+-- Fungsi Auto Collect khusus objek bernama "GalaxyStars"
+local function getClosestStar()
+    local collectiblesFolder = Workspace:FindFirstChild("[DYNAMIC] Collectibles")
+    if not collectiblesFolder then return nil end
+
+    local closestStar = nil
+    local shortestDistance = math.huge
+    local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+    if not myRoot then return nil end
+
+    for _, star in pairs(collectiblesFolder:GetChildren()) do
+        -- Hanya memproses jika nama objek adalah "GalaxyStars"
+        if star.Name == "GalaxyStars" then
+            local targetPart = star:IsA("Model") and (star.PrimaryPart or star:FindFirstChildWhichIsA("BasePart")) or (star:IsA("BasePart") and star)
+            
+            if targetPart then
+                local distance = (targetPart.Position - myRoot.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestStar = targetPart
+                end
+            end
+        end
+    end
+
+    return closestStar
+end
+
+-- Fungsi untuk Auto Spam Claim ProximityPrompt
+local function triggerClaimPrompt()
+    pcall(function()
+        local promptHolder = Workspace:FindFirstChild("UGC_ClaimingStations (wip : Missing items)")
+            and Workspace["UGC_ClaimingStations (wip : Missing items)"]:FindFirstChild("UGC_ClaimingStation_GnusmasHood")
+            and Workspace["UGC_ClaimingStations (wip : Missing items)"].UGC_ClaimingStation_GnusmasHood:FindFirstChild("PromptHolder")
+        
+        if promptHolder then
+            for _, descendant in pairs(promptHolder:GetDescendants()) do
+                if descendant:IsA("ProximityPrompt") then
+                    fireproximityprompt(descendant)
+                end
+            end
+        end
+    end)
+end
+
+-- Fungsi Mengelola ESP Pumpkin
+local function updatePumpkinESP()
+    pcall(function()
+        local entrance = Workspace:FindFirstChild("1. Entrance")
+        if not entrance then return end
+        local shatterables = entrance:FindFirstChild("Shatterables")
+        if not shatterables then return end
+        local pumpkinsFolder = shatterables:FindFirstChild("Pumpkins")
+        
+        if isPumpkinEspEnabled and pumpkinsFolder then
+            for _, pumpkin in pairs(pumpkinsFolder:GetChildren()) do
+                if not pumpkinHighlights[pumpkin] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Adornee = pumpkin
+                    highlight.FillColor = Color3.fromRGB(255, 140, 0) -- Warna Oranye Pumpkin
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = pumpkin
+                    pumpkinHighlights[pumpkin] = highlight
+                end
+            end
+            
+            -- Bersihkan highlight jika objek sudah hilang/dihancurkan
+            for pumpkin, highlight in pairs(pumpkinHighlights) do
+                if not pumpkin or not pumpkin.Parent then
+                    if highlight then highlight:Destroy() end
+                    pumpkinHighlights[pumpkin] = nil
+                end
+            end
+        else
+            for _, highlight in pairs(pumpkinHighlights) do
+                if highlight then highlight:Destroy() end
+            end
+            pumpkinHighlights = {}
+        end
+    end)
+end
+
+local isTweeningStar = false
+RunService.RenderStepped:Connect(function()
+    local target = getClosestTarget()
+    
+    -- Logika Aimbot
+    if isEnabled and target then
+        camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
+    end
+    
+    -- Logika Auto Trap
+    if isAutoTrapEnabled and target then
+        local currentTime = tick()
+        if currentTime - lastTrapTime >= trapCooldown then
+            lastTrapTime = currentTime
+            throwTrap()
+        end
+    end
+
+    -- Logika Auto Collect Galaxy Star (Hanya nama "GalaxyStars", Speed 5)
+    if isAutoCollectEnabled and not isTweeningStar then
+        local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local starPart = getClosestStar()
+
+        if myRoot and starPart then
+            isTweeningStar = true
+            local distance = (starPart.Position - myRoot.Position).Magnitude
+            local speed = 16
+            local duration = distance / speed
+
+            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+            local tween = TweenService:Create(myRoot, tweenInfo, {CFrame = starPart.CFrame})
+            
+            tween:Play()
+            tween.Completed:Connect(function()
+                isTweeningStar = false
+            end)
+        end
+    end
+
+    -- Logika Auto Spam Claim UGC
+    if isAutoClaimEnabled then
+        triggerClaimPrompt()
+    end
+    
+    -- Logika Update Pumpkin ESP
+    updatePumpkinESP()
+end)
+
+-- Start Library
+Library:Start()
