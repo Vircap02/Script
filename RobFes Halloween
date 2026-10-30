@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SPEED LIGHT ROBFES - CUSTOM ACE GUI (DENGAN TAB KONSER TAMBAHAN)
+-- SPEED LIGHT ROBFES - CUSTOM ACE GUI (DENGAN TAB KONSER & CANDY FARM DI WORKSPACE)
 -- ==============================================================================
 
 local Players = game:GetService("Players")
@@ -88,7 +88,7 @@ local function getTargetCFrame(item)
     return nil
 end
 
--- Fungsi Auto Farm FireTouchInterest khusus "Candy"
+-- Fungsi Auto Farm FireTouchInterest khusus model "Candy" langsung di Workspace
 local function startCandyFarm()
     task.spawn(function()
         while getgenv().CandyFarmActive do
@@ -96,15 +96,25 @@ local function startCandyFarm()
             if character and character:FindFirstChild("HumanoidRootPart") then
                 local rootPart = character.HumanoidRootPart
                 
-                for _, descendant in ipairs(workspace:GetDescendants()) do
+                -- Melakukan perulangan pada isi Workspace untuk mencari objek bernama "Candy"
+                for _, descendant in ipairs(Workspace:GetChildren()) do
                     if not getgenv().CandyFarmActive then break end
                     
-                    if descendant:IsA("BasePart") and string.match(descendant.Name:lower(), "candy") and descendant:FindFirstChild("TouchInterest") then
-                        pcall(function()
-                            firetouchinterest(rootPart, descendant, 0)
-                            task.wait()
-                            firetouchinterest(rootPart, descendant, 1)
-                        end)
+                    if string.match(descendant.Name:lower(), "candy") then
+                        local targetPart = nil
+                        if descendant:IsA("BasePart") then
+                            targetPart = descendant
+                        elseif descendant:IsA("Model") then
+                            targetPart = descendant.PrimaryPart or descendant:FindFirstChildWhichIsA("BasePart", true)
+                        end
+                        
+                        if targetPart and targetPart:FindFirstChild("TouchInterest") then
+                            pcall(function()
+                                firetouchinterest(rootPart, targetPart, 0)
+                                task.wait()
+                                firetouchinterest(rootPart, targetPart, 1)
+                            end)
+                        end
                     end
                 end
             end
@@ -255,7 +265,6 @@ local tabEspBtn = createTabButton("Anomali", 0.25, 0.25)
 local tabItemBtn = createTabButton("Tower", 0.50, 0.25)
 local tabConcertBtn = createTabButton("🎤 Konser", 0.75, 0.25)
 
--- Set default active tab (Main)
 tabMainBtn.BackgroundColor3 = Color3.fromRGB(50, 45, 70)
 tabMainBtn.TextColor3 = Color3.new(1, 1, 1)
 
@@ -289,7 +298,6 @@ tab3Container.ScrollBarThickness = 2
 tab3Container.Visible = false
 tab3Container.Parent = main
 
--- Container untuk Tab Konser Baru
 local tabConcertContainer = Instance.new("ScrollingFrame")
 tabConcertContainer.Size = UDim2.new(1, -12, 1, -58)
 tabConcertContainer.Position = UDim2.new(0, 6, 0, 56)
@@ -985,7 +993,6 @@ do
         if not dragging then return end
         if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
             local d = i.Position - dragStart
-            print(d) -- Suppress unused warning
             local vp = workspace.CurrentCamera.ViewportSize
             local gs = main.AbsoluteSize
             main.Position = UDim2.new(
