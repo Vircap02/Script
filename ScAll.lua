@@ -80,6 +80,10 @@ local listMap = {
         Nama = "BATTLE FOR UGC",
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/BATTLE%20FOR%20UGC"))()]]
     },
+    {
+        Nama = "SEASOULS HALLOWEEN",
+        Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Seasouls%20Halloween"))()]]
+    },
 }
 -- ====================================================
 
