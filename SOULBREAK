@@ -197,7 +197,7 @@ local speedBox = Instance.new("TextBox")
 speedBox.Size = UDim2.new(0, 130, 0, 25)
 speedBox.Position = UDim2.new(1, -140, 0, 87)
 speedBox.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
-speedBox.Text = "16"
+speedBox.Text = "20"
 speedBox.Font = Enum.Font.GothamBold
 speedBox.TextSize = 12
 speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -211,7 +211,7 @@ animStroke(speedBox, 1)
 local function getTweenSpeed()
     local val = tonumber(speedBox.Text)
     if not val or val <= 0 then
-        return 16
+        return 20
     end
     return val
 end
