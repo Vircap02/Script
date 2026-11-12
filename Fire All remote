@@ -1,0 +1,180 @@
+-- [[ LAYANAN ROBLOX ]]
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+
+-- [[ VARIABEL GLOBAL ]]
+local LocalPlayer = Players.LocalPlayer
+local promptSignal = nil
+local autoTouchEnabled = false 
+local autoClickEnabled = false 
+local autoPromptEnabled = false 
+
+-- [[ LOAD LIBRARY UI (AROD UI) ]]
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Religius-Star/Main/refs/heads/main/ui%20libary/arod.luau"))()
+
+-- Membuat Window Utama
+local Window = Library:CreateWindow("Main Menu Hub", "shield")
+
+Window:Section("─── Fitur Utama (Automations) ───")
+
+-- 1. Toggle Infinite ProximityPrompt Range
+Window:Toggle("Infinite Prompt Range", false, function(bool)
+    if bool then
+        ProximityPromptService.MaxPromptsVisible = math.huge
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                v.MaxActivationDistance = math.huge
+            end
+        end
+    else
+        ProximityPromptService.MaxPromptsVisible = 16
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                v.MaxActivationDistance = 10
+            end
+        end
+    end
+end, "maximize-2")
+
+-- 2. Toggle Instant ProximityPrompt
+Window:Toggle("Instant ProximityPrompt", false, function(bool)
+    if bool then
+        promptSignal = nil
+        task.wait()
+        promptSignal = ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+            pcall(function()
+                if fireproximityprompt then
+                    fireproximityprompt(prompt)
+                end
+            end)
+        end)
+    else
+        if promptSignal ~= nil then
+            promptSignal:Disconnect()
+            promptSignal = nil
+        end
+    end
+end, "zap")
+
+-- 3. Toggle Loop Fire All TouchInterests
+Window:Toggle("Loop TouchInterests", false, function(bool)
+    autoTouchEnabled = bool
+    if autoTouchEnabled then
+        task.spawn(function()
+            while autoTouchEnabled do
+                for _, v in ipairs(Workspace:GetDescendants()) do
+                    if not autoTouchEnabled then break end
+                    if v:IsA("TouchTransmitter") then
+                        if firetouchinterest then
+                            local part = v.Parent
+                            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if part and localRoot then
+                                pcall(function()
+                                    firetouchinterest(localRoot, part, 0)
+                                    task.wait()
+                                    firetouchinterest(localRoot, part, 1)
+                                end)
+                            end
+                        end
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+end, "repeat")
+
+-- 4. Toggle Loop Fire All ClickDetectors
+Window:Toggle("Loop ClickDetectors", false, function(bool)
+    autoClickEnabled = bool
+    if autoClickEnabled then
+        task.spawn(function()
+            while autoClickEnabled do
+                for _, v in ipairs(Workspace:GetDescendants()) do
+                    if not autoClickEnabled then break end
+                    if v:IsA("ClickDetector") then
+                        pcall(function()
+                            if fireclickdetector then
+                                fireclickdetector(v)
+                            end
+                        end)
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+end, "mouse-pointer")
+
+-- 5. Toggle Loop Fire All ProximityPrompts
+Window:Toggle("Loop ProximityPrompts", false, function(bool)
+    autoPromptEnabled = bool
+    if autoPromptEnabled then
+        task.spawn(function()
+            while autoPromptEnabled do
+                for _, v in ipairs(Workspace:GetDescendants()) do
+                    if not autoPromptEnabled then break end
+                    if v:IsA("ProximityPrompt") then
+                        pcall(function()
+                            if fireproximityprompt then
+                                fireproximityprompt(v)
+                            end
+                        end)
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+end, "cpu")
+
+Window:Section("─── Karakter & Tools ───")
+
+-- 6. Slider WalkSpeed (BARU 🌟)
+Window:Slider("WalkSpeed", 16, 250, 16, function(v)
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = v
+        end
+    end
+end)
+
+-- Menjaga agar WalkSpeed tetap tersinkron jika karakter mati/respawn
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    -- Default walkspeed Roblox biasanya 16
+    if humanoid then
+        humanoid.WalkSpeed = 16 
+    end
+end)
+
+-- 7. Button Equip All Tools
+Window:Button("Equip All Tools", function()
+    local Backpack = LocalPlayer:FindFirstChild("Backpack")
+    local Character = LocalPlayer.Character
+    if Backpack and Character then
+        for _, v in pairs(Backpack:GetChildren()) do
+            if v:IsA("Tool") then
+                v.Parent = Character
+            end
+        end
+    end
+end, "briefcase")
+
+-- 8. Button Force Drop Tool
+Window:Button("Force Drop Tool", function()
+    local Character = LocalPlayer.Character
+    if Character then
+        for _, v in pairs(Character:GetChildren()) do
+            if v:IsA("Tool") then
+                v.Parent = Workspace
+            end
+        end
+    end
+end, "trash-2")
+
+-- [[ MENJALANKAN LIBRARY UI ]]
+Library:Start()
