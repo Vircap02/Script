@@ -2,9 +2,22 @@ local coreGui = cloneref(game:GetService("CoreGui"))
 local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
+local teleportService = cloneref(game:GetService("TeleportService"))
+local players = cloneref(game:GetService("Players"))
+local replicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
+end
+
+-- Fungsi Queue on Teleport untuk Auto Execute setelah Rejoin / Teleport
+local queueTeleport = queue_on_teleport or syn.queue_on_teleport or queueteleport
+local function setupAutoExecute()
+    if queueTeleport then
+        pcall(function()
+            queueTeleport('loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/SOULBREAK"))()')
+        end)
+    end
 end
 
 -- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
@@ -46,8 +59,8 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Ukuran UI (FULL_H diset ke 114 untuk memuat tombol utama)
-local FULL_W, FULL_H = 290, 114
+-- Ukuran UI disesuaikan (FULL_H menjadi 300 untuk memuat Toggle Auto Execute)
+local FULL_W, FULL_H = 290, 300
 local MINI_W, MINI_H = 42, 42
 
 local main = Instance.new("Frame")
@@ -156,11 +169,257 @@ Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
 -- ==========================================
+-- TOMBOL UTAMA: AUTO PLAY
+-- ==========================================
+local autoPlayBtn = Instance.new("TextButton")
+autoPlayBtn.Size = UDim2.new(1, -20, 0, 38)
+autoPlayBtn.Position = UDim2.new(0, 10, 0, 40)
+autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
+autoPlayBtn.Text = "▶ Start Auto Play"
+autoPlayBtn.Font = Enum.Font.GothamBold
+autoPlayBtn.TextSize = 12
+autoPlayBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+autoPlayBtn.BorderSizePixel = 0
+autoPlayBtn.AutoButtonColor = false
+autoPlayBtn.Parent = main
+
+Instance.new("UICorner", autoPlayBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoPlayBtn, 1)
+
+local autoPlayScale = Instance.new("UIScale")
+autoPlayScale.Scale = 1
+autoPlayScale.Parent = autoPlayBtn
+
+-- ==========================================
+-- TEXT BOX UNTUK MENGATUR SPEED TWEEN
+-- ==========================================
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0, 120, 0, 22)
+speedLabel.Position = UDim2.new(0, 10, 0, 84)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Tween Speed:"
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextSize = 11
+speedLabel.TextColor3 = Color3.fromRGB(200, 150, 255)
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = main
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0, 130, 0, 22)
+speedBox.Position = UDim2.new(1, -140, 0, 84)
+speedBox.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
+speedBox.Text = "16"
+speedBox.Font = Enum.Font.GothamBold
+speedBox.TextSize = 12
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.ClearTextOnFocus = false
+speedBox.BorderSizePixel = 0
+speedBox.Parent = main
+
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 6)
+animStroke(speedBox, 1)
+
+local function getTweenSpeed()
+    local val = tonumber(speedBox.Text)
+    if not val or val <= 0 then
+        return 20
+    end
+    return val
+end
+
+-- ==========================================
+-- TEXT BOX TARGET PHASE (AUTO REJOIN)
+-- ==========================================
+local phaseLabel = Instance.new("TextLabel")
+phaseLabel.Size = UDim2.new(0, 120, 0, 22)
+phaseLabel.Position = UDim2.new(0, 10, 0, 112)
+phaseLabel.BackgroundTransparency = 1
+phaseLabel.Text = "Max Phase:"
+phaseLabel.Font = Enum.Font.GothamBold
+phaseLabel.TextSize = 11
+phaseLabel.TextColor3 = Color3.fromRGB(200, 150, 255)
+phaseLabel.TextXAlignment = Enum.TextXAlignment.Left
+phaseLabel.Parent = main
+
+local phaseBox = Instance.new("TextBox")
+phaseBox.Size = UDim2.new(0, 130, 0, 22)
+phaseBox.Position = UDim2.new(1, -140, 0, 112)
+phaseBox.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
+phaseBox.Text = "10"
+phaseBox.Font = Enum.Font.GothamBold
+phaseBox.TextSize = 12
+phaseBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+phaseBox.ClearTextOnFocus = false
+phaseBox.BorderSizePixel = 0
+phaseBox.Parent = main
+
+Instance.new("UICorner", phaseBox).CornerRadius = UDim.new(0, 6)
+animStroke(phaseBox, 1)
+
+local function getMaxPhase()
+    local val = tonumber(phaseBox.Text)
+    if not val or val <= 0 then
+        return 10
+    end
+    return val
+end
+
+-- ==========================================
+-- TOMBOL TOGGLE AUTO EXECUTE SETELAH REJOIN
+-- ==========================================
+local autoExecuteEnabled = true -- Default aktif
+local autoExecBtn = Instance.new("TextButton")
+autoExecBtn.Size = UDim2.new(1, -20, 0, 28)
+autoExecBtn.Position = UDim2.new(0, 10, 0, 140)
+autoExecBtn.BackgroundColor3 = Color3.fromRGB(35, 50, 30)
+autoExecBtn.Text = "⚙️ Auto Execute (Rejoin): [ON]"
+autoExecBtn.Font = Enum.Font.GothamBold
+autoExecBtn.TextSize = 11
+autoExecBtn.TextColor3 = Color3.fromRGB(180, 255, 180)
+autoExecBtn.BorderSizePixel = 0
+autoExecBtn.AutoButtonColor = false
+autoExecBtn.Parent = main
+
+Instance.new("UICorner", autoExecBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoExecBtn, 1)
+
+autoExecBtn.MouseButton1Click:Connect(function()
+    autoExecuteEnabled = not autoExecuteEnabled
+    if autoExecuteEnabled then
+        autoExecBtn.Text = "⚙️ Auto Execute (Rejoin): [ON]"
+        autoExecBtn.BackgroundColor3 = Color3.fromRGB(35, 50, 30)
+        autoExecBtn.TextColor3 = Color3.fromRGB(180, 255, 180)
+        setupAutoExecute()
+    else
+        autoExecBtn.Text = "⚙️ Auto Execute (Rejoin): [OFF]"
+        autoExecBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+        autoExecBtn.TextColor3 = Color3.fromRGB(255, 180, 180)
+        if queueTeleport then
+            pcall(function() queueTeleport("") end) -- Bersihkan queue jika dimatikan
+        end
+    end
+end)
+
+-- Pasang Auto Execute saat pertama kali script dijalankan jika aktif
+if autoExecuteEnabled then
+    setupAutoExecute()
+end
+
+-- ==========================================
+-- TOMBOL REJOIN MANUAL KUSTOM
+-- ==========================================
+local rejoinBtn = Instance.new("TextButton")
+rejoinBtn.Size = UDim2.new(1, -20, 0, 30)
+rejoinBtn.Position = UDim2.new(0, 10, 0, 174)
+rejoinBtn.BackgroundColor3 = Color3.fromRGB(50, 25, 25)
+rejoinBtn.Text = "🔄 Rejoin Game"
+rejoinBtn.Font = Enum.Font.GothamBold
+rejoinBtn.TextSize = 12
+rejoinBtn.TextColor3 = Color3.fromRGB(255, 180, 180)
+rejoinBtn.BorderSizePixel = 0
+rejoinBtn.AutoButtonColor = false
+rejoinBtn.Parent = main
+
+Instance.new("UICorner", rejoinBtn).CornerRadius = UDim.new(0, 6)
+animStroke(rejoinBtn, 1)
+
+local rejoinScale = Instance.new("UIScale")
+rejoinScale.Scale = 1
+rejoinScale.Parent = rejoinBtn
+
+rejoinBtn.MouseEnter:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(75, 35, 35)}):Play()
+end)
+
+rejoinBtn.MouseLeave:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 25, 25)}):Play()
+end)
+
+local function triggerAutoRejoin()
+    pcall(function()
+        if autoExecuteEnabled then
+            setupAutoExecute()
+        end
+        rejoinBtn.Text = "🔄 Menghubungkan Ulang..."
+        rejoinBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 20)
+        task.wait(1)
+        teleportService:Teleport(game.PlaceId, players.LocalPlayer)
+    end)
+end
+
+rejoinBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(rejoinScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.95}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(rejoinScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+    triggerAutoRejoin()
+end)
+
+-- ==========================================
+-- PANEL NOTIFIKASI & RAYCAST LOG GAME
+-- ==========================================
+local logContainer = Instance.new("Frame")
+logContainer.Size = UDim2.new(1, -20, 0, 55)
+logContainer.Position = UDim2.new(0, 10, 0, 210)
+logContainer.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
+logContainer.BorderSizePixel = 0
+logContainer.Parent = main
+
+Instance.new("UICorner", logContainer).CornerRadius = UDim.new(0, 6)
+animStroke(logContainer, 1)
+
+local logTitle = Instance.new("TextLabel")
+logTitle.Size = UDim2.new(1, -10, 0, 16)
+logTitle.Position = UDim2.new(0, 6, 0, 3)
+logTitle.BackgroundTransparency = 1
+logTitle.Text = "📌 Raycast & Phase Status Log:"
+logTitle.Font = Enum.Font.GothamBold
+logTitle.TextSize = 9.5
+logTitle.TextColor3 = Color3.fromRGB(220, 160, 255)
+logTitle.TextXAlignment = Enum.TextXAlignment.Left
+logTitle.Parent = logContainer
+
+local logText = Instance.new("TextLabel")
+logText.Size = UDim2.new(1, -10, 0, 32)
+logText.Position = UDim2.new(0, 6, 0, 18)
+logText.BackgroundTransparency = 1
+logText.Text = "Status: Memulai PartyGate otomatis..."
+logText.Font = Enum.Font.GothamMedium
+logText.TextSize = 9
+logText.TextColor3 = Color3.fromRGB(180, 220, 255)
+logText.TextXAlignment = Enum.TextXAlignment.Left
+logText.TextYAlignment = Enum.TextYAlignment.Top
+logText.TextWrapped = true
+logText.Parent = logContainer
+
+local function updateLog(message)
+    logText.Text = message
+end
+
+-- Fungsi Deteksi Phase / Stage saat ini
+local function getCurrentPhase()
+    for _, guiObj in ipairs(players.LocalPlayer.PlayerGui:GetDescendants()) do
+        if guiObj:IsA("TextLabel") or guiObj:IsA("TextButton") then
+            local text = guiObj.Text:lower()
+            if text:find("phase") or text:find("stage") or text:find("floor") or text:find("level") then
+                for num in text:gmatch("%d+") do
+                    local n = tonumber(num)
+                    if n and n > 0 and n <= 100 then
+                        return n
+                    end
+                end
+            end
+        end
+    end
+    return 1
+end
+
+-- ==========================================
 -- FUNGSI ANTI-CHEAT BYPASS JARAK (STEPPING TWEEN)
 -- ==========================================
-local function safeDistanceTween(targetCFrame, speed)
-    speed = speed or 16 -- Kecepatan standar (Studs per detik)
-    local player = game:GetService("Players").LocalPlayer
+local function safeDistanceTween(targetCFrame)
+    local speed = getTweenSpeed()
+    local player = players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     
@@ -204,28 +463,6 @@ local function safeDistanceTween(targetCFrame, speed)
     humanoidRootPart.Anchored = oldAnchored
 end
 
--- ==========================================
--- TOMBOL UTAMA: AUTO PLAY
--- ==========================================
-local autoPlayBtn = Instance.new("TextButton")
-autoPlayBtn.Size = UDim2.new(1, -20, 0, 56)
-autoPlayBtn.Position = UDim2.new(0, 10, 0, 40)
-autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
-autoPlayBtn.Text = "▶ Start Auto Play"
-autoPlayBtn.Font = Enum.Font.GothamBold
-autoPlayBtn.TextSize = 12
-autoPlayBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-autoPlayBtn.BorderSizePixel = 0
-autoPlayBtn.AutoButtonColor = false
-autoPlayBtn.Parent = main
-
-Instance.new("UICorner", autoPlayBtn).CornerRadius = UDim.new(0, 6)
-animStroke(autoPlayBtn, 1)
-
-local autoPlayScale = Instance.new("UIScale")
-autoPlayScale.Scale = 1
-autoPlayScale.Parent = autoPlayBtn
-
 autoPlayBtn.MouseEnter:Connect(function()
     tweenService:Create(autoPlayBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}):Play()
 end)
@@ -246,25 +483,37 @@ local autoPlayEnabled = false
 local function startAutoPlay()
     task.spawn(function()
         while autoPlayEnabled do
-            local player = game.Players.LocalPlayer
+            local currentPhase = getCurrentPhase()
+            local targetMaxPhase = getMaxPhase()
+            
+            updateLog("🔄 Berjalan | Phase: " .. currentPhase .. " / Target: " .. targetMaxPhase)
+
+            if currentPhase >= targetMaxPhase then
+                autoPlayBtn.Text = "🛑 Target Phase " .. targetMaxPhase .. " Tercapai, Rejoin..."
+                updateLog("🛑 Target Phase " .. targetMaxPhase .. " tercapai! Melakukan Auto Rejoin...")
+                triggerAutoRejoin()
+                break
+            end
+
+            local player = players.LocalPlayer
             local character = player.Character or player.CharacterAdded:Wait()
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             
             if not rootPart then 
+                updateLog("⚠️ Warning: HumanoidRootPart tidak ditemukan, menunggu...")
                 task.wait(1)
                 continue 
             end
 
             local activeAreaParent = nil
 
-            -- Logika Berpasangan: Ambil 1 Key sampai hilang -> Buka 1 Padlock sampai terbuka
             autoPlayBtn.Text = "🔄 Auto Play: Key ➔ Padlock..."
             local working = true
             while autoPlayEnabled and working do
                 working = false
                 local targetKey, targetKeyPrompt = nil, nil
 
-                -- 1. Cari 1 Key yang Aktif (_Key)
+                -- 1. Cari Key Aktif (_Key)
                 for _, descendant in ipairs(workspace:GetDescendants()) do
                     if string.match(descendant.Name, "_Key") then
                         local prompt = descendant:FindFirstChildOfClass("ProximityPrompt")
@@ -285,23 +534,24 @@ local function startAutoPlay()
 
                     if targetCFrame then
                         autoPlayBtn.Text = "🔑 Menuju & Mengambil Key..."
-                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        updateLog("🔍 Raycast: Menemukan Key di '" .. targetKey.Name .. "'. Bergerak...")
+                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0))
                         
                         targetKeyPrompt.HoldDuration = 0
                         local timeout = tick()
-                        -- Spam fireproximityprompt terus menerus sampai Key benar-benar hilang/tidak aktif
-                        while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 10) do
+                        while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 5) do
                             pcall(function()
                                 fireproximityprompt(targetKeyPrompt)
                             end)
                             task.wait(0.15)
                         end
+                        updateLog("✅ Key berhasil diambil. Mencari Padlock...")
                     end
                 end
 
                 if not autoPlayEnabled then break end
 
-                -- 2. Setelah Key hilang/diambil, cari & buka 1 Padlock pasangannya (_Padlock)
+                -- 2. Cari Padlock Pasangannya (_Padlock)
                 local targetCage, targetCagePrompt = nil, nil
                 for _, descendant in ipairs(workspace:GetDescendants()) do
                     if string.match(descendant.Name, "_Padlock") then
@@ -318,7 +568,7 @@ local function startAutoPlay()
                 end
 
                 if targetCage and targetCagePrompt then
-                    working = true -- Tandai bahwa pasangan berikutnya masih ada
+                    working = true
                     local targetCFrame
                     pcall(function()
                         targetCFrame = targetCage:IsA("Model") and targetCage:GetPivot() or targetCage.CFrame
@@ -326,17 +576,18 @@ local function startAutoPlay()
 
                     if targetCFrame then
                         autoPlayBtn.Text = "🔓 Menuju & Membuka Padlock..."
-                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        updateLog("🔍 Raycast: Menemukan Padlock di '" .. targetCage.Name .. "'. Bergerak...")
+                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0))
                         
                         targetCagePrompt.HoldDuration = 0
                         local timeout = tick()
-                        -- Spam fireproximityprompt terus menerus sampai Padlock terbuka/nonaktif
-                        while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 10) do
+                        while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 5) do
                             pcall(function()
                                 fireproximityprompt(targetCagePrompt)
                             end)
                             task.wait(0.15)
                         end
+                        updateLog("✅ Padlock berhasil dibuka.")
                     end
                 end
                 
@@ -345,8 +596,14 @@ local function startAutoPlay()
 
             if not autoPlayEnabled then break end
 
-            -- 3. Pergi ke ExitPortal setelah seluruh Key & Padlock bersih
+            if getCurrentPhase() >= getMaxPhase() then
+                triggerAutoRejoin()
+                break
+            end
+
+            -- 3. Menuju ExitPortal
             autoPlayBtn.Text = "🚪 Menuju ExitPortal..."
+            updateLog("🚪 Semua Key & Padlock bersih. Mencari ExitPortal...")
             local targetExit = nil
 
             if activeAreaParent then
@@ -381,14 +638,21 @@ local function startAutoPlay()
                 end)
 
                 if exitCFrame then
-                    safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0), 16)
+                    updateLog("🚀 Raycast: Menuju ExitPortal di '" .. targetExit.Name .. "'...")
+                    safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0))
                 end
             end
 
-            -- 4. Menunggu fase/stage berikutnya
+            -- 4. Menunggu fase berikutnya
             autoPlayBtn.Text = "⏳ Menunggu Fase Berikutnya..."
+            updateLog("⏳ Menunggu pergantian phase/stage berikutnya...")
             local waitingForNextPhase = true
             while autoPlayEnabled and waitingForNextPhase do
+                if getCurrentPhase() >= getMaxPhase() then
+                    triggerAutoRejoin()
+                    break
+                end
+
                 for _, d in ipairs(workspace:GetDescendants()) do
                     if string.match(d.Name, "_Key") then
                         local p = d:FindFirstChildOfClass("ProximityPrompt")
@@ -402,7 +666,7 @@ local function startAutoPlay()
                 if waitingForNextPhase and exitCFrame and rootPart then
                     if (rootPart.Position - exitCFrame.Position).Magnitude > 5 then
                         pcall(function()
-                            safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0), 16)
+                            safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0))
                         end)
                     end
                 end
@@ -420,12 +684,70 @@ autoPlayBtn.MouseButton1Click:Connect(function()
     if autoPlayEnabled then
         autoPlayBtn.Text = "⏹ Stop Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+        updateLog("▶ Auto Play diaktifkan.")
         startAutoPlay()
     else
         autoPlayBtn.Text = "▶ Start Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
-        print("Auto Play dihentikan.")
+        updateLog("⏹ Auto Play dihentikan manual.")
     end
+end)
+
+-- ==========================================
+-- EKSEKUSI OTOMATIS: PARTY GATE & AUTO START
+-- ==========================================
+task.spawn(function()
+    updateLog("🎯 Auto-Executing PartyGate...")
+    task.wait(1)
+    
+    pcall(function()
+        local fillPart = workspace:FindFirstChild("PartyGates") 
+            and workspace.PartyGates:FindFirstChild("Gate1") 
+            and workspace.PartyGates.Gate1:FindFirstChild("Marking") 
+            and workspace.PartyGates.Gate1.Marking:FindFirstChild("Fill")
+            
+        if fillPart then
+            updateLog("🚶‍♂️ Berjalan ke PartyGates.Gate1.Marking.Fill...")
+            safeDistanceTween(fillPart.CFrame + Vector3.new(0, 3, 0))
+        else
+            updateLog("⚠️ Warning: Gate1 Fill tidak ditemukan, melewati jalan...")
+        end
+    end)
+
+    task.wait(0.5)
+
+    pcall(function()
+        updateLog("📡 Mengirim PartyRequest (Create)...")
+        local args = {
+            "Create",
+            {
+                monsters = 3,
+                capacity = 1,
+                difficulty = "Normal",
+                gateIndex = 1
+            }
+        }
+        replicatedStorage:WaitForChild("SpectralPrison"):WaitForChild("Remotes"):WaitForChild("PartyRequest"):FireServer(unpack(args))
+    end)
+
+    updateLog("⏳ Menunggu 1 detik sebelum StartNow...")
+    task.wait(1.0)
+
+    pcall(function()
+        updateLog("📡 Mengirim PartyRequest (StartNow)...")
+        local args = {
+            "StartNow"
+        }
+        replicatedStorage:WaitForChild("SpectralPrison"):WaitForChild("Remotes"):WaitForChild("PartyRequest"):FireServer(unpack(args))
+    end)
+
+    updateLog("🚀 Memulai otomatis fitur utama (Key/Pad/Portal)...")
+    task.wait(2.0)
+
+    autoPlayEnabled = true
+    autoPlayBtn.Text = "⏹ Stop Auto Play"
+    autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    startAutoPlay()
 end)
 
 -- ==========================================
@@ -464,6 +786,9 @@ end)
 
 closeBtn.MouseButton1Click:Connect(function()
     autoPlayEnabled = false
+    if queueTeleport then
+        pcall(function() queueTeleport("") end)
+    end
     local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1
