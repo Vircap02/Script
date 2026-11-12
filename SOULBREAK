@@ -173,15 +173,14 @@ local function safeDistanceTween(targetCFrame, speed)
     local oldAnchored = humanoidRootPart.Anchored
     humanoidRootPart.Anchored = true
 
-    -- Jika jarak sangat jauh (> 50 studs), pecah jadi beberapa bagian (stepping) untuk bypass anti-cheat jarak
     if totalDistance > 50 then
-        local maxStepDistance = 40 -- Maksimal jarak per loncatan agar aman
+        local maxStepDistance = 40
         local steps = math.ceil(totalDistance / maxStepDistance)
         
         for i = 1, steps do
             local alpha = i / steps
             local intermediatePos = startPos:Lerp(endPos, alpha)
-            local intermediateCFrame = CFrame.new(intermediatePos) * (targetCFrame - endPos) -- Pertahankan rotasi target di akhir
+            local intermediateCFrame = CFrame.new(intermediatePos) * (targetCFrame - endPos)
             
             local stepDist = (humanoidRootPart.Position - intermediatePos).Magnitude
             local duration = stepDist / speed
@@ -193,7 +192,6 @@ local function safeDistanceTween(targetCFrame, speed)
             tween.Completed:Wait()
         end
     else
-        -- Jika jarak dekat, langsung tween biasa
         local duration = totalDistance / speed
         if duration < 0.2 then duration = 0.2 end
 
@@ -259,14 +257,14 @@ local function startAutoPlay()
 
             local activeAreaParent = nil
 
-            -- Logika Berpasangan: Ambil 1 Key -> Buka 1 Padlock -> Ulangi sampai habis
+            -- Logika Berpasangan: Ambil 1 Key sampai hilang -> Buka 1 Padlock sampai terbuka
             autoPlayBtn.Text = "🔄 Auto Play: Key ➔ Padlock..."
             local working = true
             while autoPlayEnabled and working do
                 working = false
                 local targetKey, targetKeyPrompt = nil, nil
 
-                -- 1. Cari 1 Key yang Aktif
+                -- 1. Cari 1 Key yang Aktif (_Key)
                 for _, descendant in ipairs(workspace:GetDescendants()) do
                     if string.match(descendant.Name, "_Key") then
                         local prompt = descendant:FindFirstChildOfClass("ProximityPrompt")
@@ -288,21 +286,22 @@ local function startAutoPlay()
                     if targetCFrame then
                         autoPlayBtn.Text = "🔑 Menuju & Mengambil Key..."
                         safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        
                         targetKeyPrompt.HoldDuration = 0
-                        task.wait(0.1)
-                        pcall(function() fireproximityprompt(targetKeyPrompt) end)
-
                         local timeout = tick()
-                        while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 5) do
-                            pcall(function() fireproximityprompt(targetKeyPrompt) end)
-                            task.wait(0.4)
+                        -- Spam fireproximityprompt terus menerus sampai Key benar-benar hilang/tidak aktif
+                        while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 10) do
+                            pcall(function()
+                                fireproximityprompt(targetKeyPrompt)
+                            end)
+                            task.wait(0.15)
                         end
                     end
                 end
 
                 if not autoPlayEnabled then break end
 
-                -- 2. Setelah Key diambil, langsung cari & buka 1 Padlock pasangannya
+                -- 2. Setelah Key hilang/diambil, cari & buka 1 Padlock pasangannya (_Padlock)
                 local targetCage, targetCagePrompt = nil, nil
                 for _, descendant in ipairs(workspace:GetDescendants()) do
                     if string.match(descendant.Name, "_Padlock") then
@@ -319,7 +318,7 @@ local function startAutoPlay()
                 end
 
                 if targetCage and targetCagePrompt then
-                    working = true -- Tandai bahwa pasangan key-padlock masih ditemukan dan dikerjakan
+                    working = true -- Tandai bahwa pasangan berikutnya masih ada
                     local targetCFrame
                     pcall(function()
                         targetCFrame = targetCage:IsA("Model") and targetCage:GetPivot() or targetCage.CFrame
@@ -328,14 +327,15 @@ local function startAutoPlay()
                     if targetCFrame then
                         autoPlayBtn.Text = "🔓 Menuju & Membuka Padlock..."
                         safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        
                         targetCagePrompt.HoldDuration = 0
-                        task.wait(0.1)
-                        pcall(function() fireproximityprompt(targetCagePrompt) end)
-
                         local timeout = tick()
-                        while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 5) do
-                            pcall(function() fireproximityprompt(targetCagePrompt) end)
-                            task.wait(0.4)
+                        -- Spam fireproximityprompt terus menerus sampai Padlock terbuka/nonaktif
+                        while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 10) do
+                            pcall(function()
+                                fireproximityprompt(targetCagePrompt)
+                            end)
+                            task.wait(0.15)
                         end
                     end
                 end
@@ -345,7 +345,7 @@ local function startAutoPlay()
 
             if not autoPlayEnabled then break end
 
-            -- 3. Pergi ke ExitPortal setelah semua Key & Padlock bersih
+            -- 3. Pergi ke ExitPortal setelah seluruh Key & Padlock bersih
             autoPlayBtn.Text = "🚪 Menuju ExitPortal..."
             local targetExit = nil
 
@@ -385,7 +385,7 @@ local function startAutoPlay()
                 end
             end
 
-            -- 4. Menunggu fase berikutnya
+            -- 4. Menunggu fase/stage berikutnya
             autoPlayBtn.Text = "⏳ Menunggu Fase Berikutnya..."
             local waitingForNextPhase = true
             while autoPlayEnabled and waitingForNextPhase do
