@@ -48,8 +48,8 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Ukuran UI disesuaikan (FULL_H menjadi 260 untuk memuat panel notifikasi/log raycast)
-local FULL_W, FULL_H = 290, 260
+-- Ukuran UI (FULL_H diset ke 265 untuk memuat panel log & timer)
+local FULL_W, FULL_H = 290, 265
 local MINI_W, MINI_H = 42, 42
 
 local main = Instance.new("Frame")
@@ -161,7 +161,7 @@ animStroke(floatingIcon, 1.5)
 -- TOMBOL UTAMA: AUTO PLAY
 -- ==========================================
 local autoPlayBtn = Instance.new("TextButton")
-autoPlayBtn.Size = UDim2.new(1, -20, 0, 40)
+autoPlayBtn.Size = UDim2.new(1, -20, 0, 38)
 autoPlayBtn.Position = UDim2.new(0, 10, 0, 40)
 autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
 autoPlayBtn.Text = "▶ Start Auto Play"
@@ -183,8 +183,8 @@ autoPlayScale.Parent = autoPlayBtn
 -- TEXT BOX UNTUK MENGATUR SPEED TWEEN
 -- ==========================================
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0, 120, 0, 25)
-speedLabel.Position = UDim2.new(0, 10, 0, 87)
+speedLabel.Size = UDim2.new(0, 120, 0, 22)
+speedLabel.Position = UDim2.new(0, 10, 0, 84)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Tween Speed:"
 speedLabel.Font = Enum.Font.GothamBold
@@ -194,10 +194,10 @@ speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = main
 
 local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(0, 130, 0, 25)
-speedBox.Position = UDim2.new(1, -140, 0, 87)
+speedBox.Size = UDim2.new(0, 130, 0, 22)
+speedBox.Position = UDim2.new(1, -140, 0, 84)
 speedBox.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
-speedBox.Text = "20"
+speedBox.Text = "30"
 speedBox.Font = Enum.Font.GothamBold
 speedBox.TextSize = 12
 speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -211,7 +211,7 @@ animStroke(speedBox, 1)
 local function getTweenSpeed()
     local val = tonumber(speedBox.Text)
     if not val or val <= 0 then
-        return 20
+        return 30
     end
     return val
 end
@@ -220,8 +220,8 @@ end
 -- TEXT BOX TARGET PHASE (AUTO REJOIN)
 -- ==========================================
 local phaseLabel = Instance.new("TextLabel")
-phaseLabel.Size = UDim2.new(0, 120, 0, 25)
-phaseLabel.Position = UDim2.new(0, 10, 0, 120)
+phaseLabel.Size = UDim2.new(0, 120, 0, 22)
+phaseLabel.Position = UDim2.new(0, 10, 0, 112)
 phaseLabel.BackgroundTransparency = 1
 phaseLabel.Text = "Max Phase:"
 phaseLabel.Font = Enum.Font.GothamBold
@@ -231,8 +231,8 @@ phaseLabel.TextXAlignment = Enum.TextXAlignment.Left
 phaseLabel.Parent = main
 
 local phaseBox = Instance.new("TextBox")
-phaseBox.Size = UDim2.new(0, 130, 0, 25)
-phaseBox.Position = UDim2.new(1, -140, 0, 120)
+phaseBox.Size = UDim2.new(0, 130, 0, 22)
+phaseBox.Position = UDim2.new(1, -140, 0, 112)
 phaseBox.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
 phaseBox.Text = "10"
 phaseBox.Font = Enum.Font.GothamBold
@@ -257,8 +257,8 @@ end
 -- TOMBOL REJOIN MANUAL KUSTOM
 -- ==========================================
 local rejoinBtn = Instance.new("TextButton")
-rejoinBtn.Size = UDim2.new(1, -20, 0, 32)
-rejoinBtn.Position = UDim2.new(0, 10, 0, 152)
+rejoinBtn.Size = UDim2.new(1, -20, 0, 30)
+rejoinBtn.Position = UDim2.new(0, 10, 0, 140)
 rejoinBtn.BackgroundColor3 = Color3.fromRGB(50, 25, 25)
 rejoinBtn.Text = "🔄 Rejoin Game"
 rejoinBtn.Font = Enum.Font.GothamBold
@@ -302,11 +302,11 @@ rejoinBtn.MouseButton1Down:Connect(function()
 end)
 
 -- ==========================================
--- PANEL NOTIFIKASI & RAYCAST LOG GAME
+-- PANEL STATUS LIVE: PHASE, TIMER & RAYCAST LOG
 -- ==========================================
 local logContainer = Instance.new("Frame")
-logContainer.Size = UDim2.new(1, -20, 0, 55)
-logContainer.Position = UDim2.new(0, 10, 0, 192)
+logContainer.Size = UDim2.new(1, -20, 0, 75)
+logContainer.Position = UDim2.new(0, 10, 0, 176)
 logContainer.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
 logContainer.BorderSizePixel = 0
 logContainer.Parent = main
@@ -318,7 +318,7 @@ local logTitle = Instance.new("TextLabel")
 logTitle.Size = UDim2.new(1, -10, 0, 16)
 logTitle.Position = UDim2.new(0, 6, 0, 3)
 logTitle.BackgroundTransparency = 1
-logTitle.Text = "📌 Raycast & Phase Status Log:"
+logTitle.Text = "📊 Live Game Status & Raycast Log:"
 logTitle.Font = Enum.Font.GothamBold
 logTitle.TextSize = 9.5
 logTitle.TextColor3 = Color3.fromRGB(220, 160, 255)
@@ -326,10 +326,10 @@ logTitle.TextXAlignment = Enum.TextXAlignment.Left
 logTitle.Parent = logContainer
 
 local logText = Instance.new("TextLabel")
-logText.Size = UDim2.new(1, -10, 0, 32)
+logText.Size = UDim2.new(1, -10, 0, 52)
 logText.Position = UDim2.new(0, 6, 0, 18)
 logText.BackgroundTransparency = 1
-logText.Text = "Status: Menunggu tombol Start ditekan..."
+logText.Text = "Phase: 1 | Timer: 00:00\nStatus: Menunggu tombol Start..."
 logText.Font = Enum.Font.GothamMedium
 logText.TextSize = 9
 logText.TextColor3 = Color3.fromRGB(180, 220, 255)
@@ -338,11 +338,7 @@ logText.TextYAlignment = Enum.TextYAlignment.Top
 logText.TextWrapped = true
 logText.Parent = logContainer
 
-local function updateLog(message)
-    logText.Text = message
-end
-
--- Fungsi Deteksi Phase / Stage saat ini
+-- Fungsi Pendeteksi Phase / Stage dari game
 local function getCurrentPhase()
     for _, guiObj in ipairs(players.LocalPlayer.PlayerGui:GetDescendants()) do
         if guiObj:IsA("TextLabel") or guiObj:IsA("TextButton") then
@@ -359,6 +355,41 @@ local function getCurrentPhase()
     end
     return 1
 end
+
+-- Fungsi Pendeteksi Timer dari game
+local function getGameTimer()
+    for _, guiObj in ipairs(players.LocalPlayer.PlayerGui:GetDescendants()) do
+        if guiObj:IsA("TextLabel") or guiObj:IsA("TextButton") then
+            local text = guiObj.Text
+            -- Mencari format timer seperti "01:30", "12:05", atau mengandung kata "time" / ":"
+            if (text:find(":") and text:len() <= 8) or text:lower():find("time") then
+                if text:find(":") then
+                    return text
+                end
+            end
+        end
+    end
+    return "N/A"
+end
+
+local currentStatusMessage = "Menunggu tombol Start..."
+
+local function updateDisplayLog(actionMsg)
+    if actionMsg then
+        currentStatusMessage = actionMsg
+    end
+    local p = getCurrentPhase()
+    local t = getGameTimer()
+    logText.Text = string.format("Phase: %d | Timer: %s\nStatus: %s", p, t, currentStatusMessage)
+end
+
+-- Perbarui tampilan log secara live setiap detik
+task.spawn(function()
+    while true do
+        updateDisplayLog()
+        task.wait(1)
+    end
+end)
 
 -- ==========================================
 -- FUNGSI ANTI-CHEAT BYPASS JARAK (STEPPING TWEEN)
@@ -431,12 +462,10 @@ local function startAutoPlay()
         while autoPlayEnabled do
             local currentPhase = getCurrentPhase()
             local targetMaxPhase = getMaxPhase()
-            
-            updateLog("🔄 Berjalan | Phase Saat Ini: " .. currentPhase .. " / Target: " .. targetMaxPhase)
 
             if currentPhase >= targetMaxPhase then
-                autoPlayBtn.Text = "🛑 Target Phase " .. targetMaxPhase .. " Tercapai, Rejoin..."
-                updateLog("🛑 Target Phase " .. targetMaxPhase .. " tercapai! Melakukan Auto Rejoin...")
+                autoPlayBtn.Text = "🛑 Target Phase Tercapai!"
+                updateDisplayLog("Target Phase " .. targetMaxPhase .. " tercapai! Auto Rejoin...")
                 triggerAutoRejoin()
                 break
             end
@@ -446,7 +475,7 @@ local function startAutoPlay()
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             
             if not rootPart then 
-                updateLog("⚠️ Warning: HumanoidRootPart tidak ditemukan, menunggu...")
+                updateDisplayLog("Warning: HumanoidRootPart tidak ada!")
                 task.wait(1)
                 continue 
             end
@@ -479,8 +508,8 @@ local function startAutoPlay()
                     end)
 
                     if targetCFrame then
-                        autoPlayBtn.Text = "🔑 Menuju & Mengambil Key..."
-                        updateLog("🔍 Raycast: Menemukan Key di '" .. targetKey.Name .. "'. Bergerak...")
+                        autoPlayBtn.Text = "🔑 Mengambil Key..."
+                        updateDisplayLog("Menemukan Key di '" .. targetKey.Name .. "'. Bergerak...")
                         safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0))
                         
                         targetKeyPrompt.HoldDuration = 0
@@ -491,7 +520,7 @@ local function startAutoPlay()
                             end)
                             task.wait(0.15)
                         end
-                        updateLog("✅ Key berhasil diambil. Mencari Padlock...")
+                        updateDisplayLog("Key diambil. Mencari Padlock...")
                     end
                 end
 
@@ -521,8 +550,8 @@ local function startAutoPlay()
                     end)
 
                     if targetCFrame then
-                        autoPlayBtn.Text = "🔓 Menuju & Membuka Padlock..."
-                        updateLog("🔍 Raycast: Menemukan Padlock di '" .. targetCage.Name .. "'. Bergerak...")
+                        autoPlayBtn.Text = "🔓 Membuka Padlock..."
+                        updateDisplayLog("Menemukan Padlock di '" .. targetCage.Name .. "'. Bergerak...")
                         safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0))
                         
                         targetCagePrompt.HoldDuration = 0
@@ -533,7 +562,7 @@ local function startAutoPlay()
                             end)
                             task.wait(0.15)
                         end
-                        updateLog("✅ Padlock berhasil dibuka.")
+                        updateDisplayLog("Padlock terbuka.")
                     end
                 end
                 
@@ -549,7 +578,7 @@ local function startAutoPlay()
 
             -- 3. Raycast / Menuju ExitPortal
             autoPlayBtn.Text = "🚪 Menuju ExitPortal..."
-            updateLog("🚪 Semua Key & Padlock bersih. Mencari ExitPortal...")
+            updateDisplayLog("Semua Key & Padlock bersih. Menuju ExitPortal...")
             local targetExit = nil
 
             if activeAreaParent then
@@ -584,14 +613,14 @@ local function startAutoPlay()
                 end)
 
                 if exitCFrame then
-                    updateLog("🚀 Raycast: Menuju ExitPortal di '" .. targetExit.Name .. "'...")
+                    updateDisplayLog("Menuju ExitPortal di '" .. targetExit.Name .. "'...")
                     safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0))
                 end
             end
 
             -- 4. Menunggu fase/stage berikutnya
             autoPlayBtn.Text = "⏳ Menunggu Fase Berikutnya..."
-            updateLog("⏳ Menunggu pergantian phase/stage berikutnya...")
+            updateDisplayLog("Menunggu pergantian phase/stage...")
             local waitingForNextPhase = true
             while autoPlayEnabled and waitingForNextPhase do
                 if getCurrentPhase() >= getMaxPhase() then
@@ -630,12 +659,12 @@ autoPlayBtn.MouseButton1Click:Connect(function()
     if autoPlayEnabled then
         autoPlayBtn.Text = "⏹ Stop Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
-        updateLog("▶ Auto Play diaktifkan. Memulai perburuan...")
+        updateDisplayLog("Auto Play aktif. Memulai perburuan...")
         startAutoPlay()
     else
         autoPlayBtn.Text = "▶ Start Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
-        updateLog("⏹ Auto Play dihentikan manual.")
+        updateDisplayLog("Auto Play dihentikan manual.")
     end
 end)
 
