@@ -59,7 +59,7 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Ukuran UI disesuaikan (FULL_H menjadi 300 untuk memuat Toggle Auto Execute)
+-- Ukuran UI disesuaikan (FULL_H menjadi 300)
 local FULL_W, FULL_H = 290, 300
 local MINI_W, MINI_H = 42, 42
 
@@ -222,7 +222,7 @@ animStroke(speedBox, 1)
 local function getTweenSpeed()
     local val = tonumber(speedBox.Text)
     if not val or val <= 0 then
-        return 20
+        return 16
     end
     return val
 end
@@ -267,7 +267,7 @@ end
 -- ==========================================
 -- TOMBOL TOGGLE AUTO EXECUTE SETELAH REJOIN
 -- ==========================================
-local autoExecuteEnabled = true -- Default aktif
+local autoExecuteEnabled = true
 local autoExecBtn = Instance.new("TextButton")
 autoExecBtn.Size = UDim2.new(1, -20, 0, 28)
 autoExecBtn.Position = UDim2.new(0, 10, 0, 140)
@@ -295,12 +295,11 @@ autoExecBtn.MouseButton1Click:Connect(function()
         autoExecBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
         autoExecBtn.TextColor3 = Color3.fromRGB(255, 180, 180)
         if queueTeleport then
-            pcall(function() queueTeleport("") end) -- Bersihkan queue jika dimatikan
+            pcall(function() queueTeleport("") end)
         end
     end
 end)
 
--- Pasang Auto Execute saat pertama kali script dijalankan jika aktif
 if autoExecuteEnabled then
     setupAutoExecute()
 end
@@ -694,7 +693,7 @@ autoPlayBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- EKSEKUSI OTOMATIS: PARTY GATE & AUTO START
+-- EKSEKUSI OTOMATIS: AUTO WALK & PROXIMITY PROMPT PARTY GATE
 -- ==========================================
 task.spawn(function()
     updateLog("🎯 Auto-Executing PartyGate...")
@@ -706,9 +705,38 @@ task.spawn(function()
             and workspace.PartyGates.Gate1:FindFirstChild("Marking") 
             and workspace.PartyGates.Gate1.Marking:FindFirstChild("Fill")
             
+        local gateModel = workspace.PartyGates.Gate1
+        local gatePrompt = gateModel:FindFirstChildOfClass("ProximityPrompt", true)
+
         if fillPart then
-            updateLog("🚶‍♂️ Berjalan ke PartyGates.Gate1.Marking.Fill...")
-            safeDistanceTween(fillPart.CFrame + Vector3.new(0, 3, 0))
+            updateLog("🚶‍♂️ Auto Walk ke PartyGates.Gate1.Marking.Fill...")
+            local player = players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and rootPart then
+                humanoid:MoveTo(fillPart.Position)
+                
+                -- Tunggu sampai karakter mendekati posisi Fill (jarak < 6 studs)
+                local timeout = tick()
+                while (rootPart.Position - fillPart.Position).Magnitude > 6 and (tick() - timeout < 15) do
+                    task.wait(0.2)
+                end
+            end
+
+            -- Eksekusi ProximityPrompt secara spam loop di gate jika ditemukan
+            if gatePrompt then
+                updateLog("🔓 Spamming ProximityPrompt di Gate1...")
+                gatePrompt.HoldDuration = 0
+                local promptTimeout = tick()
+                while gatePrompt.Enabled and (tick() - promptTimeout < 5) do
+                    pcall(function()
+                        fireproximityprompt(gatePrompt)
+                    end)
+                    task.wait(0.15)
+                end
+            end
         else
             updateLog("⚠️ Warning: Gate1 Fill tidak ditemukan, melewati jalan...")
         end
