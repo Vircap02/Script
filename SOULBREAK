@@ -2,9 +2,6 @@ local coreGui = cloneref(game:GetService("CoreGui"))
 local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
-local teleportService = game:GetService("TeleportService")
-local players = game:GetService("Players")
-local player = players.LocalPlayer
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
@@ -159,41 +156,11 @@ Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
 -- ==========================================
--- FUNGSI DETEKSI PHASE 7 & AUTO REJOIN
--- ==========================================
-local function checkPhase7AndRejoin()
-    for _, desc in ipairs(workspace:GetDescendants()) do
-        local nameLower = desc.Name:lower()
-        -- Mengecek apakah ada objek/teks yang menandakan Phase 7
-        if nameLower:find("phase 7") or nameLower:find("phase7") then
-            print("Phase 7 terdeteksi! Melakukan rejoin...")
-            pcall(function()
-                teleportService:Teleport(game.PlaceId, player)
-            end)
-            return true
-        end
-    end
-    -- Tambahan pengecekan GUI jika teks Phase 7 muncul di PlayerGui / CoreGui
-    for _, guiObj in ipairs(player:FindFirstChild("PlayerGui") and player.PlayerGui:GetDescendants() or {}) do
-        if guiObj:IsA("TextLabel") or guiObj:IsA("TextButton") then
-            local textLower = guiObj.Text:lower()
-            if textLower:find("phase 7") or textLower:find("phase7") then
-                print("Phase 7 terdeteksi via UI! Melakukan rejoin...")
-                pcall(function()
-                    teleportService:Teleport(game.PlaceId, player)
-                end)
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- ==========================================
 -- FUNGSI ANTI-CHEAT BYPASS JARAK (STEPPING TWEEN)
 -- ==========================================
 local function safeDistanceTween(targetCFrame, speed)
-    speed = speed or 16 
+    speed = speed or 16 -- Kecepatan standar (Studs per detik)
+    local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     
@@ -206,15 +173,15 @@ local function safeDistanceTween(targetCFrame, speed)
     local oldAnchored = humanoidRootPart.Anchored
     humanoidRootPart.Anchored = true
 
+    -- Jika jarak sangat jauh (> 50 studs), pecah jadi beberapa bagian (stepping) untuk bypass anti-cheat jarak
     if totalDistance > 50 then
-        local maxStepDistance = 40 
+        local maxStepDistance = 40 -- Maksimal jarak per loncatan agar aman
         local steps = math.ceil(totalDistance / maxStepDistance)
         
         for i = 1, steps do
-            if checkPhase7AndRejoin() then return end
             local alpha = i / steps
             local intermediatePos = startPos:Lerp(endPos, alpha)
-            local intermediateCFrame = CFrame.new(intermediatePos) * (targetCFrame - endPos)
+            local intermediateCFrame = CFrame.new(intermediatePos) * (targetCFrame - endPos) -- Pertahankan rotasi target di akhir
             
             local stepDist = (humanoidRootPart.Position - intermediatePos).Magnitude
             local duration = stepDist / speed
@@ -226,6 +193,7 @@ local function safeDistanceTween(targetCFrame, speed)
             tween.Completed:Wait()
         end
     else
+        -- Jika jarak dekat, langsung tween biasa
         local duration = totalDistance / speed
         if duration < 0.2 then duration = 0.2 end
 
@@ -280,8 +248,7 @@ local autoPlayEnabled = false
 local function startAutoPlay()
     task.spawn(function()
         while autoPlayEnabled do
-            if checkPhase7AndRejoin() then break end
-
+            local player = game.Players.LocalPlayer
             local character = player.Character or player.CharacterAdded:Wait()
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             
@@ -296,7 +263,6 @@ local function startAutoPlay()
             autoPlayBtn.Text = "🔄 Auto Play: Key ➔ Padlock..."
             local working = true
             while autoPlayEnabled and working do
-                if checkPhase7AndRejoin() then break end
                 working = false
                 local targetKey, targetKeyPrompt = nil, nil
 
@@ -328,7 +294,6 @@ local function startAutoPlay()
 
                         local timeout = tick()
                         while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 5) do
-                            if checkPhase7AndRejoin() then break end
                             pcall(function() fireproximityprompt(targetKeyPrompt) end)
                             task.wait(0.4)
                         end
@@ -354,7 +319,7 @@ local function startAutoPlay()
                 end
 
                 if targetCage and targetCagePrompt then
-                    working = true 
+                    working = true -- Tandai bahwa pasangan key-padlock masih ditemukan dan dikerjakan
                     local targetCFrame
                     pcall(function()
                         targetCFrame = targetCage:IsA("Model") and targetCage:GetPivot() or targetCage.CFrame
@@ -369,7 +334,6 @@ local function startAutoPlay()
 
                         local timeout = tick()
                         while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 5) do
-                            if checkPhase7AndRejoin() then break end
                             pcall(function() fireproximityprompt(targetCagePrompt) end)
                             task.wait(0.4)
                         end
@@ -380,7 +344,6 @@ local function startAutoPlay()
             end
 
             if not autoPlayEnabled then break end
-            if checkPhase7AndRejoin() then break end
 
             -- 3. Pergi ke ExitPortal setelah semua Key & Padlock bersih
             autoPlayBtn.Text = "🚪 Menuju ExitPortal..."
@@ -426,7 +389,6 @@ local function startAutoPlay()
             autoPlayBtn.Text = "⏳ Menunggu Fase Berikutnya..."
             local waitingForNextPhase = true
             while autoPlayEnabled and waitingForNextPhase do
-                if checkPhase7AndRejoin() then break end
                 for _, d in ipairs(workspace:GetDescendants()) do
                     if string.match(d.Name, "_Key") then
                         local p = d:FindFirstChildOfClass("ProximityPrompt")
