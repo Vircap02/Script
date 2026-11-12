@@ -1,0 +1,596 @@
+local coreGui = cloneref(game:GetService("CoreGui"))
+local userInputService = cloneref(game:GetService("UserInputService"))
+local runService = cloneref(game:GetService("RunService"))
+local tweenService = cloneref(game:GetService("TweenService"))
+local teleportService = game:GetService("TeleportService")
+local players = game:GetService("Players")
+local player = players.LocalPlayer
+
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local MIN_HOVER = Color3.fromRGB(70, 35, 18)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15) -- Merah gelap khas horor
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)  -- Merah terang saat disentuh
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+-- Ukuran UI (FULL_H diset ke 114 untuk memuat tombol utama)
+local FULL_W, FULL_H = 290, 114
+local MINI_W, MINI_H = 42, 42
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar di sebelah kiri Judul Utama
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -96, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "SOULBREAK"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- Tombol Close (X) di dalam panel utama (posisi paling kanan)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Minimize (-) bergeser sedikit ke kiri agar ada ruang untuk tombol Close
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+-- Pop-up ikon kecil menggunakan gambar kustom saat minimize
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- ==========================================
+-- FUNGSI DETEKSI PHASE 7 & AUTO REJOIN
+-- ==========================================
+local function checkPhase7AndRejoin()
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        local nameLower = desc.Name:lower()
+        -- Mengecek apakah ada objek/teks yang menandakan Phase 7
+        if nameLower:find("phase 7") or nameLower:find("phase7") then
+            print("Phase 7 terdeteksi! Melakukan rejoin...")
+            pcall(function()
+                teleportService:Teleport(game.PlaceId, player)
+            end)
+            return true
+        end
+    end
+    -- Tambahan pengecekan GUI jika teks Phase 7 muncul di PlayerGui / CoreGui
+    for _, guiObj in ipairs(player:FindFirstChild("PlayerGui") and player.PlayerGui:GetDescendants() or {}) do
+        if guiObj:IsA("TextLabel") or guiObj:IsA("TextButton") then
+            local textLower = guiObj.Text:lower()
+            if textLower:find("phase 7") or textLower:find("phase7") then
+                print("Phase 7 terdeteksi via UI! Melakukan rejoin...")
+                pcall(function()
+                    teleportService:Teleport(game.PlaceId, player)
+                end)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- ==========================================
+-- FUNGSI ANTI-CHEAT BYPASS JARAK (STEPPING TWEEN)
+-- ==========================================
+local function safeDistanceTween(targetCFrame, speed)
+    speed = speed or 16 
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoidRootPart then return end
+
+    local startPos = humanoidRootPart.Position
+    local endPos = targetCFrame.Position
+    local totalDistance = (startPos - endPos).Magnitude
+
+    local oldAnchored = humanoidRootPart.Anchored
+    humanoidRootPart.Anchored = true
+
+    if totalDistance > 50 then
+        local maxStepDistance = 40 
+        local steps = math.ceil(totalDistance / maxStepDistance)
+        
+        for i = 1, steps do
+            if checkPhase7AndRejoin() then return end
+            local alpha = i / steps
+            local intermediatePos = startPos:Lerp(endPos, alpha)
+            local intermediateCFrame = CFrame.new(intermediatePos) * (targetCFrame - endPos)
+            
+            local stepDist = (humanoidRootPart.Position - intermediatePos).Magnitude
+            local duration = stepDist / speed
+            if duration < 0.15 then duration = 0.15 end
+
+            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+            local tween = tweenService:Create(humanoidRootPart, tweenInfo, {CFrame = intermediateCFrame})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+    else
+        local duration = totalDistance / speed
+        if duration < 0.2 then duration = 0.2 end
+
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+        local tween = tweenService:Create(humanoidRootPart, tweenInfo, {CFrame = targetCFrame})
+        tween:Play()
+        tween.Completed:Wait()
+    end
+
+    humanoidRootPart.Anchored = oldAnchored
+end
+
+-- ==========================================
+-- TOMBOL UTAMA: AUTO PLAY
+-- ==========================================
+local autoPlayBtn = Instance.new("TextButton")
+autoPlayBtn.Size = UDim2.new(1, -20, 0, 56)
+autoPlayBtn.Position = UDim2.new(0, 10, 0, 40)
+autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
+autoPlayBtn.Text = "▶ Start Auto Play"
+autoPlayBtn.Font = Enum.Font.GothamBold
+autoPlayBtn.TextSize = 12
+autoPlayBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+autoPlayBtn.BorderSizePixel = 0
+autoPlayBtn.AutoButtonColor = false
+autoPlayBtn.Parent = main
+
+Instance.new("UICorner", autoPlayBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoPlayBtn, 1)
+
+local autoPlayScale = Instance.new("UIScale")
+autoPlayScale.Scale = 1
+autoPlayScale.Parent = autoPlayBtn
+
+autoPlayBtn.MouseEnter:Connect(function()
+    tweenService:Create(autoPlayBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 30, 80)}):Play()
+end)
+
+autoPlayBtn.MouseLeave:Connect(function()
+    tweenService:Create(autoPlayBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 20, 50)}):Play()
+end)
+
+autoPlayBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(autoPlayScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.95}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(autoPlayScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+local autoPlayEnabled = false
+
+local function startAutoPlay()
+    task.spawn(function()
+        while autoPlayEnabled do
+            if checkPhase7AndRejoin() then break end
+
+            local character = player.Character or player.CharacterAdded:Wait()
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if not rootPart then 
+                task.wait(1)
+                continue 
+            end
+
+            local activeAreaParent = nil
+
+            -- Logika Berpasangan: Ambil 1 Key -> Buka 1 Padlock -> Ulangi sampai habis
+            autoPlayBtn.Text = "🔄 Auto Play: Key ➔ Padlock..."
+            local working = true
+            while autoPlayEnabled and working do
+                if checkPhase7AndRejoin() then break end
+                working = false
+                local targetKey, targetKeyPrompt = nil, nil
+
+                -- 1. Cari 1 Key yang Aktif
+                for _, descendant in ipairs(workspace:GetDescendants()) do
+                    if string.match(descendant.Name, "_Key") then
+                        local prompt = descendant:FindFirstChildOfClass("ProximityPrompt")
+                        if prompt and prompt.Enabled then
+                            targetKey = descendant
+                            targetKeyPrompt = prompt
+                            activeAreaParent = descendant.Parent
+                            break
+                        end
+                    end
+                end
+
+                if targetKey and targetKeyPrompt then
+                    local targetCFrame
+                    pcall(function()
+                        targetCFrame = targetKey:IsA("Model") and targetKey:GetPivot() or targetKey.CFrame
+                    end)
+
+                    if targetCFrame then
+                        autoPlayBtn.Text = "🔑 Menuju & Mengambil Key..."
+                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        targetKeyPrompt.HoldDuration = 0
+                        task.wait(0.1)
+                        pcall(function() fireproximityprompt(targetKeyPrompt) end)
+
+                        local timeout = tick()
+                        while autoPlayEnabled and targetKey and targetKey.Parent and targetKeyPrompt.Enabled and (tick() - timeout < 5) do
+                            if checkPhase7AndRejoin() then break end
+                            pcall(function() fireproximityprompt(targetKeyPrompt) end)
+                            task.wait(0.4)
+                        end
+                    end
+                end
+
+                if not autoPlayEnabled then break end
+
+                -- 2. Setelah Key diambil, langsung cari & buka 1 Padlock pasangannya
+                local targetCage, targetCagePrompt = nil, nil
+                for _, descendant in ipairs(workspace:GetDescendants()) do
+                    if string.match(descendant.Name, "_Padlock") then
+                        local prompt = descendant:FindFirstChildOfClass("ProximityPrompt")
+                        if prompt and prompt.Enabled then
+                            targetCage = descendant
+                            targetCagePrompt = prompt
+                            if not activeAreaParent then
+                                activeAreaParent = descendant.Parent
+                            end
+                            break
+                        end
+                    end
+                end
+
+                if targetCage and targetCagePrompt then
+                    working = true 
+                    local targetCFrame
+                    pcall(function()
+                        targetCFrame = targetCage:IsA("Model") and targetCage:GetPivot() or targetCage.CFrame
+                    end)
+
+                    if targetCFrame then
+                        autoPlayBtn.Text = "🔓 Menuju & Membuka Padlock..."
+                        safeDistanceTween(targetCFrame + Vector3.new(0, 3, 0), 16)
+                        targetCagePrompt.HoldDuration = 0
+                        task.wait(0.1)
+                        pcall(function() fireproximityprompt(targetCagePrompt) end)
+
+                        local timeout = tick()
+                        while autoPlayEnabled and targetCage and targetCage.Parent and targetCagePrompt.Enabled and (tick() - timeout < 5) do
+                            if checkPhase7AndRejoin() then break end
+                            pcall(function() fireproximityprompt(targetCagePrompt) end)
+                            task.wait(0.4)
+                        end
+                    end
+                end
+                
+                task.wait(0.2)
+            end
+
+            if not autoPlayEnabled then break end
+            if checkPhase7AndRejoin() then break end
+
+            -- 3. Pergi ke ExitPortal setelah semua Key & Padlock bersih
+            autoPlayBtn.Text = "🚪 Menuju ExitPortal..."
+            local targetExit = nil
+
+            if activeAreaParent then
+                for _, child in ipairs(activeAreaParent:GetChildren()) do
+                    if string.match(child.Name, "ExitPortal") then
+                        targetExit = child
+                        break
+                    end
+                end
+            end
+
+            if not targetExit then
+                local minDistance = math.huge
+                for _, desc in ipairs(workspace:GetDescendants()) do
+                    if string.match(desc.Name, "ExitPortal") then
+                        local part = desc:IsA("Model") and (desc.PrimaryPart or desc:FindFirstChildWhichIsA("BasePart")) or (desc:IsA("BasePart") and desc)
+                        if part then
+                            local dist = (rootPart and (rootPart.Position - part.Position).Magnitude) or 0
+                            if dist < minDistance then
+                                minDistance = dist
+                                targetExit = desc
+                            end
+                        end
+                    end
+                end
+            end
+
+            local exitCFrame = nil
+            if targetExit then
+                pcall(function()
+                    exitCFrame = targetExit:IsA("Model") and targetExit:GetPivot() or targetExit.CFrame
+                end)
+
+                if exitCFrame then
+                    safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0), 16)
+                end
+            end
+
+            -- 4. Menunggu fase berikutnya
+            autoPlayBtn.Text = "⏳ Menunggu Fase Berikutnya..."
+            local waitingForNextPhase = true
+            while autoPlayEnabled and waitingForNextPhase do
+                if checkPhase7AndRejoin() then break end
+                for _, d in ipairs(workspace:GetDescendants()) do
+                    if string.match(d.Name, "_Key") then
+                        local p = d:FindFirstChildOfClass("ProximityPrompt")
+                        if p and p.Enabled then
+                            waitingForNextPhase = false
+                            break
+                        end
+                    end
+                end
+
+                if waitingForNextPhase and exitCFrame and rootPart then
+                    if (rootPart.Position - exitCFrame.Position).Magnitude > 5 then
+                        pcall(function()
+                            safeDistanceTween(exitCFrame + Vector3.new(0, 3, 0), 16)
+                        end)
+                    end
+                end
+
+                task.wait(0.5)
+            end
+            
+            task.wait(0.5)
+        end
+    end)
+end
+
+autoPlayBtn.MouseButton1Click:Connect(function()
+    autoPlayEnabled = not autoPlayEnabled
+    if autoPlayEnabled then
+        autoPlayBtn.Text = "⏹ Stop Auto Play"
+        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+        startAutoPlay()
+    else
+        autoPlayBtn.Text = "▶ Start Auto Play"
+        autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
+        print("Auto Play dihentikan.")
+    end
+end)
+
+-- ==========================================
+-- INTERAKSI & EVENT GUI (Minimize, Close, Drag)
+-- ==========================================
+
+minBtn.MouseEnter:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+end)
+
+minBtn.MouseLeave:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+end)
+
+minBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+    tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+        tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+closeBtn.MouseEnter:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+end)
+
+closeBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+    tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    autoPlayEnabled = false
+    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    })
+    tweenClose:Play()
+    tweenClose.Completed:Connect(function()
+        gui:Destroy()
+    end)
+end)
+
+minBtn.MouseButton1Click:Connect(function()
+    minimized = true
+    floatingIcon.Position = main.Position
+    
+    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, MINI_W, 0, MINI_H),
+        BackgroundTransparency = 1
+    })
+    
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        if minimized then
+            main.Visible = false
+            floatingIcon.Visible = true
+        end
+    end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+    minimized = false
+    main.Position = floatingIcon.Position
+    main.Visible = true
+    floatingIcon.Visible = false
+    
+    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+    main.BackgroundTransparency = 1
+    
+    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, FULL_W, 0, FULL_H),
+        BackgroundTransparency = 0.15
+    })
+    tweenIn:Play()
+end)
+
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                dragging = true
+                dragStart = i.Position
+                startPos = obj.Position
+            end
+        end)
+    end
+    
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local targetObj = minimized and floatingIcon or main
+            local gs = targetObj.AbsoluteSize
+            
+            targetObj.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+            )
+        end
+    end)
+    
+    userInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
