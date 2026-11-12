@@ -480,6 +480,10 @@ local autoPlayEnabled = false
 
 local function startAutoPlay()
     task.spawn(function()
+        -- Jeda waktu tunggu 5 detik setelah berpindah arena / map baru sebelum mulai play
+        updateLog("⏳ Menunggu 5 detik agar arena baru stabil...")
+        task.wait(5.0)
+
         while autoPlayEnabled do
             local currentPhase = getCurrentPhase()
             local targetMaxPhase = getMaxPhase()
@@ -682,7 +686,7 @@ autoPlayBtn.MouseButton1Click:Connect(function()
     if autoPlayEnabled then
         autoPlayBtn.Text = "⏹ Stop Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
-        updateLog("▶ Auto Play diaktifkan.")
+        updateLog("▶ Auto Play diaktifkan. Menunggu 5 detik stabilisasi...")
         startAutoPlay()
     else
         autoPlayBtn.Text = "▶ Start Auto Play"
