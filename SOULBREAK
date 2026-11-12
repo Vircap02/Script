@@ -4,6 +4,7 @@ local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local teleportService = cloneref(game:GetService("TeleportService"))
 local players = cloneref(game:GetService("Players"))
+local replicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
@@ -381,7 +382,7 @@ local logText = Instance.new("TextLabel")
 logText.Size = UDim2.new(1, -10, 0, 32)
 logText.Position = UDim2.new(0, 6, 0, 18)
 logText.BackgroundTransparency = 1
-logText.Text = "Status: Menunggu tombol Start Auto Play ditekan..."
+logText.Text = "Status: Memulai PartyGate otomatis..."
 logText.Font = Enum.Font.GothamMedium
 logText.TextSize = 9
 logText.TextColor3 = Color3.fromRGB(180, 220, 255)
@@ -480,10 +481,6 @@ local autoPlayEnabled = false
 
 local function startAutoPlay()
     task.spawn(function()
-        -- Jeda waktu tunggu 5 detik setelah berpindah arena / map baru sebelum mulai play
-        updateLog("⏳ Menunggu 5 detik agar arena baru stabil...")
-        task.wait(5.0)
-
         while autoPlayEnabled do
             local currentPhase = getCurrentPhase()
             local targetMaxPhase = getMaxPhase()
@@ -686,13 +683,104 @@ autoPlayBtn.MouseButton1Click:Connect(function()
     if autoPlayEnabled then
         autoPlayBtn.Text = "⏹ Stop Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
-        updateLog("▶ Auto Play diaktifkan. Menunggu 5 detik stabilisasi...")
+        updateLog("▶ Auto Play diaktifkan.")
         startAutoPlay()
     else
         autoPlayBtn.Text = "▶ Start Auto Play"
         autoPlayBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
         updateLog("⏹ Auto Play dihentikan manual.")
     end
+end)
+
+-- ==========================================
+-- EKSEKUSI OTOMATIS: AUTO WALK, PARTY GATE, & JEDA 10 DETIK
+-- ==========================================
+task.spawn(function()
+    updateLog("🎯 Auto-Executing PartyGate...")
+    task.wait(1)
+    
+    pcall(function()
+        local fillPart = workspace:FindFirstChild("PartyGates") 
+            and workspace.PartyGates:FindFirstChild("Gate1") 
+            and workspace.PartyGates.Gate1:FindFirstChild("Marking") 
+            and workspace.PartyGates.Gate1.Marking:FindFirstChild("Fill")
+            
+        local gateModel = workspace.PartyGates and workspace.PartyGates:FindFirstChild("Gate1")
+        local gatePrompt = gateModel and gateModel:FindFirstChildOfClass("ProximityPrompt", true)
+
+        if fillPart then
+            updateLog("🚶‍♂️ Auto Walk ke PartyGates.Gate1.Marking.Fill...")
+            local player = players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and rootPart then
+                humanoid:MoveTo(fillPart.Position)
+                
+                local timeout = tick()
+                while (rootPart.Position - fillPart.Position).Magnitude > 6 and (tick() - timeout < 15) do
+                    task.wait(0.2)
+                end
+            end
+
+            if gatePrompt then
+                updateLog("🔓 Spamming ProximityPrompt di Gate1...")
+                gatePrompt.HoldDuration = 0
+                local promptTimeout = tick()
+                while gatePrompt.Enabled and (tick() - promptTimeout < 5) do
+                    pcall(function()
+                        fireproximityprompt(gatePrompt)
+                    end)
+                    task.wait(0.15)
+                end
+            end
+        else
+            updateLog("⚠️ Warning: Gate1 Fill tidak ditemukan, melewati jalan...")
+        end
+    end)
+
+    task.wait(0.5)
+
+    pcall(function()
+        updateLog("📡 Mengirim PartyRequest (Create)...")
+        local args = {
+            "Create",
+            {
+                monsters = 3,
+                capacity = 1,
+                difficulty = "Normal",
+                gateIndex = 1
+            }
+        }
+        replicatedStorage:WaitForChild("SpectralPrison"):WaitForChild("Remotes"):WaitForChild("PartyRequest"):FireServer(unpack(args))
+    end)
+
+    updateLog("⏳ Menunggu 1 detik sebelum StartNow...")
+    task.wait(1.0)
+
+    pcall(function()
+        updateLog("📡 Mengirim PartyRequest (StartNow)...")
+        local args = {
+            "StartNow"
+        }
+        replicatedStorage:WaitForChild("SpectralPrison"):WaitForChild("Remotes"):WaitForChild("PartyRequest"):FireServer(unpack(args))
+    end)
+
+    -- JEDA 10 DETIK SETELAH PARTY SELESAI / MASUK MAP
+    updateLog("⏳ Party selesai! Menunggu 10 detik sebelum menjalankan fungsi utama...")
+    for i = 10, 1, -1 do
+        updateLog("⏳ Menunggu loading map... (" .. i .. " detik tersisa)")
+        task.wait(1.0)
+    end
+
+    updateLog("🚀 Memulai otomatis fungsi utama (Key/Pad/Portal)...")
+    task.wait(0.5)
+
+    autoPlayEnabled = true
+    autoPlayBtn.Text = "⏹ Stop Auto Play"
+    autoPlayBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    startAutoPlay()
 end)
 
 -- ==========================================
