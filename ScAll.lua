@@ -708,6 +708,50 @@ createToggle("🔄 Auto Reconnect", 2, true, function(state) autoReconnectEnable
 --  FITUR TAMBAHAN DI MENU SETTING (SESUAI PERMINTAAN)
 -- ====================================================
 
+-- Tombol Emote (BARU)
+local emoteBtn = Instance.new("TextButton")
+emoteBtn.Size = UDim2.new(1, 0, 0, 32)
+emoteBtn.BackgroundColor3 = COL_ACCENT 
+emoteBtn.Text = "🕺 Open Emote"
+emoteBtn.Font = Enum.Font.GothamBold
+emoteBtn.TextSize = 11
+emoteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+emoteBtn.LayoutOrder = 2.05
+emoteBtn.ZIndex = 2
+emoteBtn.Parent = settingScroll
+Instance.new("UICorner", emoteBtn).CornerRadius = UDim.new(0, 6)
+animStroke(emoteBtn, 1)
+themeObjectsToUpdate[emoteBtn] = "BackgroundColor3"
+
+emoteBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Emote Script...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Emote"))()
+    end)
+end)
+
+-- Tombol Fire All Remote (BARU)
+local fireRemoteBtn = Instance.new("TextButton")
+fireRemoteBtn.Size = UDim2.new(1, 0, 0, 32)
+fireRemoteBtn.BackgroundColor3 = COL_ACCENT 
+fireRemoteBtn.Text = "🔥 Fire All Remote"
+fireRemoteBtn.Font = Enum.Font.GothamBold
+fireRemoteBtn.TextSize = 11
+fireRemoteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+fireRemoteBtn.LayoutOrder = 2.08
+fireRemoteBtn.ZIndex = 2
+fireRemoteBtn.Parent = settingScroll
+Instance.new("UICorner", fireRemoteBtn).CornerRadius = UDim.new(0, 6)
+animStroke(fireRemoteBtn, 1)
+themeObjectsToUpdate[fireRemoteBtn] = "BackgroundColor3"
+
+fireRemoteBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Fire All Remote...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Fire%20All%20remote"))()
+    end)
+end)
+
 -- 1. Tombol Infinite Yield
 local iyBtn = Instance.new("TextButton")
 iyBtn.Size = UDim2.new(1, 0, 0, 32)
@@ -1005,7 +1049,7 @@ hopBtn.MouseButton1Click:Connect(function()
     TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
 end)
 -- ====================================================
---  TOMBOL AUTO REFUND (MENU SETTING)[cite: 1]
+--  TOMBOL AUTO REFUND (MENU SETTING)
 -- ====================================================
 local autoRefundBtn = Instance.new("TextButton")
 autoRefundBtn.Size = UDim2.new(1, 0, 0, 32)
