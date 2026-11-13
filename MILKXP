@@ -1,0 +1,566 @@
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- State Variables
+local autoFarmActive = false
+local autoClaimActive = false
+local farmConnection = nil
+
+-- Daftar Target Zone Video untuk Tombol Siklus
+local zonePaths = {
+	Workspace:WaitForChild("Video"):WaitForChild("Video 1"):WaitForChild("Zone"),
+	Workspace:WaitForChild("Video"):WaitForChild("Video 2"):WaitForChild("Zone"),
+	Workspace:WaitForChild("Video"):WaitForChild("Video 3"):WaitForChild("Zone"),
+	Workspace:WaitForChild("Video"):WaitForChild("Video 4"):WaitForChild("Zone"),
+	Workspace:WaitForChild("Video"):WaitForChild("Video 5"):WaitForChild("Zone")
+}
+local currentVideoIndex = 1
+
+-- Bersihkan GUI lama jika ada
+if CoreGui:FindFirstChild("AceSniperUI") then
+	CoreGui.AceSniperUI:Destroy()
+end
+
+-- Tema Warna (Halloween Theme)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local MIN_HOVER = Color3.fromRGB(70, 35, 18)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
+
+local STROKE_CS = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+	local s = Instance.new("UIStroke")
+	s.Thickness = thick or 1
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	s.Color = Color3.new(1, 1, 1)
+	s.Parent = parent
+	
+	local g = Instance.new("UIGradient")
+	g.Color = STROKE_CS
+	g.Rotation = 45
+	g.Parent = s
+	
+	table.insert(allGrads, g)
+	return s
+end
+
+-- Buat ScreenGui di CoreGui (Diperbesar sedikit tingginya dari 355 ke 400 untuk memuat tombol baru)
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+local FULL_W, FULL_H = 280, 400
+local MINI_W, MINI_H = 42, 42
+
+-- Frame Utama
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.3, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+-- Judul GUI
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -96, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "MILKXP"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- Tombol Close (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Minimize (-)
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+-- Floating Icon saat Minimize
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- Container untuk Menu Konten di Dalam Panel Utama
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, 0, 1, -42)
+contentFrame.Position = UDim2.new(0, 0, 0, 42)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = main
+
+-- 1. Kotak Input Text UGC Target
+local ugcInputBox = Instance.new("TextBox")
+ugcInputBox.Size = UDim2.new(0.88, 0, 0, 32)
+ugcInputBox.Position = UDim2.new(0.06, 0, 0.02, 0)
+ugcInputBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+ugcInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+ugcInputBox.PlaceholderColor3 = Color3.fromRGB(150, 130, 180)
+ugcInputBox.PlaceholderText = "Target Angka"
+ugcInputBox.Text = "3"
+ugcInputBox.TextSize = 12
+ugcInputBox.Font = Enum.Font.GothamBold
+ugcInputBox.ClearTextOnFocus = false
+ugcInputBox.Parent = contentFrame
+Instance.new("UICorner", ugcInputBox).CornerRadius = UDim.new(0, 6)
+animStroke(ugcInputBox, 1)
+
+-- 2. Tombol Toggle Auto Farm Item
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.88, 0, 0, 35)
+toggleBtn.Position = UDim2.new(0.06, 0, 0.17, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 12
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Text = "Auto Farm: OFF"
+toggleBtn.Parent = contentFrame
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+animStroke(toggleBtn, 1)
+
+-- 3. Tombol Toggle Auto Claim / AUTO THETHING
+local claimBtn = Instance.new("TextButton")
+claimBtn.Size = UDim2.new(0.88, 0, 0, 35)
+claimBtn.Position = UDim2.new(0.06, 0, 0.32, 0)
+claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+claimBtn.TextSize = 12
+claimBtn.Font = Enum.Font.GothamBold
+claimBtn.Text = "AUTO THETHING : OFF"
+claimBtn.Parent = contentFrame
+Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 6)
+animStroke(claimBtn, 1)
+
+-- 4. Tombol Teleport Video Zone
+local zoneBtn = Instance.new("TextButton")
+zoneBtn.Size = UDim2.new(0.88, 0, 0, 35)
+zoneBtn.Position = UDim2.new(0.06, 0, 0.47, 0)
+zoneBtn.BackgroundColor3 = Color3.fromRGB(30, 45, 70)
+zoneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+zoneBtn.TextSize = 12
+zoneBtn.Font = Enum.Font.GothamBold
+zoneBtn.Text = "Teleport: Video 1"
+zoneBtn.Parent = contentFrame
+Instance.new("UICorner", zoneBtn).CornerRadius = UDim.new(0, 6)
+animStroke(zoneBtn, 1)
+
+-- 5. Tombol Trigger Quiz Run (ProximityPrompt MAP)
+local mapPromptBtn = Instance.new("TextButton")
+mapPromptBtn.Size = UDim2.new(0.88, 0, 0, 35)
+mapPromptBtn.Position = UDim2.new(0.06, 0, 0.62, 0)
+mapPromptBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 20)
+mapPromptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+mapPromptBtn.TextSize = 12
+mapPromptBtn.Font = Enum.Font.GothamBold
+mapPromptBtn.Text = "Trigger Quiz Run"
+mapPromptBtn.Parent = contentFrame
+Instance.new("UICorner", mapPromptBtn).CornerRadius = UDim.new(0, 6)
+animStroke(mapPromptBtn, 1)
+
+-- 6. Tombol Baru: All Server
+local allServerBtn = Instance.new("TextButton")
+allServerBtn.Size = UDim2.new(0.88, 0, 0, 35)
+allServerBtn.Position = UDim2.new(0.06, 0, 0.77, 0)
+allServerBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 70)
+allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+allServerBtn.TextSize = 12
+allServerBtn.Font = Enum.Font.GothamBold
+allServerBtn.Text = "All Server"
+allServerBtn.Parent = contentFrame
+Instance.new("UICorner", allServerBtn).CornerRadius = UDim.new(0, 6)
+animStroke(allServerBtn, 1)
+
+-- Label Status
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 22)
+statusLabel.Position = UDim2.new(0, 0, 0.91, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.Text = "Status: Idle"
+statusLabel.Parent = contentFrame
+
+-- Fungsi Logika Auto Farm Item & OpenBox
+local function startAutoFarm()
+	farmConnection = RunService.RenderStepped:Connect(function()
+		if not autoFarmActive then return end
+		
+		character = player.Character
+		if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+		humanoidRootPart = character.HumanoidRootPart
+
+		local itemSpawns = Workspace:FindFirstChild("ItemSpawns")
+		if itemSpawns then
+			local foundValidItem = false
+			
+			for _, spawnObj in ipairs(itemSpawns:GetChildren()) do
+				local item = spawnObj:FindFirstChild("Item") --[cite: 1]
+				
+				if item then
+					foundValidItem = true
+					local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+					
+					if targetPart and targetPart:IsA("BasePart") then
+						humanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+						
+						local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true) or spawnObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+						if prompt then
+							fireproximityprompt(prompt)
+							
+							pcall(function()
+								ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("OpenBox"):FireServer()
+							end)
+							
+							statusLabel.Text = "Status: Fired Item & OpenBox"
+							task.wait(0.3)
+						else
+							statusLabel.Text = "Status: Teleported (No Prompt)"
+						end
+						break 
+					end
+				end
+			end
+			
+			if not foundValidItem then
+				statusLabel.Text = "Status: Mencari Item..."
+			end
+		else
+			statusLabel.Text = "Status: ItemSpawns tidak ditemukan!"
+		end
+	end)
+end
+
+-- Event Tombol Toggle Auto Farm
+toggleBtn.MouseButton1Click:Connect(function()
+	autoFarmActive = not autoFarmActive
+	if autoFarmActive then
+		toggleBtn.Text = "Auto Farm: ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 75, 40)
+		startAutoFarm()
+	else
+		toggleBtn.Text = "Auto Farm: OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+		statusLabel.Text = "Status: Farm Stopped"
+		if farmConnection then
+			farmConnection:Disconnect()
+			farmConnection = nil
+		end
+	end
+end)
+
+-- Event Tombol Toggle Auto Claim (Disamakan persis dengan Script 1)
+claimBtn.MouseButton1Click:Connect(function()
+	autoClaimActive = not autoClaimActive
+
+	local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
+
+	if autoClaimActive then
+		claimBtn.Text = "AUTO THETHING : ON"
+		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
+		statusLabel.Text = "Status: Auto TheThing Running"
+
+		task.spawn(function()
+			while autoClaimActive do
+				for i = 1, 5 do
+					pcall(function()
+						event:FireServer("3")
+					end)
+				end
+				task.wait(1)
+			end
+		end)
+	else
+		claimBtn.Text = "AUTO THETHING : OFF"
+		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
+		statusLabel.Text = "Status: Auto TheThing Stopped"
+	end
+end)
+
+-- Event Tombol Teleport Video Zone
+zoneBtn.MouseButton1Click:Connect(function()
+	character = player.Character
+	if not character or not character:FindFirstChild("HumanoidRootPart") then
+		statusLabel.Text = "Status: Karakter tidak ditemukan!"
+		return
+	end
+	humanoidRootPart = character.HumanoidRootPart
+
+	local targetZone = zonePaths[currentVideoIndex]
+	
+	if targetZone and targetZone:IsA("BasePart") then
+		humanoidRootPart.CFrame = targetZone.CFrame + Vector3.new(0, 3, 0)
+		statusLabel.Text = "Status: TP ke Video " .. currentVideoIndex
+		
+		currentVideoIndex = currentVideoIndex + 1
+		if currentVideoIndex > #zonePaths then
+			currentVideoIndex = 1
+		end
+		
+		zoneBtn.Text = "Teleport: Video " .. currentVideoIndex
+	else
+		statusLabel.Text = "Status: Zone Video " .. currentVideoIndex .. " Error/Hilang!"
+	end
+end)
+
+-- Event Tombol Once Trigger ProximityPrompt di workspace.MAP
+mapPromptBtn.MouseButton1Click:Connect(function()
+	local mapFolder = Workspace:FindFirstChild("MAP")
+	if mapFolder then
+		local count = 0
+		for _, descendant in ipairs(mapFolder:GetDescendants()) do
+			if descendant:IsA("ProximityPrompt") then
+				pcall(function()
+					fireproximityprompt(descendant)
+				end)
+				count = count + 1
+			end
+		end
+		statusLabel.Text = "Status: Fired " .. count .. " Prompts di MAP!"
+	else
+		statusLabel.Text = "Status: Folder workspace.MAP tidak ada!"
+	end
+end)
+
+-- Event Tombol All Server (Loadstring Server Hop)
+allServerBtn.MouseButton1Click:Connect(function()
+	statusLabel.Text = "Status: Loading All Server..."
+	pcall(function()
+		loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/2vyodcg2o4"))()
+	end)
+end)
+
+-- Animasi Interaksi Minimize
+minBtn.MouseEnter:Connect(function()
+	TweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+end)
+
+minBtn.MouseLeave:Connect(function()
+	TweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+end)
+
+minBtn.MouseButton1Down:Connect(function()
+	TweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+	TweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+	task.delay(0.07, function()
+		TweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+		TweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+	end)
+end)
+
+-- Animasi Interaksi Close
+closeBtn.MouseEnter:Connect(function()
+	TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+	TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+end)
+
+closeBtn.MouseButton1Down:Connect(function()
+	TweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+	TweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	autoFarmActive = false
+	autoClaimActive = false
+	if farmConnection then
+		farmConnection:Disconnect()
+	end
+	
+	local tweenClose = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	})
+	tweenClose:Play()
+	tweenClose.Completed:Connect(function()
+		gui:Destroy()
+	end)
+end)
+
+-- Tombol Minimize & Restore Logic
+minBtn.MouseButton1Click:Connect(function()
+	minimized = true
+	floatingIcon.Position = main.Position
+	
+	local tweenOut = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, MINI_W, 0, MINI_H),
+		BackgroundTransparency = 1
+	})
+	
+	tweenOut:Play()
+	tweenOut.Completed:Connect(function()
+		if minimized then
+			main.Visible = false
+			floatingIcon.Visible = true
+		end
+	end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+	minimized = false
+	main.Position = floatingIcon.Position
+	main.Visible = true
+	floatingIcon.Visible = false
+	
+	main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+	main.BackgroundTransparency = 1
+	
+	local tweenIn = TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, FULL_W, 0, FULL_H),
+		BackgroundTransparency = 0.15
+	})
+	tweenIn:Play()
+end)
+
+-- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
+do
+	local dragging, dragStart, startPos = false, nil, nil
+	
+	local function applyDrag(obj)
+		obj.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+				local abs = obj.AbsolutePosition
+				obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+				dragging = true
+				dragStart = i.Position
+				startPos = obj.Position
+			end
+		end)
+	end
+	
+	applyDrag(main)
+	applyDrag(floatingIcon)
+	
+	UserInputService.InputChanged:Connect(function(i)
+		if not dragging then return end
+		if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+			local d = i.Position - dragStart
+			local vp = workspace.CurrentCamera.ViewportSize
+			local targetObj = minimized and floatingIcon or main
+			local gs = targetObj.AbsoluteSize
+			
+			targetObj.Position = UDim2.new(
+				0,
+				math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+				0,
+				math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+			)
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+-- Animasi Efek Garis Bergerak (Stroke Gradient)
+RunService.RenderStepped:Connect(function()
+	local off = Vector2.new(math.sin(tick() * 2.8), 0)
+	for _, g in ipairs(allGrads) do
+		g.Offset = off
+	end
+end)
