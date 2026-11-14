@@ -31,10 +31,10 @@ local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
 local MIN_HOVER = Color3.fromRGB(70, 35, 18)
 local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
 local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
-local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45) -- Warna biru gelap untuk tombol rejoin
+local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45)
 local REJOIN_HOVER = Color3.fromRGB(30, 55, 75)
 
--- Warna Tombol Toggle
+-- Warna Tombol Toggle (Langsung ON saat start)
 local TOGGLE_OFF = Color3.fromRGB(35, 20, 45)
 local TOGGLE_ON = Color3.fromRGB(220, 100, 0)
 
@@ -124,17 +124,17 @@ desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
--- Tombol Utama Toggle
-local isRunning = false
+-- Status Awal Langsung ON
+local isRunning = true
 local farmThread = nil
 local playtimeThread = nil
 
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -20, 0, 24)
 toggleBtn.Position = UDim2.new(0, 10, 0, 40)
-toggleBtn.BackgroundColor3 = TOGGLE_OFF
-toggleBtn.Text = "AUTO FARM ALL : OFF"
-toggleBtn.TextColor3 = Color3.fromRGB(220, 200, 255)
+toggleBtn.BackgroundColor3 = TOGGLE_ON
+toggleBtn.Text = "AUTO FARM ALL : ON"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextSize = 10
 toggleBtn.BorderSizePixel = 0
@@ -178,7 +178,7 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -20, 0, 14)
 statusLabel.Position = UDim2.new(0, 10, 0, 102)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: Idle"
+statusLabel.Text = "Status: Memulai..."
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextSize = 9
 statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
@@ -277,7 +277,6 @@ local function triggerRejoin()
     end)
 end
 
--- Interaksi Tombol Rejoin Manual
 rejoinBtn.MouseEnter:Connect(function()
     tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = REJOIN_HOVER}):Play()
 end)
@@ -520,3 +519,6 @@ runService.RenderStepped:Connect(function()
         g.Offset = off
     end
 end)
+
+-- Langsung jalankan fungsi farm otomatis saat script dieksekusi
+startFarm()
