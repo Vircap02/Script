@@ -4,33 +4,29 @@ local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local Players = cloneref(game:GetService("Players"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
-local httpService = cloneref(game:GetService("HttpService"))
 local teleportService = cloneref(game:GetService("TeleportService"))
 
--- Nama file konfigurasi penyimpanan
-local CONFIG_FILE = "Virgoboy_AutoRejoin_Config.json"
+-- Sistem Penyimpanan Config (Auto Save/Load)
+local CONFIG_FILE = "VirgoboyAutoFarm_Config.json"
 
--- Fungsi untuk memuat data yang tersimpan
-local function loadConfig()
-    if writefile and readfile and isfile and isfile(CONFIG_FILE) then
-        local success, result = pcall(function()
-            return httpService:JSONDecode(readfile(CONFIG_FILE))
+local function saveConfig(val)
+    if writefile then
+        local success, err = pcall(function()
+            writefile(CONFIG_FILE, tostring(val))
         end)
-        if success and result and result.rounds then
-            return tostring(result.rounds)
+    end
+end
+
+local function loadConfig()
+    if readfile and isfile and isfile(CONFIG_FILE) then
+        local success, result = pcall(function()
+            return readfile(CONFIG_FILE)
+        end)
+        if success and result then
+            return string.gsub(result, "%s+", "") -- Hapus spasi/newline berlebih
         end
     end
     return "1" -- Default jika file belum ada
-end
-
--- Fungsi untuk menyimpan data otomatis
-local function saveConfig(roundsValue)
-    if writefile then
-        pcall(function()
-            local data = {rounds = tonumber(roundsValue) or 1}
-            writefile(CONFIG_FILE, httpService:JSONEncode(data))
-        end)
-    end
 end
 
 -- 1. Otomatis jalankan loadstring utama saat pertama kali dieksekusi
@@ -61,7 +57,7 @@ local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
 local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45)
 local REJOIN_HOVER = Color3.fromRGB(30, 55, 75)
 
--- Warna Tombol Toggle (Langsung ON saat start)
+-- Warna Tombol Toggle
 local TOGGLE_OFF = Color3.fromRGB(35, 20, 45)
 local TOGGLE_ON = Color3.fromRGB(220, 100, 0)
 
@@ -174,7 +170,7 @@ local toggleScale = Instance.new("UIScale")
 toggleScale.Scale = 1
 toggleScale.Parent = toggleBtn
 
--- Input Text untuk Atur Jumlah Putaran Auto Rejoin (Load data tersimpan)
+-- Input Text untuk Atur Jumlah Putaran Auto Rejoin (Muat dari Config)
 local inputLabel = Instance.new("TextLabel")
 inputLabel.Size = UDim2.new(0, 140, 0, 22)
 inputLabel.Position = UDim2.new(0, 10, 0, 70)
@@ -190,7 +186,7 @@ local rejoinInput = Instance.new("TextBox")
 rejoinInput.Size = UDim2.new(0, 120, 0, 22)
 rejoinInput.Position = UDim2.new(1, -130, 0, 70)
 rejoinInput.BackgroundColor3 = Color3.fromRGB(25, 18, 35)
-rejoinInput.Text = loadConfig() -- Memuat konfigurasi yang tersimpan sebelumnya
+rejoinInput.Text = loadConfig() -- Load nilai tersimpan sebelumnya
 rejoinInput.Font = Enum.Font.GothamBold
 rejoinInput.TextSize = 10
 rejoinInput.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -200,7 +196,7 @@ rejoinInput.Parent = main
 Instance.new("UICorner", rejoinInput).CornerRadius = UDim.new(0, 5)
 animStroke(rejoinInput, 1)
 
--- Event otomatis simpan setiap kali isi textbox diubah/fokus lepas
+-- Event otomatis simpan setiap kali isi textbox diubah
 rejoinInput.FocusLost:Connect(function()
     saveConfig(rejoinInput.Text)
 end)
@@ -293,9 +289,6 @@ animStroke(floatingIcon, 1.5)
 -- FUNGSI REJOIN UTAMA
 -- ==========================================
 local function triggerRejoin()
-    -- Simpan konfigurasi terakhir sebelum rejoin
-    saveConfig(rejoinInput.Text)
-    
     if queueFunction then
         pcall(function()
             queueFunction([[
@@ -541,7 +534,7 @@ do
         end
     end)
     
-    userInputService.InputEnded:Context(function(i)
+    userInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
