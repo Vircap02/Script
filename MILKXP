@@ -65,13 +65,13 @@ local function animStroke(parent, thick)
 	return s
 end
 
--- Buat ScreenGui di CoreGui (Diperbesar sedikit tingginya dari 355 ke 400 untuk memuat tombol baru)
+-- Buat ScreenGui di CoreGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = CoreGui
 
-local FULL_W, FULL_H = 280, 400
+local FULL_W, FULL_H = 280, 455
 local MINI_W, MINI_H = 42, 42
 
 -- Frame Utama
@@ -189,10 +189,26 @@ contentFrame.Position = UDim2.new(0, 0, 0, 42)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = main
 
+-- Display Timer
+local timerDisplay = Instance.new("TextLabel")
+timerDisplay.Size = UDim2.new(0.88, 0, 0, 42)
+timerDisplay.Position = UDim2.new(0.06, 0, 0.01, 0)
+timerDisplay.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
+timerDisplay.TextColor3 = Color3.fromRGB(255, 200, 50)
+timerDisplay.TextSize = 10
+timerDisplay.Font = Enum.Font.GothamBold
+timerDisplay.Text = "Timer: Loading..."
+timerDisplay.TextWrapped = true
+timerDisplay.TextXAlignment = Enum.TextXAlignment.Center
+timerDisplay.TextYAlignment = Enum.TextYAlignment.Center
+timerDisplay.Parent = contentFrame
+Instance.new("UICorner", timerDisplay).CornerRadius = UDim.new(0, 6)
+animStroke(timerDisplay, 1)
+
 -- 1. Kotak Input Text UGC Target
 local ugcInputBox = Instance.new("TextBox")
-ugcInputBox.Size = UDim2.new(0.88, 0, 0, 32)
-ugcInputBox.Position = UDim2.new(0.06, 0, 0.02, 0)
+ugcInputBox.Size = UDim2.new(0.88, 0, 0, 30)
+ugcInputBox.Position = UDim2.new(0.06, 0, 0.12, 0)
 ugcInputBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 ugcInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 ugcInputBox.PlaceholderColor3 = Color3.fromRGB(150, 130, 180)
@@ -207,8 +223,8 @@ animStroke(ugcInputBox, 1)
 
 -- 2. Tombol Toggle Auto Farm Item
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0.88, 0, 0, 35)
-toggleBtn.Position = UDim2.new(0.06, 0, 0.17, 0)
+toggleBtn.Size = UDim2.new(0.88, 0, 0, 32)
+toggleBtn.Position = UDim2.new(0.06, 0, 0.245, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.TextSize = 12
@@ -218,10 +234,10 @@ toggleBtn.Parent = contentFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 animStroke(toggleBtn, 1)
 
--- 3. Tombol Toggle Auto Claim / AUTO THETHING
+-- 3. Tombol Toggle Auto Claim / AUTO THETHING (Sinkron Restock Timer)
 local claimBtn = Instance.new("TextButton")
-claimBtn.Size = UDim2.new(0.88, 0, 0, 35)
-claimBtn.Position = UDim2.new(0.06, 0, 0.32, 0)
+claimBtn.Size = UDim2.new(0.88, 0, 0, 32)
+claimBtn.Position = UDim2.new(0.06, 0, 0.37, 0)
 claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 claimBtn.TextSize = 12
@@ -233,8 +249,8 @@ animStroke(claimBtn, 1)
 
 -- 4. Tombol Teleport Video Zone
 local zoneBtn = Instance.new("TextButton")
-zoneBtn.Size = UDim2.new(0.88, 0, 0, 35)
-zoneBtn.Position = UDim2.new(0.06, 0, 0.47, 0)
+zoneBtn.Size = UDim2.new(0.88, 0, 0, 32)
+zoneBtn.Position = UDim2.new(0.06, 0, 0.495, 0)
 zoneBtn.BackgroundColor3 = Color3.fromRGB(30, 45, 70)
 zoneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 zoneBtn.TextSize = 12
@@ -246,7 +262,7 @@ animStroke(zoneBtn, 1)
 
 -- 5. Tombol Trigger Quiz Run (ProximityPrompt MAP)
 local mapPromptBtn = Instance.new("TextButton")
-mapPromptBtn.Size = UDim2.new(0.88, 0, 0, 35)
+mapPromptBtn.Size = UDim2.new(0.88, 0, 0, 32)
 mapPromptBtn.Position = UDim2.new(0.06, 0, 0.62, 0)
 mapPromptBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 20)
 mapPromptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -259,8 +275,8 @@ animStroke(mapPromptBtn, 1)
 
 -- 6. Tombol Baru: All Server
 local allServerBtn = Instance.new("TextButton")
-allServerBtn.Size = UDim2.new(0.88, 0, 0, 35)
-allServerBtn.Position = UDim2.new(0.06, 0, 0.77, 0)
+allServerBtn.Size = UDim2.new(0.88, 0, 0, 32)
+allServerBtn.Position = UDim2.new(0.06, 0, 0.745, 0)
 allServerBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 70)
 allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 allServerBtn.TextSize = 12
@@ -273,13 +289,73 @@ animStroke(allServerBtn, 1)
 -- Label Status
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, 0, 0, 22)
-statusLabel.Position = UDim2.new(0, 0, 0.91, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.88, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.Text = "Status: Idle"
 statusLabel.Parent = contentFrame
+
+-- Variabel bantu untuk melacak status pemicuan timer
+local lastTimerText = ""
+
+-- Loop Utama untuk Timer Display & Deteksi 00:00 untuk Auto TheThing
+task.spawn(function()
+	while task.wait(0.2) do
+		pcall(function()
+			local pinkHeader = player:WaitForChild("PlayerGui"):FindFirstChild("Main")
+				and player.PlayerGui.Main:FindFirstChild("Menus")
+				and player.PlayerGui.Main.Menus:FindFirstChild("UGC")
+				and player.PlayerGui.Main.Menus.UGC:FindFirstChild("PinkHeader")
+			
+			if pinkHeader then
+				local textValue = ""
+				if pinkHeader:IsA("TextLabel") or pinkHeader:IsA("TextBox") or pinkHeader:IsA("TextButton") then
+					textValue = pinkHeader.Text
+				else
+					local txtChild = pinkHeader:FindFirstChildWhichIsA("TextLabel", true)
+					if txtChild then
+						textValue = txtChild.Text
+					else
+						textValue = pinkHeader.Name
+					end
+				end
+				timerDisplay.Text = textValue
+
+				-- Jika Auto TheThing dalam kondisi ON (Standby menunggu 00:00)
+				if autoClaimActive then
+					-- Cek apakah teks timer mengandung "00:00" atau menunjukkan waktu habis (misal detik akhir "00:00" / "00:01" / reset)
+					-- Anda juga bisa mendeteksi jika nilai waktu berubah atau mendeteksi string "00:0"
+					if string.find(textValue, "00:00") or string.find(textValue, "00:01") then
+						-- Cegah spam berlebihan jika teks masih sama persis di detik yang sama
+						if lastTimerText ~= textValue then
+							lastTimerText = textValue
+							statusLabel.Text = "Status: Timer Menyentuh 00:00! Triggering TheThing..."
+							
+							local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
+							task.spawn(function()
+								for i = 1, 10 do
+									pcall(function()
+										event:FireServer("3")
+									end)
+									task.wait(0.05)
+								end
+							end)
+						end
+					else
+						-- Reset pelacak jika timer sudah bergeser dari 00:00
+						if not string.find(textValue, "00:00") then
+							lastTimerText = ""
+						end
+					end
+				end
+			else
+				timerDisplay.Text = "Timer: PinkHeader Tidak Ditemukan"
+			end
+		end)
+	end
+end)
 
 -- Fungsi Logika Auto Farm Item & OpenBox
 local function startAutoFarm()
@@ -295,7 +371,7 @@ local function startAutoFarm()
 			local foundValidItem = false
 			
 			for _, spawnObj in ipairs(itemSpawns:GetChildren()) do
-				local item = spawnObj:FindFirstChild("Item") --[cite: 1]
+				local item = spawnObj:FindFirstChild("Item")
 				
 				if item then
 					foundValidItem = true
@@ -349,27 +425,15 @@ toggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Event Tombol Toggle Auto Claim (Disamakan persis dengan Script 1)
+-- Event Tombol Toggle Auto Claim (Mode Standby Menunggu Timer 00:00)
 claimBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = not autoClaimActive
-
-	local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
 
 	if autoClaimActive then
 		claimBtn.Text = "AUTO THETHING : ON"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
-		statusLabel.Text = "Status: Auto TheThing Running"
-
-		task.spawn(function()
-			while autoClaimActive do
-				for i = 1, 5 do
-					pcall(function()
-						event:FireServer("3")
-					end)
-				end
-				task.wait(1)
-			end
-		end)
+		statusLabel.Text = "Status: Auto TheThing Standby (Menunggu 00:00)"
+		lastTimerText = ""
 	else
 		claimBtn.Text = "AUTO THETHING : OFF"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
@@ -539,13 +603,12 @@ do
 			local d = i.Position - dragStart
 			local vp = workspace.CurrentCamera.ViewportSize
 			local targetObj = minimized and floatingIcon or main
-			local gs = targetObj.AbsoluteSize
 			
 			targetObj.Position = UDim2.new(
 				0,
-				math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+				math.clamp(startPos.X.Offset + d.X, 0, vp.X - targetObj.AbsoluteSize.X),
 				0,
-				math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+				math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - targetObj.AbsoluteSize.Y)
 			)
 		end
 	end)
