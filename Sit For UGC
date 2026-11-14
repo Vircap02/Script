@@ -87,16 +87,15 @@ end
 
 -- 0. Auto Teleport ke Koordinat Saat Executed & Penjaga Posisi
 task.spawn(function()
-    task.wait(1) -- Tunggu karakter selesai loading awal
+    task.wait(1)
     pcall(function()
         local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
         local rootPart = character:WaitForChild("HumanoidRootPart", 5)
         if rootPart and TARGET_POSITION ~= Vector3.new(0,0,0) then
-            rootPart.CFrame = CFrame.new(TARGET_POSITION)
+            rootPart.CFrame = CFrame.new(TARGET_POSITION + Vector3.new(0, 3, 0))
         end
     end)
 
-    -- Loop penjaga posisi (jika jarak terlalu jauh, kembalikan posisi)
     while true do
         if masterEnabled and TARGET_POSITION ~= Vector3.new(0,0,0) then
             pcall(function()
@@ -105,7 +104,7 @@ task.spawn(function()
                 if rootPart then
                     local distance = (rootPart.Position - TARGET_POSITION).Magnitude
                     if distance > MAX_DISTANCE then
-                        rootPart.CFrame = CFrame.new(TARGET_POSITION)
+                        rootPart.CFrame = CFrame.new(TARGET_POSITION + Vector3.new(0, 3, 0))
                     end
                 end
             end)
@@ -146,7 +145,7 @@ task.spawn(function()
     end
 end)
 
--- 3. Auto Spin Game (Sesuai Permintaan)
+-- 3. Auto Spin Game
 task.spawn(function()
     while true do
         if masterEnabled then
@@ -158,7 +157,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Collect Rewards (Menggunakan Teleport Instant ke CFrame Rewards karena firetouchinterest sudah tidak aktif)
+-- 4. Auto Collect Rewards (WAKTU TUNGGU DIPERLAMA AGAR TRIGGER MASUK)
 task.spawn(function()
     while true do
         if masterEnabled then
@@ -171,11 +170,20 @@ task.spawn(function()
                     if not masterEnabled then break end
                     if part:IsA("BasePart") then
                         pcall(function()
-                            -- Simpan posisi lama sebentar, teleport ke part reward, lalu balik lagi atau biarkan sistem posisi penjaga yang menariknya
                             local oldCFrame = rootPart.CFrame
-                            rootPart.CFrame = part.CFrame
-                            task.wait(0.05)
+                            
+                            -- Ketinggian +1.5 agar tidak tenggelam, tapi tetap kena hitbox
+                            rootPart.CFrame = part.CFrame + Vector3.new(0, 1.5, 0)
+                            rootPart.AssemblyLinearVelocity = Vector3.zero 
+                            
+                            -- JEDA DIPERLAMA: 0.5 Detik agar server memproses sentuhan karakter
+                            task.wait(0.5)
+                            
+                            -- Balikkan ke posisi semula
                             rootPart.CFrame = oldCFrame
+                            
+                            -- Jeda tambahan antar part agar game tidak lag atau menganggap spam
+                            task.wait(0.2)
                         end)
                     end
                 end
@@ -230,7 +238,6 @@ if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
 end
 
--- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
 local COL_BG = Color3.fromRGB(15, 12, 22)
 local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
 local MIN_HOVER = Color3.fromRGB(70, 35, 18)
@@ -269,7 +276,6 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Memperbesar ukuran panel agar muat untuk tombol-tombol fitur tambahan
 local FULL_W, FULL_H = 290, 360
 local MINI_W, MINI_H = 42, 42
 
@@ -286,7 +292,6 @@ main.Parent = gui
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 animStroke(main, 1.5)
 
--- Logo Gambar di sebelah kiri Judul Utama
 local logoImg = Instance.new("ImageLabel")
 logoImg.Size = UDim2.new(0, 24, 0, 24)
 logoImg.Position = UDim2.new(0, 10, 0, 9)
@@ -324,7 +329,6 @@ desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
--- Tombol Close (X)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 22, 0, 22)
 closeBtn.Position = UDim2.new(1, -30, 0, 8)
@@ -343,7 +347,6 @@ local closeScale = Instance.new("UIScale")
 closeScale.Scale = 1
 closeScale.Parent = closeBtn
 
--- Tombol Minimize (-)
 local minimized = false
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
@@ -363,7 +366,6 @@ local minScale = Instance.new("UIScale")
 minScale.Scale = 1
 minScale.Parent = minBtn
 
--- Pop-up ikon kecil saat minimize
 local floatingIcon = Instance.new("ImageButton")
 floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
 floatingIcon.Position = main.Position
@@ -378,7 +380,6 @@ floatingIcon.Parent = gui
 Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
--- Interaksi Tombol Minimize & Close
 minBtn.MouseEnter:Connect(function()
     TweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
 end)
@@ -434,7 +435,6 @@ floatingIcon.MouseButton1Click:Connect(function()
     tweenIn:Play()
 end)
 
--- Container untuk Tombol-Tombol Fitur Hub
 local Container = Instance.new("ScrollingFrame")
 Container.Size = UDim2.new(1, -20, 1, -52)
 Container.Position = UDim2.new(0, 10, 0, 42)
@@ -449,7 +449,6 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = Container
 
--- 1. Tombol Master Toggle
 local MasterButton = Instance.new("TextButton")
 MasterButton.Size = UDim2.new(1, 0, 0, 34)
 MasterButton.BackgroundColor3 = Color3.fromRGB(220, 100, 0)
@@ -472,7 +471,6 @@ MasterButton.MouseButton1Click:Connect(function()
     TweenService:Create(MasterButton, TweenInfo.new(0.2), {BackgroundColor3 = targetBg, TextColor3 = targetText}):Play()
 end)
 
--- 2. Tombol Auto Execute Toggle
 local AutoExecButton = Instance.new("TextButton")
 AutoExecButton.Size = UDim2.new(1, 0, 0, 34)
 AutoExecButton.BackgroundColor3 = autoExecuteEnabled and Color3.fromRGB(40, 140, 60) or Color3.fromRGB(45, 30, 60)
@@ -496,7 +494,6 @@ AutoExecButton.MouseButton1Click:Connect(function()
     TweenService:Create(AutoExecButton, TweenInfo.new(0.2), {BackgroundColor3 = targetBg}):Play()
 end)
 
--- 3. Tombol Auto Refund
 local RefundButton = Instance.new("TextButton")
 RefundButton.Size = UDim2.new(1, 0, 0, 34)
 RefundButton.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -517,7 +514,6 @@ RefundButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 4. Tombol Rejoin Server
 local RejoinButton = Instance.new("TextButton")
 RejoinButton.Size = UDim2.new(1, 0, 0, 34)
 RejoinButton.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -536,7 +532,6 @@ RejoinButton.MouseButton1Click:Connect(function()
     safeTeleport()
 end)
 
--- 5. Tombol Pilih Server
 local ServerButton = Instance.new("TextButton")
 ServerButton.Size = UDim2.new(1, 0, 0, 34)
 ServerButton.BackgroundColor3 = Color3.fromRGB(35, 25, 55)
@@ -557,7 +552,6 @@ ServerButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- 6. Timer & Input Settings Frame
 local TimerFrame = Instance.new("Frame")
 TimerFrame.Size = UDim2.new(1, 0, 0, 68)
 TimerFrame.BackgroundColor3 = Color3.fromRGB(25, 18, 38)
@@ -622,7 +616,6 @@ SetTimerBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Task Countdown Timer Loop
 task.spawn(function()
     while true do
         task.wait(1)
@@ -642,7 +635,6 @@ task.spawn(function()
     end
 end)
 
--- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
 do
     local dragging, dragStart, startPos = false, nil, nil
     
@@ -685,7 +677,6 @@ do
     end)
 end
 
--- RenderStepped untuk Animasi Gradien Berjalan
 RunService.RenderStepped:Connect(function(dt)
     local off = Vector2.new(math.sin(tick() * 2.8), 0)
     for _, g in ipairs(allGrads) do
