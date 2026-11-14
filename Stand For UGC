@@ -31,6 +31,8 @@ local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
 local MIN_HOVER = Color3.fromRGB(70, 35, 18)
 local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
 local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
+local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45) -- Warna biru gelap untuk tombol rejoin
+local REJOIN_HOVER = Color3.fromRGB(30, 55, 75)
 
 -- Warna Tombol Toggle
 local TOGGLE_OFF = Color3.fromRGB(35, 20, 45)
@@ -93,7 +95,7 @@ logoImg.Image = "rbxassetid://134667732794034"
 logoImg.Parent = main
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -96, 0, 16)
+title.Size = UDim2.new(1, -122, 0, 16)
 title.Position = UDim2.new(0, 40, 0, 8)
 title.BackgroundTransparency = 1
 title.Text = "VIRGOBOY UI NEW"
@@ -112,7 +114,7 @@ tGrad.Color = ColorSequence.new({
 tGrad.Parent = title
 
 local desc = Instance.new("TextLabel")
-desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Size = UDim2.new(1, -122, 0, 10)
 desc.Position = UDim2.new(0, 40, 0, 22)
 desc.BackgroundTransparency = 1
 desc.Text = "Made By Virgoboy"
@@ -202,11 +204,30 @@ local closeScale = Instance.new("UIScale")
 closeScale.Scale = 1
 closeScale.Parent = closeBtn
 
+-- Tombol Rejoin Manual (R)
+local rejoinBtn = Instance.new("TextButton")
+rejoinBtn.Size = UDim2.new(0, 22, 0, 22)
+rejoinBtn.Position = UDim2.new(1, -56, 0, 8)
+rejoinBtn.BackgroundColor3 = REJOIN_NORMAL
+rejoinBtn.Text = "R"
+rejoinBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
+rejoinBtn.Font = Enum.Font.GothamBlack
+rejoinBtn.TextSize = 11
+rejoinBtn.BorderSizePixel = 0
+rejoinBtn.AutoButtonColor = false
+rejoinBtn.Parent = main
+Instance.new("UICorner", rejoinBtn).CornerRadius = UDim.new(0, 5)
+animStroke(rejoinBtn, 1)
+
+local rejoinScale = Instance.new("UIScale")
+rejoinScale.Scale = 1
+rejoinScale.Parent = rejoinBtn
+
 -- Tombol Minimize (-)
 local minimized = false
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
-minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.Position = UDim2.new(1, -82, 0, 8)
 minBtn.BackgroundColor3 = MIN_NORMAL
 minBtn.Text = "-"
 minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
@@ -237,7 +258,49 @@ Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
 -- ==========================================
--- LOGIKA UTAMA + AUTO REJOIN & QUEUE
+-- FUNGSI REJOIN UTAMA
+-- ==========================================
+local function triggerRejoin()
+    if queueFunction then
+        pcall(function()
+            queueFunction([[
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+            ]])
+        end)
+    end
+    pcall(function()
+        teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end)
+    task.wait(2)
+    pcall(function()
+        teleportService:Teleport(game.PlaceId, player)
+    end)
+end
+
+-- Interaksi Tombol Rejoin Manual
+rejoinBtn.MouseEnter:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = REJOIN_HOVER}):Play()
+end)
+
+rejoinBtn.MouseLeave:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = REJOIN_NORMAL}):Play()
+end)
+
+rejoinBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(rejoinScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(rejoinScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+rejoinBtn.MouseButton1Click:Connect(function()
+    statusLabel.Text = "Rejoining manual..."
+    task.wait(0.5)
+    triggerRejoin()
+end)
+
+-- ==========================================
+-- LOGIKA UTAMA + AUTO REJOINS
 -- ==========================================
 local player = Players.LocalPlayer
 local COOLDOWN_TIME = 300 -- 5 menit per putaran
@@ -317,23 +380,7 @@ local function startFarm()
                 if completedCycles >= targetCycles then
                     statusLabel.Text = "Timer habis! Rejoining..."
                     task.wait(1)
-                    
-                    -- Pastikan queue_on_teleport aktif kembali sebelum rejoin
-                    if queueFunction then
-                        pcall(function()
-                            queueFunction([[
-                                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
-                            ]])
-                        end)
-                    end
-
-                    pcall(function()
-                        teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-                    end)
-                    task.wait(2)
-                    pcall(function()
-                        teleportService:Teleport(game.PlaceId, player)
-                    end)
+                    triggerRejoin()
                     break
                 end
             else
