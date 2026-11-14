@@ -6,10 +6,20 @@ local Players = cloneref(game:GetService("Players"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 local teleportService = cloneref(game:GetService("TeleportService"))
 
--- Otomatis jalankan loadstring saat script dieksekusi
+-- 1. Otomatis jalankan loadstring utama saat pertama kali dieksekusi
 pcall(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
 end)
+
+-- 2. Daftarkan Auto-Execute Loadstring UGC agar otomatis jalan pas Rejoin
+local queueFunction = syn and syn.queue_on_teleport or queue_on_teleport or qequeue_on_teleport or fluxus and fluxus.queue_on_teleport
+if queueFunction then
+    pcall(function()
+        queueFunction([[
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+        ]])
+    end)
+end
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
@@ -227,7 +237,7 @@ Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
 -- ==========================================
--- LOGIKA UTAMA + TUNGGU TIMER HABIS BARU REJOIN
+-- LOGIKA UTAMA + AUTO REJOIN & QUEUE
 -- ==========================================
 local player = Players.LocalPlayer
 local COOLDOWN_TIME = 300 -- 5 menit per putaran
@@ -302,11 +312,21 @@ local function startFarm()
 
                 if not isRunning then break end
 
-                -- 3. Setelah Timer Habis, Cek Apakah Sudah Waktunya Rejoin Sebelum Putaran Berikutnya
+                -- 3. Setelah Timer Habis, Cek Apakah Waktunya Rejoin
                 local targetCycles = tonumber(rejoinInput.Text) or 1
                 if completedCycles >= targetCycles then
-                    statusLabel.Text = "Timer habis! Rejoining sekarang..."
+                    statusLabel.Text = "Timer habis! Rejoining..."
                     task.wait(1)
+                    
+                    -- Pastikan queue_on_teleport aktif kembali sebelum rejoin
+                    if queueFunction then
+                        pcall(function()
+                            queueFunction([[
+                                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+                            ]])
+                        end)
+                    end
+
                     pcall(function()
                         teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
                     end)
