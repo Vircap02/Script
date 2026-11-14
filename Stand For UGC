@@ -121,7 +121,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -122, 0, 16)
 title.Position = UDim2.new(0, 40, 0, 8)
 title.BackgroundTransparency = 1
-title.Text = "VIRGOBOY UI NEW"
+title.Text = "STAND FOR UGC"
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 11.5
 title.TextColor3 = Color3.fromRGB(255, 140, 0)
@@ -330,7 +330,7 @@ end)
 -- LOGIKA UTAMA + AUTO REJOINS
 -- ==========================================
 local player = Players.LocalPlayer
-local COOLDOWN_TIME = 300 -- 5 menit per putaran
+local COOLDOWN_TIME = 310 -- 5 menit per putaran
 
 local function startFarm()
     if farmThread then task.cancel(farmThread) end
@@ -368,12 +368,12 @@ local function startFarm()
                         rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
                         task.wait(0.3)
 
-                        for id = 1, 50 do
+                        for id = 1, 99 do
                             if not isRunning then break end
                             pcall(function()
                                 ClaimFreeRF:InvokeServer(id)
                             end)
-                            task.wait(0.02)
+                            task.wait()
                         end
                     end
 
@@ -432,12 +432,12 @@ local function startFarm()
                 pcall(function()
                     PlaytimeRF:InvokeServer(i)
                 end)
-                task.wait(0.2)
+                task.wait()
             end
             
-            for _ = 1, 10 do
+            for _ = 1, 1 do
                 if not isRunning then break end
-                task.wait(1)
+                task.wait()
             end
         end
     end)
