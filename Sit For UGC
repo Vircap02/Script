@@ -158,8 +158,7 @@ task.spawn(function()
     end
 end)
 
--- 4. Auto Touch Interests (Tanpa Teleport)
-local fireTouch = firetouchinterests or firetouchinterest or (syn and syn.firetouchinterests)
+-- 4. Auto Collect Rewards (Menggunakan Teleport Instant ke CFrame Rewards karena firetouchinterest sudah tidak aktif)
 task.spawn(function()
     while true do
         if masterEnabled then
@@ -168,28 +167,21 @@ task.spawn(function()
             local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
             if rewardsFolder and rootPart then
-                for _, part in ipairs(rewardsFolder:GetChildren()) do
+                for _, part in ipairs(rewardsFolder:GetDescendants()) do
                     if not masterEnabled then break end
                     if part:IsA("BasePart") then
                         pcall(function()
-                            if fireTouch then
-                                fireTouch(rootPart, part, 0)
-                                task.wait(0.01)
-                                fireTouch(rootPart, part, 1)
-                            elseif part:FindFirstChildOfClass("TouchInterest") and firetouchinterest then
-                                firetouchinterest(rootPart, part, 0)
-                                firetouchinterest(rootPart, part, 1)
-                            else
-                                for _, conn in pairs(getconnections(part.Touched)) do
-                                    conn:Fire(rootPart)
-                                end
-                            end
+                            -- Simpan posisi lama sebentar, teleport ke part reward, lalu balik lagi atau biarkan sistem posisi penjaga yang menariknya
+                            local oldCFrame = rootPart.CFrame
+                            rootPart.CFrame = part.CFrame
+                            task.wait(0.05)
+                            rootPart.CFrame = oldCFrame
                         end)
                     end
                 end
             end
         end
-        task.wait(0.3)
+        task.wait(1)
     end
 end)
 
