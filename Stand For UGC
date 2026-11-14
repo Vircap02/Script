@@ -6,12 +6,13 @@ local Players = cloneref(game:GetService("Players"))
 local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 local teleportService = cloneref(game:GetService("TeleportService"))
 
--- Sistem Penyimpanan Config (Auto Save/Load)
+-- Sistem Penyimpanan Config (Auto Save/Load untuk Putaran & Status Auto-Execute)
 local CONFIG_FILE = "VirgoboyAutoFarm_Config.json"
+local AE_FILE = "VirgoboyAutoExecute_Config.json"
 
 local function saveConfig(val)
     if writefile then
-        local success, err = pcall(function()
+        pcall(function()
             writefile(CONFIG_FILE, tostring(val))
         end)
     end
@@ -23,10 +24,31 @@ local function loadConfig()
             return readfile(CONFIG_FILE)
         end)
         if success and result then
-            return string.gsub(result, "%s+", "") -- Hapus spasi/newline berlebih
+            return string.gsub(result, "%s+", "")
         end
     end
-    return "1" -- Default jika file belum ada
+    return "1"
+end
+
+local function saveAEConfig(state)
+    if writefile then
+        pcall(function()
+            writefile(AE_FILE, tostring(state))
+        end)
+    end
+end
+
+local function loadAEConfig()
+    if readfile and isfile and isfile(AE_FILE) then
+        local success, result = pcall(function()
+            return readfile(AE_FILE)
+        end)
+        if success and result then
+            local cleaned = string.gsub(result, "%s+", "")
+            if cleaned == "false" then return false end
+        end
+    end
+    return true -- Default ON
 end
 
 -- 1. Otomatis jalankan loadstring utama saat pertama kali dieksekusi
@@ -34,15 +56,21 @@ pcall(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
 end)
 
--- 2. Daftarkan Auto-Execute Loadstring UGC agar otomatis jalan pas Rejoin
+-- 2. Variabel & Status Auto-Execute (Queue)
+local autoExecuteEnabled = loadAEConfig()
 local queueFunction = syn and syn.queue_on_teleport or queue_on_teleport or qequeue_on_teleport or fluxus and fluxus.queue_on_teleport
-if queueFunction then
-    pcall(function()
-        queueFunction([[
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
-        ]])
-    end)
+
+local function registerQueue()
+    if autoExecuteEnabled and queueFunction then
+        pcall(function()
+            queueFunction([[
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+            ]])
+        end)
+    end
 end
+
+registerQueue()
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
@@ -51,13 +79,15 @@ end
 -- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
 local COL_BG = Color3.fromRGB(15, 12, 22)
 local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
-local MIN_HOVER = Color3.fromRGB(70, 35, 18)
 local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
-local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
 local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45)
 local REJOIN_HOVER = Color3.fromRGB(30, 55, 75)
 
--- Warna Tombol Toggle
+-- Warna Tombol Toggle AE
+local AE_OFF_COLOR = Color3.fromRGB(45, 15, 15)
+local AE_ON_COLOR = Color3.fromRGB(15, 45, 25)
+
+-- Warna Tombol Toggle Farm
 local TOGGLE_OFF = Color3.fromRGB(35, 20, 45)
 local TOGGLE_ON = Color3.fromRGB(220, 100, 0)
 
@@ -93,6 +123,7 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
+-- Tinggi panel diperbesar sedikit agar muat tombol kontrol baru dengan rapi
 local FULL_W, FULL_H = 290, 128
 local MINI_W, MINI_H = 42, 42
 
@@ -118,10 +149,10 @@ logoImg.Image = "rbxassetid://134667732794034"
 logoImg.Parent = main
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -122, 0, 16)
+title.Size = UDim2.new(1, -148, 0, 16)
 title.Position = UDim2.new(0, 40, 0, 8)
 title.BackgroundTransparency = 1
-title.Text = "STAND FOR UGC"
+title.Text = "VIRGOBOY UI NEW"
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 11.5
 title.TextColor3 = Color3.fromRGB(255, 140, 0)
@@ -137,7 +168,7 @@ tGrad.Color = ColorSequence.new({
 tGrad.Parent = title
 
 local desc = Instance.new("TextLabel")
-desc.Size = UDim2.new(1, -122, 0, 10)
+desc.Size = UDim2.new(1, -148, 0, 10)
 desc.Position = UDim2.new(0, 40, 0, 22)
 desc.BackgroundTransparency = 1
 desc.Text = "Made By Virgoboy"
@@ -170,7 +201,7 @@ local toggleScale = Instance.new("UIScale")
 toggleScale.Scale = 1
 toggleScale.Parent = toggleBtn
 
--- Input Text untuk Atur Jumlah Putaran Auto Rejoin (Muat dari Config)
+-- Input Text untuk Atur Jumlah Putaran Auto Rejoin
 local inputLabel = Instance.new("TextLabel")
 inputLabel.Size = UDim2.new(0, 140, 0, 22)
 inputLabel.Position = UDim2.new(0, 10, 0, 70)
@@ -186,7 +217,7 @@ local rejoinInput = Instance.new("TextBox")
 rejoinInput.Size = UDim2.new(0, 120, 0, 22)
 rejoinInput.Position = UDim2.new(1, -130, 0, 70)
 rejoinInput.BackgroundColor3 = Color3.fromRGB(25, 18, 35)
-rejoinInput.Text = loadConfig() -- Load nilai tersimpan sebelumnya
+rejoinInput.Text = loadConfig()
 rejoinInput.Font = Enum.Font.GothamBold
 rejoinInput.TextSize = 10
 rejoinInput.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -196,7 +227,6 @@ rejoinInput.Parent = main
 Instance.new("UICorner", rejoinInput).CornerRadius = UDim.new(0, 5)
 animStroke(rejoinInput, 1)
 
--- Event otomatis simpan setiap kali isi textbox diubah
 rejoinInput.FocusLost:Connect(function()
     saveConfig(rejoinInput.Text)
 end)
@@ -251,11 +281,30 @@ local rejoinScale = Instance.new("UIScale")
 rejoinScale.Scale = 1
 rejoinScale.Parent = rejoinBtn
 
+-- Tombol Toggle Auto-Execute (AE)
+local aeBtn = Instance.new("TextButton")
+aeBtn.Size = UDim2.new(0, 22, 0, 22)
+aeBtn.Position = UDim2.new(1, -82, 0, 8)
+aeBtn.BackgroundColor3 = autoExecuteEnabled and AE_ON_COLOR or AE_OFF_COLOR
+aeBtn.Text = "AE"
+aeBtn.TextColor3 = autoExecuteEnabled and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
+aeBtn.Font = Enum.Font.GothamBlack
+aeBtn.TextSize = 9
+aeBtn.BorderSizePixel = 0
+aeBtn.AutoButtonColor = false
+aeBtn.Parent = main
+Instance.new("UICorner", aeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(aeBtn, 1)
+
+local aeScale = Instance.new("UIScale")
+aeScale.Scale = 1
+aeScale.Parent = aeBtn
+
 -- Tombol Minimize (-)
 local minimized = false
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
-minBtn.Position = UDim2.new(1, -82, 0, 8)
+minBtn.Position = UDim2.new(1, -108, 0, 8)
 minBtn.BackgroundColor3 = MIN_NORMAL
 minBtn.Text = "-"
 minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
@@ -286,16 +335,30 @@ Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
 -- ==========================================
--- FUNGSI REJOIN UTAMA
+-- FUNGSI KONTROL TOMBOL (AE & REJOIN)
 -- ==========================================
-local function triggerRejoin()
-    if queueFunction then
-        pcall(function()
-            queueFunction([[
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
-            ]])
-        end)
+aeBtn.MouseButton1Click:Connect(function()
+    autoExecuteEnabled = not autoExecuteEnabled
+    saveAEConfig(autoExecuteEnabled)
+    
+    if autoExecuteEnabled then
+        aeBtn.BackgroundColor3 = AE_ON_COLOR
+        aeBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+        statusLabel.Text = "Auto-Execute: ON"
+    else
+        aeBtn.BackgroundColor3 = AE_OFF_COLOR
+        aeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.Text = "Auto-Execute: OFF"
     end
+    task.delay(1.5, function()
+        if statusLabel.Text:find("Auto-Execute") then
+            statusLabel.Text = "Status: Berjalan"
+        end
+    end)
+end)
+
+local function triggerRejoin()
+    registerQueue() -- Daftarkan queue sesuai status tombol AE saat ini
     pcall(function()
         teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
     end)
@@ -330,7 +393,7 @@ end)
 -- LOGIKA UTAMA + AUTO REJOINS
 -- ==========================================
 local player = Players.LocalPlayer
-local COOLDOWN_TIME = 310 -- 5 menit per putaran
+local COOLDOWN_TIME = 300 -- 5 menit per putaran
 
 local function startFarm()
     if farmThread then task.cancel(farmThread) end
@@ -368,12 +431,12 @@ local function startFarm()
                         rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
                         task.wait(0.3)
 
-                        for id = 1, 99 do
+                        for id = 1, 50 do
                             if not isRunning then break end
                             pcall(function()
                                 ClaimFreeRF:InvokeServer(id)
                             end)
-                            task.wait()
+                            task.wait(0.02)
                         end
                     end
 
@@ -432,12 +495,12 @@ local function startFarm()
                 pcall(function()
                     PlaytimeRF:InvokeServer(i)
                 end)
-                task.wait()
+                task.wait(0.2)
             end
             
-            for _ = 1, 1 do
+            for _ = 1, 10 do
                 if not isRunning then break end
-                task.wait()
+                task.wait(1)
             end
         end
     end)
