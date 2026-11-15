@@ -71,8 +71,9 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = CoreGui
 
-local FULL_W, FULL_H = 280, 455
-local MINI_W, MINI_H = 42, 42
+-- Ukuran Compact yang pas di layar HP
+local FULL_W, FULL_H = 240, 350
+local MINI_W, MINI_H = 38, 38
 
 -- Frame Utama
 local main = Instance.new("Frame")
@@ -85,25 +86,25 @@ main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
 
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
 animStroke(main, 1.5)
 
 -- Logo Gambar
 local logoImg = Instance.new("ImageLabel")
-logoImg.Size = UDim2.new(0, 24, 0, 24)
-logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.Size = UDim2.new(0, 20, 0, 20)
+logoImg.Position = UDim2.new(0, 8, 0, 7)
 logoImg.BackgroundTransparency = 1
 logoImg.Image = "rbxassetid://134667732794034"
 logoImg.Parent = main
 
 -- Judul GUI
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -96, 0, 16)
-title.Position = UDim2.new(0, 40, 0, 8)
+title.Size = UDim2.new(1, -75, 0, 14)
+title.Position = UDim2.new(0, 32, 0, 6)
 title.BackgroundTransparency = 1
 title.Text = "MILKXP"
 title.Font = Enum.Font.GothamBlack
-title.TextSize = 11.5
+title.TextSize = 11
 title.TextColor3 = Color3.fromRGB(255, 140, 0)
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = main
@@ -117,29 +118,29 @@ tGrad.Color = ColorSequence.new({
 tGrad.Parent = title
 
 local desc = Instance.new("TextLabel")
-desc.Size = UDim2.new(1, -96, 0, 10)
-desc.Position = UDim2.new(0, 40, 0, 22)
+desc.Size = UDim2.new(1, -75, 0, 10)
+desc.Position = UDim2.new(0, 32, 0, 18)
 desc.BackgroundTransparency = 1
 desc.Text = "Made By Virgoboy"
 desc.Font = Enum.Font.GothamMedium
-desc.TextSize = 8.5
+desc.TextSize = 8
 desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
 -- Tombol Close (X)
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 22, 0, 22)
-closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.Size = UDim2.new(0, 18, 0, 18)
+closeBtn.Position = UDim2.new(1, -24, 0, 7)
 closeBtn.BackgroundColor3 = CLOSE_NORMAL
 closeBtn.Text = "X"
 closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 closeBtn.Font = Enum.Font.GothamBlack
-closeBtn.TextSize = 11
+closeBtn.TextSize = 10
 closeBtn.BorderSizePixel = 0
 closeBtn.AutoButtonColor = false
 closeBtn.Parent = main
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
 animStroke(closeBtn, 1)
 
 local closeScale = Instance.new("UIScale")
@@ -149,17 +150,17 @@ closeScale.Parent = closeBtn
 -- Tombol Minimize (-)
 local minimized = false
 local minBtn = Instance.new("TextButton")
-minBtn.Size = UDim2.new(0, 22, 0, 22)
-minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.Size = UDim2.new(0, 18, 0, 18)
+minBtn.Position = UDim2.new(1, -46, 0, 7)
 minBtn.BackgroundColor3 = MIN_NORMAL
 minBtn.Text = "-"
 minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
 minBtn.Font = Enum.Font.GothamBlack
-minBtn.TextSize = 13
+minBtn.TextSize = 12
 minBtn.BorderSizePixel = 0
 minBtn.AutoButtonColor = false
 minBtn.Parent = main
-Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 4)
 animStroke(minBtn, 1)
 
 local minScale = Instance.new("UIScale")
@@ -178,183 +179,191 @@ floatingIcon.AutoButtonColor = false
 floatingIcon.BorderSizePixel = 0
 floatingIcon.Parent = gui
 
-Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 8)
 animStroke(floatingIcon, 1.5)
 
 -- Container untuk Menu Konten di Dalam Panel Utama
 local contentFrame = Instance.new("Frame")
 contentFrame.Name = "ContentFrame"
-contentFrame.Size = UDim2.new(1, 0, 1, -42)
-contentFrame.Position = UDim2.new(0, 0, 0, 42)
+contentFrame.Size = UDim2.new(1, 0, 1, -34)
+contentFrame.Position = UDim2.new(0, 0, 0, 34)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = main
 
 -- Display Timer
 local timerDisplay = Instance.new("TextLabel")
-timerDisplay.Size = UDim2.new(0.88, 0, 0, 42)
-timerDisplay.Position = UDim2.new(0.06, 0, 0.01, 0)
+timerDisplay.Size = UDim2.new(0.9, 0, 0, 30)
+timerDisplay.Position = UDim2.new(0.05, 0, 0.01, 0)
 timerDisplay.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
 timerDisplay.TextColor3 = Color3.fromRGB(255, 200, 50)
-timerDisplay.TextSize = 10
+timerDisplay.TextSize = 9.5
 timerDisplay.Font = Enum.Font.GothamBold
 timerDisplay.Text = "Timer: Loading..."
 timerDisplay.TextWrapped = true
 timerDisplay.TextXAlignment = Enum.TextXAlignment.Center
 timerDisplay.TextYAlignment = Enum.TextYAlignment.Center
 timerDisplay.Parent = contentFrame
-Instance.new("UICorner", timerDisplay).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", timerDisplay).CornerRadius = UDim.new(0, 5)
 animStroke(timerDisplay, 1)
 
--- 1. Kotak Input Text UGC Target
+-- 1. Kotak Input Text UGC Target (Argumen Remote)
 local ugcInputBox = Instance.new("TextBox")
-ugcInputBox.Size = UDim2.new(0.88, 0, 0, 30)
-ugcInputBox.Position = UDim2.new(0.06, 0, 0.12, 0)
+ugcInputBox.Size = UDim2.new(0.9, 0, 0, 26)
+ugcInputBox.Position = UDim2.new(0.05, 0, 0.11, 0)
 ugcInputBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 ugcInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 ugcInputBox.PlaceholderColor3 = Color3.fromRGB(150, 130, 180)
 ugcInputBox.PlaceholderText = "Target Angka"
 ugcInputBox.Text = "3"
-ugcInputBox.TextSize = 12
+ugcInputBox.TextSize = 11
 ugcInputBox.Font = Enum.Font.GothamBold
 ugcInputBox.ClearTextOnFocus = false
 ugcInputBox.Parent = contentFrame
-Instance.new("UICorner", ugcInputBox).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", ugcInputBox).CornerRadius = UDim.new(0, 5)
 animStroke(ugcInputBox, 1)
 
 -- 2. Tombol Toggle Auto Farm Item
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0.88, 0, 0, 32)
-toggleBtn.Position = UDim2.new(0.06, 0, 0.245, 0)
+toggleBtn.Size = UDim2.new(0.9, 0, 0, 26)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.22, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 12
+toggleBtn.TextSize = 11
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.Text = "Auto Farm: OFF"
 toggleBtn.Parent = contentFrame
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 5)
 animStroke(toggleBtn, 1)
 
--- 3. Tombol Toggle Auto Claim / AUTO THETHING (Sinkron Restock Timer)
+-- 3. Tombol Toggle Auto Claim / AUTO THETHING
 local claimBtn = Instance.new("TextButton")
-claimBtn.Size = UDim2.new(0.88, 0, 0, 32)
-claimBtn.Position = UDim2.new(0.06, 0, 0.37, 0)
+claimBtn.Size = UDim2.new(0.9, 0, 0, 26)
+claimBtn.Position = UDim2.new(0.05, 0, 0.33, 0)
 claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-claimBtn.TextSize = 12
+claimBtn.TextSize = 11
 claimBtn.Font = Enum.Font.GothamBold
 claimBtn.Text = "AUTO THETHING : OFF"
 claimBtn.Parent = contentFrame
-Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 5)
 animStroke(claimBtn, 1)
 
 -- 4. Tombol Teleport Video Zone
 local zoneBtn = Instance.new("TextButton")
-zoneBtn.Size = UDim2.new(0.88, 0, 0, 32)
-zoneBtn.Position = UDim2.new(0.06, 0, 0.495, 0)
+zoneBtn.Size = UDim2.new(0.9, 0, 0, 26)
+zoneBtn.Position = UDim2.new(0.05, 0, 0.44, 0)
 zoneBtn.BackgroundColor3 = Color3.fromRGB(30, 45, 70)
 zoneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-zoneBtn.TextSize = 12
+zoneBtn.TextSize = 11
 zoneBtn.Font = Enum.Font.GothamBold
 zoneBtn.Text = "Teleport: Video 1"
 zoneBtn.Parent = contentFrame
-Instance.new("UICorner", zoneBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", zoneBtn).CornerRadius = UDim.new(0, 5)
 animStroke(zoneBtn, 1)
 
--- 5. Tombol Trigger Quiz Run (ProximityPrompt MAP)
+-- 5. Tombol Trigger Quiz Run
 local mapPromptBtn = Instance.new("TextButton")
-mapPromptBtn.Size = UDim2.new(0.88, 0, 0, 32)
-mapPromptBtn.Position = UDim2.new(0.06, 0, 0.62, 0)
+mapPromptBtn.Size = UDim2.new(0.9, 0, 0, 26)
+mapPromptBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
 mapPromptBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 20)
 mapPromptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-mapPromptBtn.TextSize = 12
+mapPromptBtn.TextSize = 11
 mapPromptBtn.Font = Enum.Font.GothamBold
 mapPromptBtn.Text = "Trigger Quiz Run"
 mapPromptBtn.Parent = contentFrame
-Instance.new("UICorner", mapPromptBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", mapPromptBtn).CornerRadius = UDim.new(0, 5)
 animStroke(mapPromptBtn, 1)
 
--- 6. Tombol Baru: All Server
+-- 6. Tombol All Server
 local allServerBtn = Instance.new("TextButton")
-allServerBtn.Size = UDim2.new(0.88, 0, 0, 32)
-allServerBtn.Position = UDim2.new(0.06, 0, 0.745, 0)
+allServerBtn.Size = UDim2.new(0.9, 0, 0, 26)
+allServerBtn.Position = UDim2.new(0.05, 0, 0.66, 0)
 allServerBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 70)
 allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-allServerBtn.TextSize = 12
+allServerBtn.TextSize = 11
 allServerBtn.Font = Enum.Font.GothamBold
 allServerBtn.Text = "All Server"
 allServerBtn.Parent = contentFrame
-Instance.new("UICorner", allServerBtn).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", allServerBtn).CornerRadius = UDim.new(0, 5)
 animStroke(allServerBtn, 1)
 
 -- Label Status
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 22)
-statusLabel.Position = UDim2.new(0, 0, 0.88, 0)
+statusLabel.Size = UDim2.new(1, 0, 0, 20)
+statusLabel.Position = UDim2.new(0, 0, 0.78, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
-statusLabel.TextSize = 11
+statusLabel.TextSize = 10
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.Text = "Status: Idle"
 statusLabel.Parent = contentFrame
 
--- Variabel bantu untuk melacak status pemicuan timer
-local lastTimerText = ""
+-- Variabel Kontrol Tembakan Tunggal Presisi
+local hasTriggeredThisHour = -1
 
--- Loop Utama untuk Timer Display & Deteksi 00:00 untuk Auto TheThing
-task.spawn(function()
-	while task.wait(0.2) do
-		pcall(function()
-			local pinkHeader = player:WaitForChild("PlayerGui"):FindFirstChild("Main")
-				and player.PlayerGui.Main:FindFirstChild("Menus")
-				and player.PlayerGui.Main.Menus:FindFirstChild("UGC")
-				and player.PlayerGui.Main.Menus.UGC:FindFirstChild("PinkHeader")
-			
-			if pinkHeader then
-				local textValue = ""
-				if pinkHeader:IsA("TextLabel") or pinkHeader:IsA("TextBox") or pinkHeader:IsA("TextButton") then
-					textValue = pinkHeader.Text
+-- Loop Utama RenderStepped dengan Mode Tembakan Tunggal Presisi Tinggi
+RunService.RenderStepped:Connect(function()
+	pcall(function()
+		-- 1. Update tampilan timer visual dari GUI game
+		local pinkHeader = player:WaitForChild("PlayerGui"):FindFirstChild("Main")
+			and player.PlayerGui.Main:FindFirstChild("Menus")
+			and player.PlayerGui.Main.Menus:FindFirstChild("UGC")
+			and player.PlayerGui.Main.Menus.UGC:FindFirstChild("PinkHeader")
+		
+		if pinkHeader then
+			local textValue = ""
+			if pinkHeader:IsA("TextLabel") or pinkHeader:IsA("TextBox") or pinkHeader:IsA("TextButton") then
+				textValue = pinkHeader.Text
+			else
+				local txtChild = pinkHeader:FindFirstChildWhichIsA("TextLabel", true)
+				if txtChild then
+					textValue = txtChild.Text
 				else
-					local txtChild = pinkHeader:FindFirstChildWhichIsA("TextLabel", true)
-					if txtChild then
-						textValue = txtChild.Text
-					else
-						textValue = pinkHeader.Name
-					end
+					textValue = pinkHeader.Name
 				end
-				timerDisplay.Text = textValue
+			end
+			timerDisplay.Text = textValue
+		else
+			timerDisplay.Text = "Timer: PinkHeader Tidak Ditemukan"
+		end
 
-				-- Jika Auto TheThing dalam kondisi ON (Standby menunggu 00:00)
-				if autoClaimActive then
-					-- Cek apakah teks timer mengandung "00:00" atau menunjukkan waktu habis (misal detik akhir "00:00" / "00:01" / reset)
-					-- Anda juga bisa mendeteksi jika nilai waktu berubah atau mendeteksi string "00:0"
-					if string.find(textValue, "00:00") or string.find(textValue, "00:01") then
-						-- Cegah spam berlebihan jika teks masih sama persis di detik yang sama
-						if lastTimerText ~= textValue then
-							lastTimerText = textValue
-							statusLabel.Text = "Status: Timer Menyentuh 00:00! Triggering TheThing..."
-							
-							local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
-							task.spawn(function()
-								for i = 1, 10 do
-									pcall(function()
-										event:FireServer("3")
-									end)
-									task.wait(0.05)
-								end
-							end)
-						end
-					else
-						-- Reset pelacak jika timer sudah bergeser dari 00:00
-						if not string.find(textValue, "00:00") then
-							lastTimerText = ""
-						end
-					end
+		-- 2. Logika Tembakan Tunggal Presisi Berdasarkan Jam Server
+		if autoClaimActive then
+			local serverTime = workspace:GetServerTimeNow()
+			local dateTable = os.date("!*t", serverTime)
+			
+			local currentHour = dateTable.hour
+			local currentMin = dateTable.min
+			local currentSec = dateTable.sec
+			local currentMillis = serverTime % 1
+			
+			-- Memicu tembakan persis pada detik 00 dan milidetik pertama (00:00.000)
+			local isExactZero = (currentMin == 0 and currentSec == 0 and currentMillis <= 0.15)
+			
+			if isExactZero then
+				if hasTriggeredThisHour ~= currentHour then
+					hasTriggeredThisHour = currentHour
+					statusLabel.Text = "Status: Single Precise Hit Fired!"
+					
+					local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
+					
+					-- MENGIRIM 1 TEMBAKAN BERSIH (Mendukung string atau angka dari kotak input)
+					pcall(function()
+						local rawArg = ugcInputBox.Text
+						local finalArg = tonumber(rawArg) or rawArg
+						event:FireServer(finalArg)
+					end)
+					
+					statusLabel.Text = "Status: Sukses Menembak Jam " .. currentHour .. ":00"
 				end
 			else
-				timerDisplay.Text = "Timer: PinkHeader Tidak Ditemukan"
+				-- Reset pengaman ketika sudah melewati menit pertama
+				if currentMin > 1 then
+					hasTriggeredThisHour = -1
+				end
 			end
-		end)
-	end
+		end
+	end)
 end)
 
 -- Fungsi Logika Auto Farm Item & OpenBox
@@ -425,15 +434,15 @@ toggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Event Tombol Toggle Auto Claim (Mode Standby Menunggu Timer 00:00)
+-- Event Tombol Toggle Auto Claim
 claimBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = not autoClaimActive
 
 	if autoClaimActive then
 		claimBtn.Text = "AUTO THETHING : ON"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
-		statusLabel.Text = "Status: Auto TheThing Standby (Menunggu 00:00)"
-		lastTimerText = ""
+		statusLabel.Text = "Status: Precision Single-Hit Armed"
+		hasTriggeredThisHour = -1
 	else
 		claimBtn.Text = "AUTO THETHING : OFF"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
@@ -486,7 +495,7 @@ mapPromptBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Event Tombol All Server (Loadstring Server Hop)
+-- Event Tombol All Server
 allServerBtn.MouseButton1Click:Connect(function()
 	statusLabel.Text = "Status: Loading All Server..."
 	pcall(function()
@@ -578,7 +587,7 @@ floatingIcon.MouseButton1Click:Connect(function()
 	tweenIn:Play()
 end)
 
--- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
+-- Sistem Dragging
 do
 	local dragging, dragStart, startPos = false, nil, nil
 	
