@@ -393,7 +393,7 @@ end)
 -- LOGIKA UTAMA + AUTO REJOINS
 -- ==========================================
 local player = Players.LocalPlayer
-local COOLDOWN_TIME = 310 -- 5 menit per putaran
+local COOLDOWN_TIME = 430 -- 7 menit per putaran
 
 local function startFarm()
     if farmThread then task.cancel(farmThread) end
