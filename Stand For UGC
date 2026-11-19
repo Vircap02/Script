@@ -45,32 +45,41 @@ local function loadAEConfig()
         end)
         if success and result then
             local cleaned = string.gsub(result, "%s+", "")
+            if cleaned == "true" then return true end
             if cleaned == "false" then return false end
         end
     end
-    return true -- Default ON
+    return false -- Default OFF agar tidak auto-rejoin / auto-exec tanpa izin
 end
 
--- 1. Otomatis jalankan loadstring utama saat pertama kali dieksekusi
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
-end)
-
--- 2. Variabel & Status Auto-Execute (Queue)
+-- 1. Variabel & Status Auto-Execute (Queue)
 local autoExecuteEnabled = loadAEConfig()
-local queueFunction = syn and syn.queue_on_teleport or queue_on_teleport or qequeue_on_teleport or fluxus and fluxus.queue_on_teleport
+local queueFunction = (syn and syn.queue_on_teleport) or queue_on_teleport or qequeue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+local clearQueueFunction = (syn and syn.clear_teleport_queue) or clear_teleport_queue or (fluxus and fluxus.clear_teleport_queue)
 
-local function registerQueue()
-    if autoExecuteEnabled and queueFunction then
-        pcall(function()
-            queueFunction([[
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
-            ]])
-        end)
+local function updateQueueState()
+    if autoExecuteEnabled then
+        if queueFunction then
+            pcall(function()
+                queueFunction([[
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+                ]])
+            end)
+        end
+    else
+        if clearQueueFunction then
+            pcall(function()
+                clearQueueFunction()
+            end)
+        end
     end
 end
 
-registerQueue()
+-- Jalankan pengecekan queue awal sesuai config
+updateQueueState()
+
+-- Catatan: AutoRefund dihapus dari eksekusi otomatis di awal agar tidak memicu script/rejoin tersembunyi.
+-- Jika tetap membutuhkannya, jalankan secara manual.
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
@@ -123,7 +132,6 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Tinggi panel diperbesar sedikit agar muat tombol kontrol baru dengan rapi
 local FULL_W, FULL_H = 290, 128
 local MINI_W, MINI_H = 42, 42
 
@@ -178,7 +186,7 @@ desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
--- Status Awal Langsung ON
+-- Status Awal Langsung ON saat script dieksekusi
 local isRunning = true
 local farmThread = nil
 local playtimeThread = nil
@@ -258,10 +266,6 @@ closeBtn.Parent = main
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
 animStroke(closeBtn, 1)
 
-local closeScale = Instance.new("UIScale")
-closeScale.Scale = 1
-closeScale.Parent = closeBtn
-
 -- Tombol Rejoin Manual (R)
 local rejoinBtn = Instance.new("TextButton")
 rejoinBtn.Size = UDim2.new(0, 22, 0, 22)
@@ -281,7 +285,7 @@ local rejoinScale = Instance.new("UIScale")
 rejoinScale.Scale = 1
 rejoinScale.Parent = rejoinBtn
 
--- Tombol Toggle Auto-Execute (AE)
+-- Tombol Toggle Auto-Execute & Auto-Rejoin (AE)
 local aeBtn = Instance.new("TextButton")
 aeBtn.Size = UDim2.new(0, 22, 0, 22)
 aeBtn.Position = UDim2.new(1, -82, 0, 8)
@@ -295,10 +299,6 @@ aeBtn.AutoButtonColor = false
 aeBtn.Parent = main
 Instance.new("UICorner", aeBtn).CornerRadius = UDim.new(0, 5)
 animStroke(aeBtn, 1)
-
-local aeScale = Instance.new("UIScale")
-aeScale.Scale = 1
-aeScale.Parent = aeBtn
 
 -- Tombol Minimize (-)
 local minimized = false
@@ -315,10 +315,6 @@ minBtn.AutoButtonColor = false
 minBtn.Parent = main
 Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
 animStroke(minBtn, 1)
-
-local minScale = Instance.new("UIScale")
-minScale.Scale = 1
-minScale.Parent = minBtn
 
 local floatingIcon = Instance.new("ImageButton")
 floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
@@ -340,25 +336,28 @@ animStroke(floatingIcon, 1.5)
 aeBtn.MouseButton1Click:Connect(function()
     autoExecuteEnabled = not autoExecuteEnabled
     saveAEConfig(autoExecuteEnabled)
+    updateQueueState() -- Langsung pasang atau hapus queue sesuai status terbaru
     
     if autoExecuteEnabled then
         aeBtn.BackgroundColor3 = AE_ON_COLOR
         aeBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
-        statusLabel.Text = "Auto-Execute: ON"
+        statusLabel.Text = "Auto-Exec & Rejoin: ON"
     else
         aeBtn.BackgroundColor3 = AE_OFF_COLOR
         aeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-        statusLabel.Text = "Auto-Execute: OFF"
+        statusLabel.Text = "Auto-Exec & Rejoin: OFF"
     end
     task.delay(1.5, function()
-        if statusLabel.Text:find("Auto-Execute") then
-            statusLabel.Text = "Status: Berjalan"
+        if statusLabel.Text:find("Auto%-Exec") then
+            statusLabel.Text = isRunning and "Status: Berjalan" or "Status: Idle"
         end
     end)
 end)
 
+local player = Players.LocalPlayer
+
 local function triggerRejoin()
-    registerQueue() -- Daftarkan queue sesuai status tombol AE saat ini
+    updateQueueState() -- Pastikan queue sesuai status AE saat ini sebelum teleport
     pcall(function()
         teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
     end)
@@ -392,8 +391,7 @@ end)
 -- ==========================================
 -- LOGIKA UTAMA + AUTO REJOINS
 -- ==========================================
-local player = Players.LocalPlayer
-local COOLDOWN_TIME = 430 -- 7 menit per putaran
+local COOLDOWN_TIME = 430 -- 7 menit 10 detik per putaran
 
 local function startFarm()
     if farmThread then task.cancel(farmThread) end
@@ -447,7 +445,7 @@ local function startFarm()
 
                 completedCycles = completedCycles + 1
 
-                -- 2. Tunggu Timer 5 Menit Habis Dulu
+                -- 2. Tunggu Timer Habis
                 while isRunning do
                     local elapsedTime = os.clock() - cycleStartTime
                     local remainingTime = COOLDOWN_TIME - elapsedTime
@@ -465,9 +463,9 @@ local function startFarm()
 
                 if not isRunning then break end
 
-                -- 3. Setelah Timer Habis, Cek Apakah Waktunya Rejoin
+                -- 3. Setelah Timer Habis, Rejoin HANYA jika AE aktif & target putaran tercapai
                 local targetCycles = tonumber(rejoinInput.Text) or 1
-                if completedCycles >= targetCycles then
+                if autoExecuteEnabled and completedCycles >= targetCycles then
                     statusLabel.Text = "Timer habis! Rejoining..."
                     task.wait(1)
                     triggerRejoin()
