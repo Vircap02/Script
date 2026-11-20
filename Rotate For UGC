@@ -64,7 +64,7 @@ local function registerQueue()
     if autoExecuteEnabled and queueFunction then
         pcall(function()
             queueFunction([[
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Rotate%20For%20UGC"))()
             ]])
         end)
     end
