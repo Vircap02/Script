@@ -1,0 +1,633 @@
+local coreGui = cloneref(game:GetService("CoreGui"))
+local userInputService = cloneref(game:GetService("UserInputService"))
+local runService = cloneref(game:GetService("RunService"))
+local tweenService = cloneref(game:GetService("TweenService"))
+local Players = cloneref(game:GetService("Players"))
+local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+local teleportService = cloneref(game:GetService("TeleportService"))
+
+-- Sistem Penyimpanan Config (Auto Save/Load untuk Putaran & Status Auto-Execute)
+local CONFIG_FILE = "AutoFarm.json"
+local AE_FILE = "AutoExecute.json"
+
+local function saveConfig(val)
+    if writefile then
+        pcall(function()
+            writefile(CONFIG_FILE, tostring(val))
+        end)
+    end
+end
+
+local function loadConfig()
+    if readfile and isfile and isfile(CONFIG_FILE) then
+        local success, result = pcall(function()
+            return readfile(CONFIG_FILE)
+        end)
+        if success and result then
+            return string.gsub(result, "%s+", "")
+        end
+    end
+    return "1"
+end
+
+local function saveAEConfig(state)
+    if writefile then
+        pcall(function()
+            writefile(AE_FILE, tostring(state))
+        end)
+    end
+end
+
+local function loadAEConfig()
+    if readfile and isfile and isfile(AE_FILE) then
+        local success, result = pcall(function()
+            return readfile(AE_FILE)
+        end)
+        if success and result then
+            local cleaned = string.gsub(result, "%s+", "")
+            if cleaned == "false" then return false end
+        end
+    end
+    return true -- Default ON
+end
+
+-- 1. Otomatis jalankan loadstring utama saat pertama kali dieksekusi
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
+end)
+
+-- 2. Variabel & Status Auto-Execute (Queue)
+local autoExecuteEnabled = loadAEConfig()
+local queueFunction = syn and syn.queue_on_teleport or queue_on_teleport or qequeue_on_teleport or fluxus and fluxus.queue_on_teleport
+
+local function registerQueue()
+    if autoExecuteEnabled and queueFunction then
+        pcall(function()
+            queueFunction([[
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Stand%20For%20UGC"))()
+            ]])
+        end)
+    end
+end
+
+registerQueue()
+
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
+local REJOIN_NORMAL = Color3.fromRGB(20, 35, 45)
+local REJOIN_HOVER = Color3.fromRGB(30, 55, 75)
+
+-- Warna Tombol Toggle AE
+local AE_OFF_COLOR = Color3.fromRGB(45, 15, 15)
+local AE_ON_COLOR = Color3.fromRGB(15, 45, 25)
+
+-- Warna Tombol Toggle Farm
+local TOGGLE_OFF = Color3.fromRGB(35, 20, 45)
+local TOGGLE_ON = Color3.fromRGB(220, 100, 0)
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+-- Tinggi panel diperbesar sedikit agar muat tombol kontrol baru dengan rapi
+local FULL_W, FULL_H = 290, 128
+local MINI_W, MINI_H = 42, 42
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar di sebelah kiri Judul Utama
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -148, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "ROTATE FOR UGC"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -148, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- Status Awal Langsung ON
+local isRunning = true
+local farmThread = nil
+local playtimeThread = nil
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, -20, 0, 24)
+toggleBtn.Position = UDim2.new(0, 10, 0, 40)
+toggleBtn.BackgroundColor3 = TOGGLE_ON
+toggleBtn.Text = "AUTO FARM ALL : ON"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 10
+toggleBtn.BorderSizePixel = 0
+toggleBtn.AutoButtonColor = false
+toggleBtn.Parent = main
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 5)
+animStroke(toggleBtn, 1)
+
+local toggleScale = Instance.new("UIScale")
+toggleScale.Scale = 1
+toggleScale.Parent = toggleBtn
+
+-- Input Text untuk Atur Jumlah Putaran Auto Rejoin
+local inputLabel = Instance.new("TextLabel")
+inputLabel.Size = UDim2.new(0, 140, 0, 22)
+inputLabel.Position = UDim2.new(0, 10, 0, 70)
+inputLabel.BackgroundTransparency = 1
+inputLabel.Text = "Rejoin tiap (putaran):"
+inputLabel.Font = Enum.Font.GothamMedium
+inputLabel.TextSize = 9.5
+inputLabel.TextColor3 = Color3.fromRGB(200, 180, 240)
+inputLabel.TextXAlignment = Enum.TextXAlignment.Left
+inputLabel.Parent = main
+
+local rejoinInput = Instance.new("TextBox")
+rejoinInput.Size = UDim2.new(0, 120, 0, 22)
+rejoinInput.Position = UDim2.new(1, -130, 0, 70)
+rejoinInput.BackgroundColor3 = Color3.fromRGB(25, 18, 35)
+rejoinInput.Text = loadConfig()
+rejoinInput.Font = Enum.Font.GothamBold
+rejoinInput.TextSize = 10
+rejoinInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+rejoinInput.ClearTextOnFocus = false
+rejoinInput.BorderSizePixel = 0
+rejoinInput.Parent = main
+Instance.new("UICorner", rejoinInput).CornerRadius = UDim.new(0, 5)
+animStroke(rejoinInput, 1)
+
+rejoinInput.FocusLost:Connect(function()
+    saveConfig(rejoinInput.Text)
+end)
+
+-- Label Status / Timer
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 14)
+statusLabel.Position = UDim2.new(0, 10, 0, 102)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Status: Memulai..."
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextSize = 9
+statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
+statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+statusLabel.Parent = main
+
+-- Tombol Close (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Rejoin Manual (R)
+local rejoinBtn = Instance.new("TextButton")
+rejoinBtn.Size = UDim2.new(0, 22, 0, 22)
+rejoinBtn.Position = UDim2.new(1, -56, 0, 8)
+rejoinBtn.BackgroundColor3 = REJOIN_NORMAL
+rejoinBtn.Text = "R"
+rejoinBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
+rejoinBtn.Font = Enum.Font.GothamBlack
+rejoinBtn.TextSize = 11
+rejoinBtn.BorderSizePixel = 0
+rejoinBtn.AutoButtonColor = false
+rejoinBtn.Parent = main
+Instance.new("UICorner", rejoinBtn).CornerRadius = UDim.new(0, 5)
+animStroke(rejoinBtn, 1)
+
+local rejoinScale = Instance.new("UIScale")
+rejoinScale.Scale = 1
+rejoinScale.Parent = rejoinBtn
+
+-- Tombol Toggle Auto-Execute (AE)
+local aeBtn = Instance.new("TextButton")
+aeBtn.Size = UDim2.new(0, 22, 0, 22)
+aeBtn.Position = UDim2.new(1, -82, 0, 8)
+aeBtn.BackgroundColor3 = autoExecuteEnabled and AE_ON_COLOR or AE_OFF_COLOR
+aeBtn.Text = "AE"
+aeBtn.TextColor3 = autoExecuteEnabled and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
+aeBtn.Font = Enum.Font.GothamBlack
+aeBtn.TextSize = 9
+aeBtn.BorderSizePixel = 0
+aeBtn.AutoButtonColor = false
+aeBtn.Parent = main
+Instance.new("UICorner", aeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(aeBtn, 1)
+
+local aeScale = Instance.new("UIScale")
+aeScale.Scale = 1
+aeScale.Parent = aeBtn
+
+-- Tombol Minimize (-)
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -108, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- ==========================================
+-- FUNGSI KONTROL TOMBOL (AE & REJOIN)
+-- ==========================================
+aeBtn.MouseButton1Click:Connect(function()
+    autoExecuteEnabled = not autoExecuteEnabled
+    saveAEConfig(autoExecuteEnabled)
+    
+    if autoExecuteEnabled then
+        aeBtn.BackgroundColor3 = AE_ON_COLOR
+        aeBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+        statusLabel.Text = "Auto-Execute: ON"
+    else
+        aeBtn.BackgroundColor3 = AE_OFF_COLOR
+        aeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.Text = "Auto-Execute: OFF"
+    end
+    task.delay(1.5, function()
+        if statusLabel.Text:find("Auto-Execute") then
+            statusLabel.Text = "Status: Berjalan"
+        end
+    end)
+end)
+
+local player = Players.LocalPlayer
+
+local function triggerRejoin()
+    registerQueue() -- Daftarkan queue sesuai status tombol AE saat ini
+    pcall(function()
+        teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+    end)
+    task.wait(2)
+    pcall(function()
+        teleportService:Teleport(game.PlaceId, player)
+    end)
+end
+
+rejoinBtn.MouseEnter:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = REJOIN_HOVER}):Play()
+end)
+
+rejoinBtn.MouseLeave:Connect(function()
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.15), {BackgroundColor3 = REJOIN_NORMAL}):Play()
+end)
+
+rejoinBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(rejoinScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(rejoinScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+rejoinBtn.MouseButton1Click:Connect(function()
+    statusLabel.Text = "Rejoining manual..."
+    task.wait(0.5)
+    triggerRejoin()
+end)
+
+-- ==========================================
+-- LOGIKA UTAMA + AUTO REJOINS
+-- ==========================================
+local COOLDOWN_TIME = 430 -- 7 menit per putaran
+
+local function startFarm()
+    if farmThread then task.cancel(farmThread) end
+    farmThread = task.spawn(function()
+        local ClaimFreeRF = ReplicatedStorage:WaitForChild("Packages")
+            :WaitForChild("Knit")
+            :WaitForChild("Services")
+            :WaitForChild("ChestRewardService")
+            :WaitForChild("RF")
+            :WaitForChild("ClaimFree")
+
+        local rewardLocations = {
+            {name = "GlassBridge", part = workspace:WaitForChild("GlassBridge"):WaitForChild("GlassReward")},
+            {name = "MathPuzzle",  part = workspace:WaitForChild("MathPuzzle"):WaitForChild("MathReward")},
+            {name = "RainbowObby", part = workspace:WaitForChild("RainbowObby"):WaitForChild("RainbowReward")},
+            {name = "WallEscape",  part = workspace:WaitForChild("WallEscape"):WaitForChild("WallReward")},
+        }
+
+        local completedCycles = 0
+
+        while isRunning do
+            local character = player.Character or player.CharacterAdded:Wait()
+            local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+
+            if rootPart and isRunning then
+                local cycleStartTime = os.clock()
+                
+                -- 1. Teleport di atas target -> Diam 0.5s -> Jatuh -> Claim Reward -> Jeda 1s
+                for index, location in ipairs(rewardLocations) do
+                    if not isRunning then break end
+                    
+                    local targetPart = location.part
+                    if targetPart then
+                        statusLabel.Text = "Teleport ke: " .. location.name
+                        
+                        -- Teleport di atas target dan tahan posisi selama 0.5 detik
+                        rootPart.Anchored = true
+                        rootPart.AssemblyLinearVelocity = Vector3.zero
+                        rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 6, 0)
+                        task.wait(0.5)
+                        
+                        if not isRunning then
+                            rootPart.Anchored = false
+                            break
+                        end
+                        
+                        -- Lepas anchor agar jatuh ke target
+                        rootPart.Anchored = false
+                        task.wait(0.35) -- Waktu jatuh menyentuh target
+
+                        -- Ambil / Claim reward
+                        statusLabel.Text = "Claim: " .. location.name
+                        for id = 1, 99 do
+                            if not isRunning then break end
+                            pcall(function()
+                                ClaimFreeRF:InvokeServer(id)
+                            end)
+                            task.wait(0.02)
+                        end
+
+                        -- Jeda 1 detik setelah claim sebelum ke berikutnya
+                        if index < #rewardLocations and isRunning then
+                            statusLabel.Text = "Jeda 1 detik..."
+                            task.wait(1)
+                        end
+                    end
+                end
+
+                completedCycles = completedCycles + 1
+
+                -- 2. Tunggu Timer Habis Dulu
+                while isRunning do
+                    local elapsedTime = os.clock() - cycleStartTime
+                    local remainingTime = COOLDOWN_TIME - elapsedTime
+                    
+                    if remainingTime <= 0 then
+                        break
+                    end
+                    
+                    local targetCycles = tonumber(rejoinInput.Text) or 1
+                    local mins = math.floor(remainingTime / 60)
+                    local secs = math.floor(remainingTime % 60)
+                    statusLabel.Text = string.format("Putaran %d/%d | Sisa: %02d:%02d", completedCycles, targetCycles, mins, secs)
+                    task.wait(0.5)
+                end
+
+                if not isRunning then break end
+
+                -- 3. Setelah Timer Habis, Cek Apakah Waktunya Rejoin
+                local targetCycles = tonumber(rejoinInput.Text) or 1
+                if completedCycles >= targetCycles then
+                    statusLabel.Text = "Timer habis! Rejoining..."
+                    task.wait(1)
+                    triggerRejoin()
+                    break
+                end
+            else
+                statusLabel.Text = "Menunggu Karakter..."
+                task.wait(1)
+            end
+        end
+    end)
+
+    if playtimeThread then task.cancel(playtimeThread) end
+    playtimeThread = task.spawn(function()
+        local PlaytimeRF = ReplicatedStorage:WaitForChild("Packages")
+            :WaitForChild("Knit")
+            :WaitForChild("Services")
+            :WaitForChild("PlaytimeRewardsService")
+            :WaitForChild("RF")
+            :WaitForChild("Claim")
+
+        while isRunning do
+            for i = 1, 8 do
+                if not isRunning then break end
+                local args = { i }
+                pcall(function()
+                    PlaytimeRF:InvokeServer(unpack(args))
+                end)
+                task.wait(0.1)
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function stopFarm()
+    isRunning = false
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.Anchored = false
+    end
+    if farmThread then
+        task.cancel(farmThread)
+        farmThread = nil
+    end
+    if playtimeThread then
+        task.cancel(playtimeThread)
+        playtimeThread = nil
+    end
+    statusLabel.Text = "Status: Idle"
+end
+
+toggleBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(toggleScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(toggleScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    isRunning = not isRunning
+    
+    if isRunning then
+        tweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = TOGGLE_ON}):Play()
+        toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleBtn.Text = "AUTO FARM ALL : ON"
+        startFarm()
+    else
+        stopFarm()
+        tweenService:Create(toggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = TOGGLE_OFF}):Play()
+        toggleBtn.TextColor3 = Color3.fromRGB(220, 200, 255)
+        toggleBtn.Text = "AUTO FARM ALL : OFF"
+    end
+end)
+
+minBtn.MouseButton1Click:Connect(function()
+    minimized = true
+    floatingIcon.Position = main.Position
+    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(0, MINI_W, 0, MINI_H), BackgroundTransparency = 1})
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        if minimized then main.Visible = false floatingIcon.Visible = true end
+    end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+    minimized = false
+    main.Position = floatingIcon.Position
+    main.Visible = true
+    floatingIcon.Visible = false
+    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+    main.BackgroundTransparency = 1
+    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, FULL_W, 0, FULL_H), BackgroundTransparency = 0.15})
+    tweenIn:Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    stopFarm()
+    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1})
+    tweenClose:Play()
+    tweenClose.Completed:Connect(function() gui:Destroy() end)
+end)
+
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                dragging = true
+                dragStart = i.Position
+                startPos = obj.Position
+            end
+        end)
+    end
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local targetObj = minimized and floatingIcon or main
+            local gs = targetObj.AbsoluteSize
+            targetObj.Position = UDim2.new(0, math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X), 0, math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y))
+        end
+    end)
+    
+    userInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
+
+-- Langsung jalankan fungsi farm otomatis saat script dieksekusi
+startFarm()
