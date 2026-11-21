@@ -3,6 +3,7 @@ local runService = cloneref and cloneref(game:GetService("RunService")) or game:
 local tweenService = cloneref and cloneref(game:GetService("TweenService")) or game:GetService("TweenService")
 local players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
 local MarketplaceService = cloneref and cloneref(game:GetService("MarketplaceService")) or game:GetService("MarketplaceService")
+local HttpService = cloneref and cloneref(game:GetService("HttpService")) or game:GetService("HttpService")
 
 local localPlayer = players.LocalPlayer
 
@@ -21,9 +22,11 @@ if coreGui:FindFirstChild("VirgoboyHubUI") then
 end
 
 -- ====================================================
---  DAFTAR MAP BARU
+--  DAFTAR MAP BAWAAN & PENYIMPANAN PERMANEN
 -- ====================================================
-local listMap = {
+local MAP_SAVE_FILE = "VirgoboyHub_MapList.json"
+
+local defaultListMap = {
     {
         Nama = "🕷 Guiby: Monster vs Bayi",
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/Guiby.lua"))()]]
@@ -85,6 +88,49 @@ local listMap = {
         Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Seasouls%20Halloween"))()]]
     },
 }
+
+local function cloneDefaultMaps()
+    local copy = {}
+    for i, item in ipairs(defaultListMap) do
+        copy[i] = {Nama = item.Nama, Script = item.Script}
+    end
+    return copy
+end
+
+local env = getgenv and getgenv() or _G
+local listMap = {}
+
+local function saveMapList()
+    env.VirgoboyMapData = listMap
+    if writefile then
+        pcall(function()
+            writefile(MAP_SAVE_FILE, HttpService:JSONEncode(listMap))
+        end)
+    end
+end
+
+local function loadMapList()
+    if isfile and readfile and isfile(MAP_SAVE_FILE) then
+        local success, decoded = pcall(function()
+            return HttpService:JSONDecode(readfile(MAP_SAVE_FILE))
+        end)
+        if success and type(decoded) == "table" then
+            listMap = decoded
+            env.VirgoboyMapData = listMap
+            return
+        end
+    end
+
+    if type(env.VirgoboyMapData) == "table" then
+        listMap = env.VirgoboyMapData
+        return
+    end
+
+    listMap = cloneDefaultMaps()
+    env.VirgoboyMapData = listMap
+end
+
+loadMapList()
 -- ====================================================
 
 local COL_BG = Color3.fromRGB(15, 15, 18)
@@ -145,7 +191,7 @@ gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
 -- ====================================================
---  SISTEM NOTIFIKASI MODERN (NEW)
+--  SISTEM NOTIFIKASI MODERN
 -- ====================================================
 local notifyContainer = Instance.new("Frame")
 notifyContainer.Name = "NotifyContainer"
@@ -232,7 +278,6 @@ local function showNotify(titleText, descText, duration)
         end
     end)
 end
--- ====================================================
 
 local function updateTheme(themeName)
     if not ColorThemes[themeName] then return end
@@ -426,6 +471,8 @@ minBtn.MouseButton1Click:Connect(toggleMinimize)
 minIcon.MouseButton1Click:Connect(toggleMinimize)
 
 -- ====================================================
+--  SIDEBAR & TAB SYSTEM
+-- ====================================================
 local sidebar = Instance.new("Frame")
 sidebar.Size = UDim2.new(0, 80, 1, -MINI_H - 10)
 sidebar.Position = UDim2.new(0, 10, 0, MINI_H)
@@ -553,10 +600,63 @@ welcomeLabel.Parent = homePage
 Instance.new("UICorner", welcomeLabel).CornerRadius = UDim.new(0, 6)
 
 ----------------------------------------------------
--- CONTENT: MAP
+-- CONTENT: MAP (Tambah, Hapus & Simpan Permanen)
 ----------------------------------------------------
+local mapAddForm = Instance.new("Frame")
+mapAddForm.Size = UDim2.new(1, 0, 0, 76)
+mapAddForm.BackgroundColor3 = COL_PANEL
+mapAddForm.BackgroundTransparency = 0.2
+mapAddForm.ZIndex = 2
+mapAddForm.Parent = mapPage
+Instance.new("UICorner", mapAddForm).CornerRadius = UDim.new(0, 6)
+animStroke(mapAddForm, 1)
+
+local mapNameInput = Instance.new("TextBox")
+mapNameInput.Size = UDim2.new(1, -12, 0, 22)
+mapNameInput.Position = UDim2.new(0, 6, 0, 5)
+mapNameInput.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+mapNameInput.PlaceholderText = "Nama Map (Contoh: Tycoon Script)"
+mapNameInput.Text = ""
+mapNameInput.Font = Enum.Font.GothamMedium
+mapNameInput.TextSize = 10
+mapNameInput.TextColor3 = TEXT_MAIN
+mapNameInput.PlaceholderColor3 = TEXT_SUB
+mapNameInput.ClearTextOnFocus = false
+mapNameInput.ZIndex = 2
+mapNameInput.Parent = mapAddForm
+Instance.new("UICorner", mapNameInput).CornerRadius = UDim.new(0, 4)
+
+local mapCodeInput = Instance.new("TextBox")
+mapCodeInput.Size = UDim2.new(1, -12, 0, 22)
+mapCodeInput.Position = UDim2.new(0, 6, 0, 30)
+mapCodeInput.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+mapCodeInput.PlaceholderText = "Paste Loadstring / Script Map..."
+mapCodeInput.Text = ""
+mapCodeInput.Font = Enum.Font.GothamMedium
+mapCodeInput.TextSize = 10
+mapCodeInput.TextColor3 = TEXT_MAIN
+mapCodeInput.PlaceholderColor3 = TEXT_SUB
+mapCodeInput.ClearTextOnFocus = false
+mapCodeInput.ZIndex = 2
+mapCodeInput.Parent = mapAddForm
+Instance.new("UICorner", mapCodeInput).CornerRadius = UDim.new(0, 4)
+
+local saveMapBtn = Instance.new("TextButton")
+saveMapBtn.Size = UDim2.new(1, -12, 0, 18)
+saveMapBtn.Position = UDim2.new(0, 6, 0, 55)
+saveMapBtn.BackgroundColor3 = COL_ACCENT
+saveMapBtn.Text = "+ Simpan ke Daftar Map Permanen"
+saveMapBtn.Font = Enum.Font.GothamBold
+saveMapBtn.TextSize = 9
+saveMapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveMapBtn.ZIndex = 2
+saveMapBtn.Parent = mapAddForm
+Instance.new("UICorner", saveMapBtn).CornerRadius = UDim.new(0, 4)
+themeObjectsToUpdate[saveMapBtn] = "BackgroundColor3"
+
 local mapScroll = Instance.new("ScrollingFrame")
-mapScroll.Size = UDim2.new(1, 0, 1, 0)
+mapScroll.Size = UDim2.new(1, 0, 1, -82)
+mapScroll.Position = UDim2.new(0, 0, 0, 82)
 mapScroll.BackgroundTransparency = 1
 mapScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 mapScroll.ScrollBarThickness = 4
@@ -571,7 +671,7 @@ mapLayout.SortOrder = Enum.SortOrder.LayoutOrder
 mapLayout.Parent = mapScroll
 
 local mapPadding = Instance.new("UIPadding")
-mapPadding.PaddingTop = UDim.new(0, 5)
+mapPadding.PaddingTop = UDim.new(0, 2)
 mapPadding.PaddingBottom = UDim.new(0, 5)
 mapPadding.PaddingLeft = UDim.new(0, 2)
 mapPadding.PaddingRight = UDim.new(0, 5)
@@ -581,38 +681,111 @@ mapLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     mapScroll.CanvasSize = UDim2.new(0, 0, 0, mapLayout.AbsoluteContentSize.Y + 10)
 end)
 
-for _, mapData in ipairs(listMap) do
-    local mapBtn = Instance.new("TextButton")
-    mapBtn.Size = UDim2.new(1, 0, 0, 40)
-    mapBtn.BackgroundColor3 = COL_PANEL
-    mapBtn.BackgroundTransparency = 0.2
-    mapBtn.Text = mapData.Nama
-    mapBtn.Font = Enum.Font.GothamBold
-    mapBtn.TextSize = 11
-    mapBtn.TextColor3 = TEXT_MAIN
-    mapBtn.ZIndex = 2
-    mapBtn.Parent = mapScroll
-    Instance.new("UICorner", mapBtn).CornerRadius = UDim.new(0, 6)
-    animStroke(mapBtn, 1)
+local function refreshMapList()
+    for _, child in ipairs(mapScroll:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
 
-    mapBtn.MouseEnter:Connect(function()
-        tweenService:Create(mapBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
-    end)
-    mapBtn.MouseLeave:Connect(function()
-        tweenService:Create(mapBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
-    end)
+    if #listMap == 0 then
+        local emptyMapLbl = Instance.new("TextLabel")
+        emptyMapLbl.Size = UDim2.new(1, 0, 0, 40)
+        emptyMapLbl.BackgroundTransparency = 1
+        emptyMapLbl.Text = "Daftar map kosong.\nTambahkan map di kolom atas!"
+        emptyMapLbl.Font = Enum.Font.GothamMedium
+        emptyMapLbl.TextSize = 10
+        emptyMapLbl.TextColor3 = TEXT_SUB
+        emptyMapLbl.ZIndex = 2
+        emptyMapLbl.Parent = mapScroll
+        return
+    end
 
-    mapBtn.MouseButton1Click:Connect(function()
-        showNotify("Executing Script...", mapData.Nama, 3)
-        task.wait(0.5)
-        task.spawn(function()
-            pcall(function()
-                assert(loadstring(mapData.Script))()
-            end)
+    for idx, mapData in ipairs(listMap) do
+        local rowFrame = Instance.new("Frame")
+        rowFrame.Size = UDim2.new(1, 0, 0, 36)
+        rowFrame.BackgroundColor3 = COL_PANEL
+        rowFrame.BackgroundTransparency = 0.2
+        rowFrame.ZIndex = 2
+        rowFrame.Parent = mapScroll
+        Instance.new("UICorner", rowFrame).CornerRadius = UDim.new(0, 6)
+        animStroke(rowFrame, 1)
+
+        local mapBtn = Instance.new("TextButton")
+        mapBtn.Size = UDim2.new(1, -38, 1, 0)
+        mapBtn.BackgroundTransparency = 1
+        mapBtn.Text = "  " .. mapData.Nama
+        mapBtn.Font = Enum.Font.GothamBold
+        mapBtn.TextSize = 11
+        mapBtn.TextColor3 = TEXT_MAIN
+        mapBtn.TextXAlignment = Enum.TextXAlignment.Left
+        mapBtn.TextTruncate = Enum.TextTruncate.AtEnd
+        mapBtn.ZIndex = 2
+        mapBtn.Parent = rowFrame
+
+        mapBtn.MouseEnter:Connect(function()
+            tweenService:Create(rowFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
         end)
-        gui:Destroy()
-    end)
+        mapBtn.MouseLeave:Connect(function()
+            tweenService:Create(rowFrame, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
+        end)
+
+        mapBtn.MouseButton1Click:Connect(function()
+            showNotify("Executing Script...", mapData.Nama, 3)
+            task.wait(0.5)
+            task.spawn(function()
+                pcall(function()
+                    assert(loadstring(mapData.Script))()
+                end)
+            end)
+            gui:Destroy()
+        end)
+
+        local delMapBtn = Instance.new("TextButton")
+        delMapBtn.Size = UDim2.new(0, 28, 0, 26)
+        delMapBtn.Position = UDim2.new(1, -33, 0.5, -13)
+        delMapBtn.BackgroundColor3 = Color3.fromRGB(190, 50, 50)
+        delMapBtn.Text = "🗑️"
+        delMapBtn.Font = Enum.Font.GothamBold
+        delMapBtn.TextSize = 11
+        delMapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        delMapBtn.ZIndex = 2
+        delMapBtn.Parent = rowFrame
+        Instance.new("UICorner", delMapBtn).CornerRadius = UDim.new(0, 4)
+
+        delMapBtn.MouseButton1Click:Connect(function()
+            local removedName = mapData.Nama
+            table.remove(listMap, idx)
+            saveMapList()
+            refreshMapList()
+            showNotify("Map Dihapus", removedName .. " dihapus permanen.", 2)
+        end)
+    end
 end
+
+saveMapBtn.MouseButton1Click:Connect(function()
+    local mName = mapNameInput.Text:match("^%s*(.-)%s*$")
+    local mCode = mapCodeInput.Text:match("^%s*(.-)%s*$")
+
+    if mName == "" or mCode == "" then
+        showNotify("Peringatan", "Nama dan Script Map tidak boleh kosong!", 2.5)
+        return
+    end
+
+    table.insert(listMap, {
+        Nama = mName,
+        Script = mCode
+    })
+
+    saveMapList()
+    refreshMapList()
+
+    mapNameInput.Text = ""
+    mapCodeInput.Text = ""
+    showNotify("Map Tersimpan", mName .. " ditambahkan ke tab Map!", 2.5)
+end)
+
+refreshMapList()
 
 ----------------------------------------------------
 -- CONTENT: SETTING
@@ -704,11 +877,29 @@ end
 createToggle("📜 Enable Anti-AFK", 1, true, function(state) antiAfkEnabled = state end)
 createToggle("🔄 Auto Reconnect", 2, true, function(state) autoReconnectEnabled = state end)
 
--- ====================================================
---  FITUR TAMBAHAN DI MENU SETTING (SESUAI PERMINTAAN)
--- ====================================================
+-- Tombol Reset Daftar Map Bawaan
+local resetMapBtn = Instance.new("TextButton")
+resetMapBtn.Size = UDim2.new(1, 0, 0, 32)
+resetMapBtn.BackgroundColor3 = COL_ACCENT
+resetMapBtn.Text = "♻️ Reset Daftar Map Bawaan"
+resetMapBtn.Font = Enum.Font.GothamBold
+resetMapBtn.TextSize = 11
+resetMapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+resetMapBtn.LayoutOrder = 2.02
+resetMapBtn.ZIndex = 2
+resetMapBtn.Parent = settingScroll
+Instance.new("UICorner", resetMapBtn).CornerRadius = UDim.new(0, 6)
+animStroke(resetMapBtn, 1)
+themeObjectsToUpdate[resetMapBtn] = "BackgroundColor3"
 
--- Tombol Emote (BARU)
+resetMapBtn.MouseButton1Click:Connect(function()
+    listMap = cloneDefaultMaps()
+    saveMapList()
+    refreshMapList()
+    showNotify("Reset Map", "Daftar map dikembalikan ke bawaan.", 2)
+end)
+
+-- Tombol Emote
 local emoteBtn = Instance.new("TextButton")
 emoteBtn.Size = UDim2.new(1, 0, 0, 32)
 emoteBtn.BackgroundColor3 = COL_ACCENT 
@@ -730,7 +921,7 @@ emoteBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Tombol Fire All Remote (BARU)
+-- Tombol Fire All Remote
 local fireRemoteBtn = Instance.new("TextButton")
 fireRemoteBtn.Size = UDim2.new(1, 0, 0, 32)
 fireRemoteBtn.BackgroundColor3 = COL_ACCENT 
@@ -840,8 +1031,6 @@ pencariObjekBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====================================================
-
 -- Tombol Tambahan untuk Teleport
 local teleportBtn = Instance.new("TextButton")
 teleportBtn.Size = UDim2.new(1, 0, 0, 32)
@@ -886,9 +1075,7 @@ remoteBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- ====================================================
---  TOMBOL ALL SERVER (MENU SETTING) - BARU
--- ====================================================
+-- Tombol All Server
 local allServerBtn = Instance.new("TextButton")
 allServerBtn.Size = UDim2.new(1, 0, 0, 32)
 allServerBtn.BackgroundColor3 = COL_ACCENT
@@ -962,7 +1149,6 @@ allServerBtn.MouseButton1Click:Connect(function()
     end)
 
     task.spawn(function()
-        local HttpService = game:GetService("HttpService")
         local TeleportService = game:GetService("TeleportService")
         
         local success, result = pcall(function()
@@ -1006,10 +1192,8 @@ allServerBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Tombol Tambahan untuk Smart Server Hop
+-- Tombol Smart Server Hop
 local hopBtn = Instance.new("TextButton")
-local visitedServers = {}
-table.insert(visitedServers, game.JobId)
 hopBtn.Size = UDim2.new(1, 0, 0, 32)
 hopBtn.BackgroundColor3 = COL_ACCENT 
 hopBtn.Text = "🔄 Smart Server Hop"
@@ -1026,7 +1210,6 @@ themeObjectsToUpdate[hopBtn] = "BackgroundColor3"
 hopBtn.MouseButton1Click:Connect(function()
     showNotify("Server Hop", "Mencari server paling ramai...", 2)
     
-    local HttpService = game:GetService("HttpService")
     local TeleportService = game:GetService("TeleportService")
     local Players = game:GetService("Players")
     
@@ -1048,9 +1231,8 @@ hopBtn.MouseButton1Click:Connect(function()
     
     TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
 end)
--- ====================================================
---  TOMBOL AUTO REFUND (MENU SETTING)
--- ====================================================
+
+-- Tombol Auto Refund
 local autoRefundBtn = Instance.new("TextButton")
 autoRefundBtn.Size = UDim2.new(1, 0, 0, 32)
 autoRefundBtn.BackgroundColor3 = COL_ACCENT
@@ -1071,10 +1253,8 @@ autoRefundBtn.MouseButton1Click:Connect(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/AutoRefund"))()
     end)
 end)
--- ====================================================
--- ====================================================
---  TOMBOL FAKE PURCHASE (MENU SETTING)
--- ====================================================
+
+-- Tombol Fake Purchase
 local fakePurchaseBtn = Instance.new("TextButton")
 fakePurchaseBtn.Size = UDim2.new(1, 0, 0, 32)
 fakePurchaseBtn.BackgroundColor3 = COL_ACCENT
@@ -1358,8 +1538,8 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
         fakeGui:Destroy()
     end)
 end)
--- ====================================================
 
+-- Pilih Warna Tema
 local themeFrame = Instance.new("Frame")
 themeFrame.Size = UDim2.new(1, 0, 0, 55)
 themeFrame.BackgroundColor3 = COL_PANEL
@@ -1424,9 +1604,7 @@ for _, tName in ipairs(themeList) do
     end)
 end
 
--- ====================================================
---  SLIDER TRANSPARANSI BACKGROUND
--- ====================================================
+-- Slider Transparansi Background
 local sliderFrame = Instance.new("Frame")
 sliderFrame.Size = UDim2.new(1, 0, 0, 45)
 sliderFrame.BackgroundColor3 = COL_PANEL
@@ -1511,7 +1689,6 @@ userInputService.InputEnded:Connect(function(i)
         end
     end
 end)
--- ====================================================
 
 local closeHubBtn = Instance.new("TextButton")
 closeHubBtn.Size = UDim2.new(1, 0, 0, 32)
