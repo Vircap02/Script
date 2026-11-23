@@ -1,0 +1,677 @@
+-- Pastikan Player dan PlayerGui siap
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+-- Buat ScreenGui utama
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoTriggerGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Buat Main Frame (Diperbesar sedikit agar pas 8 tombol: 310x380)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 310, 0, 380)
+mainFrame.Position = UDim2.new(0.5, -155, 0.5, -190)
+mainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(50, 50, 60)
+mainStroke.Thickness = 1
+mainStroke.Parent = mainFrame
+
+-- Buat Top Bar (Header Compact)
+local topBar = Instance.new("Frame")
+topBar.Name = "TopBar"
+topBar.Size = UDim2.new(1, 0, 0, 32)
+topBar.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 8)
+topCorner.Parent = topBar
+
+local topBarCover = Instance.new("Frame")
+topBarCover.Size = UDim2.new(1, 0, 0, 8)
+topBarCover.Position = UDim2.new(0, 0, 1, -8)
+topBarCover.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+topBarCover.BorderSizePixel = 0
+topBarCover.Parent = topBar
+
+-- Judul Jendela
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -70, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚡ Auto Controller + ESP"
+titleLabel.TextColor3 = Color3.fromRGB(240, 240, 245)
+titleLabel.TextSize = 12
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+-- Tombol Close (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -27, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(235, 65, 65)
+closeBtn.Text = "×"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 14
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = topBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.Parent = closeBtn
+
+-- Tombol Minimize (-)
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Name = "MinimizeButton"
+minimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+minimizeBtn.Position = UDim2.new(1, -54, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.TextSize = 14
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.Parent = topBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 5)
+minimizeCorner.Parent = minimizeBtn
+
+-- Container Konten Utama
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "ContentContainer"
+contentContainer.Size = UDim2.new(1, 0, 1, -32)
+contentContainer.Position = UDim2.new(0, 0, 0, 32)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Parent = mainFrame
+
+local uiPadding = Instance.new("UIPadding")
+uiPadding.PaddingTop = UDim.new(0, 8)
+uiPadding.PaddingBottom = UDim.new(0, 8)
+uiPadding.PaddingLeft = UDim.new(0, 10)
+uiPadding.PaddingRight = UDim.new(0, 10)
+uiPadding.Parent = contentContainer
+
+-- Folder Input Section
+local folderLabel = Instance.new("TextLabel")
+folderLabel.Size = UDim2.new(1, 0, 0, 14)
+folderLabel.Position = UDim2.new(0, 0, 0, 0)
+folderLabel.BackgroundTransparency = 1
+folderLabel.Text = "📁 Target Path:"
+folderLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+folderLabel.TextSize = 10
+folderLabel.Font = Enum.Font.GothamMedium
+folderLabel.TextXAlignment = Enum.TextXAlignment.Left
+folderLabel.Parent = contentContainer
+
+local folderTextBox = Instance.new("TextBox")
+folderTextBox.Name = "FolderTextBox"
+folderTextBox.Size = UDim2.new(1, 0, 0, 26)
+folderTextBox.Position = UDim2.new(0, 0, 0, 16)
+folderTextBox.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+folderTextBox.Text = "workspace.shop.dinero"
+folderTextBox.TextColor3 = Color3.fromRGB(240, 240, 245)
+folderTextBox.PlaceholderText = "Masukkan path..."
+folderTextBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 115)
+folderTextBox.TextSize = 10
+folderTextBox.Font = Enum.Font.Gotham
+folderTextBox.ClearTextOnFocus = false
+folderTextBox.Parent = contentContainer
+
+local textBoxCorner = Instance.new("UICorner")
+textBoxCorner.CornerRadius = UDim.new(0, 5)
+textBoxCorner.Parent = folderTextBox
+
+-- Delay Input Section
+local delayLabel = Instance.new("TextLabel")
+delayLabel.Size = UDim2.new(1, 0, 0, 14)
+delayLabel.Position = UDim2.new(0, 0, 0, 46)
+delayLabel.BackgroundTransparency = 1
+delayLabel.Text = "⏱️ Delay (Detik):"
+delayLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+delayLabel.TextSize = 10
+delayLabel.Font = Enum.Font.GothamMedium
+delayLabel.TextXAlignment = Enum.TextXAlignment.Left
+delayLabel.Parent = contentContainer
+
+local delayTextBox = Instance.new("TextBox")
+delayTextBox.Name = "DelayTextBox"
+delayTextBox.Size = UDim2.new(1, 0, 0, 26)
+delayTextBox.Position = UDim2.new(0, 0, 0, 62)
+delayTextBox.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
+delayTextBox.Text = "0.5"
+delayTextBox.TextColor3 = Color3.fromRGB(240, 240, 245)
+delayTextBox.PlaceholderText = "Contoh: 0.5"
+delayTextBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 115)
+delayTextBox.TextSize = 10
+delayTextBox.Font = Enum.Font.Gotham
+delayTextBox.ClearTextOnFocus = false
+delayTextBox.Parent = contentContainer
+
+local delayCorner = Instance.new("UICorner")
+delayCorner.CornerRadius = UDim.new(0, 5)
+delayCorner.Parent = delayTextBox
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 22)
+statusLabel.Position = UDim2.new(0, 0, 0, 94)
+statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+statusLabel.Text = "Status: Siap"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
+statusLabel.TextSize = 10
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.Parent = contentContainer
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 5)
+statusCorner.Parent = statusLabel
+
+-- Container Khusus Grid Tombol Toggle (Disesuaikan tingginya untuk 8 tombol)
+local gridFrame = Instance.new("Frame")
+gridFrame.Name = "GridFrame"
+gridFrame.Size = UDim2.new(1, 0, 0, 210)
+gridFrame.Position = UDim2.new(0, 0, 0, 122)
+gridFrame.BackgroundTransparency = 1
+gridFrame.Parent = contentContainer
+
+local gridLayout = Instance.new("UIGridLayout")
+gridLayout.CellSize = UDim2.new(0, 140, 0, 45) -- Ukuran tiap tombol
+gridLayout.CellPadding = UDim2.new(0, 10, 0, 8) -- Jarak antar tombol
+gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+gridLayout.Parent = gridFrame
+
+-- Helper untuk membuat tombol grid yang kompak
+local function createGridBtn(name, titleText, layoutOrder)
+	local btn = Instance.new("TextButton")
+	btn.Name = name
+	btn.LayoutOrder = layoutOrder
+	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	btn.Text = titleText .. "\n[ OFF ]"
+	btn.TextColor3 = Color3.fromRGB(200, 200, 215)
+	btn.TextSize = 10
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.Parent = gridFrame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = btn
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(60, 60, 75)
+	stroke.Transparency = 0.5
+	stroke.Parent = btn
+
+	return btn
+end
+
+-- Membuat 8 Tombol Toggle dalam Grid 2 Kolom (Termasuk 2 Tombol ESP Baru)
+local touchToggleBtn = createGridBtn("TouchToggleBtn", "Touch Interest", 1)
+local proxToggleBtn  = createGridBtn("ProxToggleBtn", "Proximity Prompt", 2)
+local clickToggleBtn = createGridBtn("ClickToggleBtn", "Click Detector", 3)
+local bringToggleBtn = createGridBtn("BringToggleBtn", "Bring Items", 4)
+local tpToggleBtn    = createGridBtn("TpToggleBtn", "Teleport Item", 5)
+local tweenToggleBtn = createGridBtn("TweenToggleBtn", "Tween Item", 6)
+local espHighBtn     = createGridBtn("EspHighBtn", "ESP Highlight", 7)
+local espLineBtn     = createGridBtn("EspLineBtn", "ESP Line & Stud", 8)
+
+
+----------------------------------------------------
+-- FUNGSI TOMBOL (MINIMIZE & CLOSE)
+----------------------------------------------------
+
+local isMinimized = false
+local originalSize = mainFrame.Size
+
+minimizeBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		contentContainer.Visible = false
+		mainFrame.Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, 0, 32)
+		minimizeBtn.Text = "+"
+	else
+		contentContainer.Visible = true
+		mainFrame.Size = originalSize
+		minimizeBtn.Text = "-"
+	end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	screenGui:Destroy()
+end)
+
+
+----------------------------------------------------
+-- LOGIKA PEMBACAAN PATH & FITUR EKSEKUSI INDEPENDEN
+----------------------------------------------------
+
+local function getObjectFromPath(pathStr)
+	local currentObj = game
+	pathStr = pathStr:gsub("%s+", "")
+	
+	for partName in string.gmatch(pathStr, "[^%.]+") do
+		if currentObj then
+			if currentObj == game and partName:lower() == "workspace" then
+				currentObj = workspace
+			else
+				local found = currentObj:FindFirstChild(partName)
+				if not found then
+					pcall(function()
+						found = currentObj:WaitForChild(partName, 2)
+					end)
+				end
+				currentObj = found
+			end
+		else
+			return nil
+		end
+	end
+	return currentObj
+end
+
+local function getDelay()
+	local val = tonumber(delayTextBox.Text)
+	if not val or val < 0 then
+		return 0.5 
+	end
+	return val
+end
+
+-- Status Toggle
+local touchRunning = false
+local proxRunning = false
+local clickRunning = false
+local bringRunning = false
+local tpRunning = false
+local tweenRunning = false
+local espHighRunning = false
+local espLineRunning = false
+
+-- Helper untuk merubah tampilan tombol toggle ketika aktif/mati
+local function updateBtnState(btn, title, state)
+	if state then
+		btn.Text = title .. "\n[ ON ]"
+		btn.BackgroundColor3 = Color3.fromRGB(30, 140, 75)
+	else
+		btn.Text = title .. "\n[ OFF ]"
+		btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	end
+end
+
+-- 1. Toggle TouchInterest Loop
+touchToggleBtn.MouseButton1Click:Connect(function()
+	touchRunning = not touchRunning
+	updateBtnState(touchToggleBtn, "Touch Interest", touchRunning)
+	if touchRunning then
+		statusLabel.Text = "Status: TouchInterest berjalan..."
+		task.spawn(function()
+			while touchRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					local character = player.Character
+					local hrp = character and character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						for _, item in ipairs(targetFolder:GetDescendants()) do
+							if not touchRunning then break end
+							if item:IsA("BasePart") and item:FindFirstChildOfClass("TouchTransmitter") then
+								firetouchinterest(hrp, item, 0)
+								task.wait(0.02)
+								firetouchinterest(hrp, item, 1)
+							end
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: TouchInterest dimatikan"
+	end
+end)
+
+-- 2. Toggle ProximityPrompt Loop
+proxToggleBtn.MouseButton1Click:Connect(function()
+	proxRunning = not proxRunning
+	updateBtnState(proxToggleBtn, "Proximity Prompt", proxRunning)
+	if proxRunning then
+		statusLabel.Text = "Status: ProximityPrompt berjalan..."
+		task.spawn(function()
+			while proxRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					for _, item in ipairs(targetFolder:GetDescendants()) do
+						if not proxRunning then break end
+						if item:IsA("ProximityPrompt") then
+							fireproximityprompt(item)
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: ProximityPrompt dimatikan"
+	end
+end)
+
+-- 3. Toggle ClickDetector Loop
+clickToggleBtn.MouseButton1Click:Connect(function()
+	clickRunning = not clickRunning
+	updateBtnState(clickToggleBtn, "Click Detector", clickRunning)
+	if clickRunning then
+		statusLabel.Text = "Status: ClickDetector berjalan..."
+		task.spawn(function()
+			while clickRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					for _, item in ipairs(targetFolder:GetDescendants()) do
+						if not clickRunning then break end
+						if item:IsA("ClickDetector") then
+							fireclickdetector(item)
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: ClickDetector dimatikan"
+	end
+end)
+
+-- 4. Toggle Auto Bring Items Loop
+bringToggleBtn.MouseButton1Click:Connect(function()
+	bringRunning = not bringRunning
+	updateBtnState(bringToggleBtn, "Bring Items", bringRunning)
+	if bringRunning then
+		statusLabel.Text = "Status: Auto Bring berjalan..."
+		task.spawn(function()
+			while bringRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					local character = player.Character
+					local hrp = character and character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						for _, item in ipairs(targetFolder:GetDescendants()) do
+							if not bringRunning then break end
+							if item:IsA("BasePart") then
+								item.CFrame = hrp.CFrame
+							end
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: Auto Bring dimatikan"
+	end
+end)
+
+-- 5. Toggle Auto Teleport to Item Loop
+tpToggleBtn.MouseButton1Click:Connect(function()
+	tpRunning = not tpRunning
+	updateBtnState(tpToggleBtn, "Teleport Item", tpRunning)
+	if tpRunning then
+		statusLabel.Text = "Status: Auto Teleport berjalan..."
+		task.spawn(function()
+			while tpRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					local character = player.Character
+					local hrp = character and character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						local visitedItems = {}
+						for _, item in ipairs(targetFolder:GetDescendants()) do
+							if not tpRunning then break end
+							if item:IsA("BasePart") and not visitedItems[item] then
+								visitedItems[item] = true
+								hrp.CFrame = item.CFrame + Vector3.new(0, 3, 0)
+								task.wait(getDelay())
+							end
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: Auto Teleport dimatikan"
+	end
+end)
+
+-- 6. Toggle Auto Tween to Item Loop
+tweenToggleBtn.MouseButton1Click:Connect(function()
+	tweenRunning = not tweenRunning
+	updateBtnState(tweenToggleBtn, "Tween Item", tweenRunning)
+	if tweenRunning then
+		statusLabel.Text = "Status: Auto Tween berjalan..."
+		task.spawn(function()
+			while tweenRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					local character = player.Character
+					local hrp = character and character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						local visitedItems = {}
+						for _, item in ipairs(targetFolder:GetDescendants()) do
+							if not tweenRunning then break end
+							if item:IsA("BasePart") and not visitedItems[item] then
+								visitedItems[item] = true
+								
+								local distance = (hrp.Position - item.Position).Magnitude
+								local speed = 50 
+								local duration = math.clamp(distance / speed, 0.1, 1.5)
+								
+								local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+								local tween = TweenService:Create(hrp, tweenInfo, {CFrame = item.CFrame + Vector3.new(0, 3, 0)})
+								
+								tween:Play()
+								
+								local completed = false
+								local conn
+								conn = tween.Completed:Connect(function()
+									completed = true
+									if conn then conn:Disconnect() end
+								end)
+								
+								local startTime = tick()
+								while not completed and tweenRunning and (tick() - startTime) < (duration + 0.2) do
+									task.wait(0.05)
+								end
+								
+								if not tweenRunning then
+									tween:Cancel()
+									break
+								end
+								
+								task.wait(getDelay())
+							end
+						end
+					end
+				end
+				task.wait(getDelay())
+			end
+		end)
+	else
+		statusLabel.Text = "Status: Auto Tween dimatikan"
+	end
+end)
+
+
+----------------------------------------------------
+-- FITUR BARU: AUTO ESP (HIGHLIGHT, LINE, & STUDS)
+----------------------------------------------------
+
+-- Container Penyimpanan Objek ESP agar rapi dan bisa dihapus saat dimatikan
+local espHighlights = {}
+local espDrawings = {}
+
+-- 7. Toggle ESP Highlight
+espHighBtn.MouseButton1Click:Connect(function()
+	espHighRunning = not espHighRunning
+	updateBtnState(espHighBtn, "ESP Highlight", espHighRunning)
+	
+	if espHighRunning then
+		statusLabel.Text = "Status: ESP Highlight aktif"
+		task.spawn(function()
+			while espHighRunning do
+				local targetFolder = getObjectFromPath(folderTextBox.Text)
+				if targetFolder then
+					local currentParts = {}
+					for _, item in ipairs(targetFolder:GetDescendants()) do
+						if item:IsA("BasePart") then
+							currentParts[item] = true
+							-- Buat Highlight jika belum ada
+							if not espHighlights[item] then
+								local highlight = Instance.new("Highlight")
+								highlight.Name = "AutoEspHighlight"
+								highlight.Adornee = item
+								highlight.FillColor = Color3.fromRGB(0, 255, 128)
+								highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+								highlight.FillTransparency = 0.4
+								highlight.OutlineTransparency = 0
+								highlight.Parent = item
+								espHighlights[item] = highlight
+							end
+						end
+					end
+					-- Bersihkan highlight item yang sudah hilang dari folder
+					for part, hl in pairs(espHighlights) do
+						if not currentParts[part] or not part.Parent then
+							if hl then hl:Destroy() end
+							espHighlights[part] = nil
+						end
+					end
+				else
+					-- Hapus semua jika path tidak ditemukan
+					for part, hl in pairs(espHighlights) do
+						if hl then hl:Destroy() end
+						espHighlights[part] = nil
+					end
+				end
+				task.wait(1)
+			end
+		end)
+	else
+		statusLabel.Text = "Status: ESP Highlight dimatikan"
+		for part, hl in pairs(espHighlights) do
+			if hl then hl:Destroy() end
+		end
+		espHighlights = {}
+	end
+end)
+
+-- 8. Toggle ESP Line Tracking & Studs (Menggunakan Drawing API)
+espLineBtn.MouseButton1Click:Connect(function()
+	espLineRunning = not espLineRunning
+	updateBtnState(espLineBtn, "ESP Line & Stud", espLineRunning)
+	
+	if espLineRunning then
+		statusLabel.Text = "Status: ESP Line & Stud aktif"
+		
+		RunService:BindToRenderStep("AutoEspLineAndStud", Enum.RenderPriority.Camera.Value + 1, function()
+			if not espLineRunning then
+				RunService:UnbindFromRenderStep("AutoEspLineAndStud")
+				-- Bersihkan semua drawing lines & text saat dimatikan
+				for part, data in pairs(espDrawings) do
+					if data.Line then data.Line:Remove() end
+					if data.Text then data.Text:Remove() end
+				end
+				espDrawings = {}
+				return
+			end
+			
+			local targetFolder = getObjectFromPath(folderTextBox.Text)
+			local character = player.Character
+			local hrp = character and character:FindFirstChild("HumanoidRootPart")
+			
+			local activeParts = {}
+			
+			if targetFolder and hrp then
+				for _, item in ipairs(targetFolder:GetDescendants()) do
+					if item:IsA("BasePart") then
+						activeParts[item] = true
+						
+						-- Inisialisasi obyek Drawing jika belum ada
+						if not espDrawings[item] then
+							local line = Drawing.new("Line")
+							line.Thickness = 1.5
+							line.Color = Color3.fromRGB(0, 255, 255)
+							line.Transparency = 0.8
+							line.Visible = false
+							
+							local text = Drawing.new("Text")
+							text.Size = 13
+							text.Center = true
+							text.Outline = true
+							text.Color = Color3.fromRGB(255, 255, 255)
+							text.Visible = false
+							
+							espDrawings[item] = {Line = line, Text = text}
+						end
+						
+						local data = espDrawings[item]
+						local vector, onScreen = camera:WorldToViewportPoint(item.Position)
+						
+						if onScreen then
+							-- Hitung Jarak (Studs) dari Player ke Item
+							local distance = (hrp.Position - item.Position).Magnitude
+							
+							-- Update Line Tracking (Dari tengah bawah layar ke posisi objek)
+							data.Line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+							data.Line.To = Vector2.new(vector.X, vector.Y)
+							data.Line.Visible = true
+							
+							-- Update Studs Text di atas objek
+							data.Text.Text = string.Format("[%s]\n[%.1f studs]", item.Name, distance)
+							data.Text.Position = Vector2.new(vector.X, vector.Y - 25)
+							data.Text.Visible = true
+						else
+							data.Line.Visible = false
+							data.Text.Visible = false
+						end
+					end
+				end
+			end
+			
+			-- Hapus drawing untuk item yang sudah tidak ada
+			for part, data in pairs(espDrawings) do
+				if not activeParts[part] or not part.Parent then
+					if data.Line then data.Line:Remove() end
+					if data.Text then data.Text:Remove() end
+					espDrawings[part] = nil
+				end
+			end
+		end)
+	else
+		statusLabel.Text = "Status: ESP Line & Stud dimatikan"
+		pcall(function()
+			RunService:UnbindFromRenderStep("AutoEspLineAndStud")
+		end)
+		for part, data in pairs(espDrawings) do
+			if data.Line then data.Line:Remove() end
+			if data.Text then data.Text:Remove() end
+		end
+		espDrawings = {}
+	end
+end)
