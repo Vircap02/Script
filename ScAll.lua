@@ -943,6 +943,28 @@ fireRemoteBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- Tombol Fire For Folder
+local fireFolderBtn = Instance.new("TextButton")
+fireFolderBtn.Size = UDim2.new(1, 0, 0, 32)
+fireFolderBtn.BackgroundColor3 = COL_ACCENT 
+fireFolderBtn.Text = "🔥 Fire For Folder"
+fireFolderBtn.Font = Enum.Font.GothamBold
+fireFolderBtn.TextSize = 11
+fireFolderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+fireFolderBtn.LayoutOrder = 2.09
+fireFolderBtn.ZIndex = 2
+fireFolderBtn.Parent = settingScroll
+Instance.new("UICorner", fireFolderBtn).CornerRadius = UDim.new(0, 6)
+animStroke(fireFolderBtn, 1)
+themeObjectsToUpdate[fireFolderBtn] = "BackgroundColor3"
+
+fireFolderBtn.MouseButton1Click:Connect(function()
+    showNotify("Executing...", "Menjalankan Fire For Folder...", 2)
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Fire%20For%20Folder"))()
+    end)
+end)
+
 -- 1. Tombol Infinite Yield
 local iyBtn = Instance.new("TextButton")
 iyBtn.Size = UDim2.new(1, 0, 0, 32)
