@@ -1,0 +1,644 @@
+local coreGui = cloneref(game:GetService("CoreGui"))
+local userInputService = cloneref(game:GetService("UserInputService"))
+local runService = cloneref(game:GetService("RunService"))
+local tweenService = cloneref(game:GetService("TweenService"))
+local httpService = cloneref(game:GetService("HttpService"))
+local players = cloneref(game:GetService("Players"))
+local localPlayer = players.LocalPlayer
+
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+-- ==================== CONFIG SAVE & LOAD ====================
+local CONFIG_FILE = "SusuToMo_Config.json"
+local DEFAULT_CONFIG = {
+    autoCollectStar = false,
+    autoFinishObby = false,
+    autoCollectAnimals = false,
+    autoCollectItem = false,
+}
+
+local function loadConfig()
+    local cfg = {}
+    for k, v in pairs(DEFAULT_CONFIG) do
+        cfg[k] = v
+    end
+
+    if typeof(isfile) == "function" and typeof(readfile) == "function" then
+        pcall(function()
+            if isfile(CONFIG_FILE) then
+                local raw = readfile(CONFIG_FILE)
+                local decoded = httpService:JSONDecode(raw)
+                if type(decoded) == "table" then
+                    for k, v in pairs(DEFAULT_CONFIG) do
+                        if type(decoded[k]) == "boolean" then
+                            cfg[k] = decoded[k]
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    return cfg
+end
+
+local config = loadConfig()
+
+local function saveConfig()
+    if typeof(writefile) == "function" then
+        pcall(function()
+            writefile(CONFIG_FILE, httpService:JSONEncode(config))
+        end)
+    end
+end
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local MIN_HOVER = Color3.fromRGB(70, 35, 18)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+-- Fungsi membuat tombol (mendukung ukuran & posisi custom untuk grid)
+local function createActionButton(parent, xPos, yPos, width, height, text, textColor, bgColor)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, width, 0, height)
+    btn.Position = UDim2.new(0, xPos, 0, yPos)
+    btn.BackgroundColor3 = bgColor or Color3.fromRGB(30, 20, 40)
+    btn.Text = text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 9.5
+    btn.TextWrapped = true
+    btn.TextColor3 = textColor or Color3.fromRGB(255, 200, 100)
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Parent = parent
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    animStroke(btn, 1)
+    return btn
+end
+
+local function applyToggleVisual(btn, baseLabel, enabled, instant)
+    local targetText = baseLabel .. (enabled and "\n[ON]" or "\n[OFF]")
+    if baseLabel == "Auto Collect Star" then
+        targetText = baseLabel .. (enabled and ": ON" or ": OFF")
+    end
+
+    local targetTextColor = enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+    local targetBgColor = enabled and Color3.fromRGB(20, 50, 30) or Color3.fromRGB(30, 20, 40)
+
+    btn.Text = targetText
+    btn.TextColor3 = targetTextColor
+    if instant then
+        btn.BackgroundColor3 = targetBgColor
+    else
+        tweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = targetBgColor}):Play()
+    end
+end
+
+local function teleportTo(pos)
+    pcall(function()
+        local char = localPlayer.Character
+        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            rootPart.CFrame = CFrame.new(pos)
+        end
+    end)
+end
+
+local function safeFireTouch(rootPart, targetPart)
+    if not rootPart or not targetPart or not targetPart:IsA("BasePart") then return end
+    if localPlayer.Character and targetPart:IsDescendantOf(localPlayer.Character) then return end
+    pcall(function()
+        firetouchinterest(rootPart, targetPart, 0)
+        task.wait()
+        firetouchinterest(rootPart, targetPart, 1)
+    end)
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+-- Ukuran UI diperkecil karena memakai layout Grid 3 Kolom
+local FULL_W, FULL_H = 310, 172
+local MINI_W, MINI_H = 42, 42
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar di sebelah kiri Judul Utama
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -96, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "SUSU THE GIOI TO MO"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- ==================== KONFIGURASI POSISI GRID ====================
+-- Lebar total = 310 | Margin kiri/kanan = 10 | Gap antar kolom = 6
+-- Lebar tiap kolom = (310 - 20 - 12) / 3 = 92.6 -> 92px
+local COL_1_X = 10
+local COL_2_X = 109
+local COL_3_X = 208
+local GRID_W  = 92
+
+local ROW_TOP_Y = 44   -- Baris Auto Collect Star (Full Width)
+local ROW_1_Y   = 82   -- Baris Grid Atas (TP)
+local ROW_2_Y   = 122  -- Baris Grid Bawah (Auto)
+local BTN_H     = 34
+
+-- ==================== BARIS ATAS (FULL): AUTO COLLECT STAR ====================
+local autoCollectStarEnabled = config.autoCollectStar
+local toggleBtn2 = createActionButton(
+    main,
+    COL_1_X,
+    ROW_TOP_Y,
+    FULL_W - 20,
+    30,
+    "Auto Collect Star: OFF",
+    Color3.fromRGB(255, 100, 100),
+    Color3.fromRGB(30, 20, 40)
+)
+applyToggleVisual(toggleBtn2, "Auto Collect Star", autoCollectStarEnabled, true)
+
+toggleBtn2.MouseButton1Click:Connect(function()
+    autoCollectStarEnabled = not autoCollectStarEnabled
+    config.autoCollectStar = autoCollectStarEnabled
+    saveConfig()
+    applyToggleVisual(toggleBtn2, "Auto Collect Star", autoCollectStarEnabled, false)
+end)
+
+task.spawn(function()
+    while true do
+        if autoCollectStarEnabled then
+            pcall(function()
+                local collectiblesFolder = workspace:FindFirstChild("CollectibleSpawns") and workspace.CollectibleSpawns:FindFirstChild("ActiveCollectibles")
+                if collectiblesFolder then
+                    for _, star in ipairs(collectiblesFolder:GetChildren()) do
+                        if not autoCollectStarEnabled then break end
+                        
+                        local targetPart = nil
+                        if star:IsA("BasePart") then
+                            targetPart = star
+                        elseif star:IsA("Model") then
+                            targetPart = star.PrimaryPart or star:FindFirstChildWhichIsA("BasePart")
+                        end
+                        
+                        if targetPart then
+                            local char = localPlayer.Character
+                            local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                            if rootPart then
+                                rootPart.CFrame = targetPart.CFrame
+                                task.wait(1)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- ==================== KOLOM 1 (KIRI): TP OBBY & END ZONE ====================
+local tpObbyBtn = createActionButton(
+    main,
+    COL_1_X,
+    ROW_1_Y,
+    GRID_W,
+    BTN_H,
+    "TP Obby",
+    Color3.fromRGB(255, 200, 100),
+    Color3.fromRGB(45, 25, 15)
+)
+
+tpObbyBtn.MouseButton1Click:Connect(function()
+    teleportTo(Vector3.new(1056.83, 779.15, 13.63))
+    tweenService:Create(tpObbyBtn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(80, 45, 20)}):Play()
+    task.delay(0.12, function()
+        tweenService:Create(tpObbyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(45, 25, 15)}):Play()
+    end)
+end)
+
+local autoTeleportEnabled = config.autoFinishObby
+local toggleBtn1 = createActionButton(
+    main,
+    COL_1_X,
+    ROW_2_Y,
+    GRID_W,
+    BTN_H,
+    "End Zone\n[OFF]",
+    Color3.fromRGB(255, 100, 100),
+    Color3.fromRGB(30, 20, 40)
+)
+applyToggleVisual(toggleBtn1, "End Zone", autoTeleportEnabled, true)
+
+toggleBtn1.MouseButton1Click:Connect(function()
+    autoTeleportEnabled = not autoTeleportEnabled
+    config.autoFinishObby = autoTeleportEnabled
+    saveConfig()
+    applyToggleVisual(toggleBtn1, "End Zone", autoTeleportEnabled, false)
+end)
+
+task.spawn(function()
+    while true do
+        if autoTeleportEnabled then
+            pcall(function()
+                local khuVucChoi = workspace:FindFirstChild("Khu Vuc Choi")
+                if khuVucChoi then
+                    local endZone = khuVucChoi:FindFirstChild("EndZone")
+                    if endZone and endZone:IsA("BasePart") and endZone:FindFirstChild("TouchInterest") then
+                        local char = localPlayer.Character
+                        local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            rootPart.CFrame = endZone.CFrame
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.2)
+    end
+end)
+
+-- ==================== KOLOM 2 (TENGAH): TP HUTAN & COLLECT ANIMALS ====================
+local tpHutanBtn = createActionButton(
+    main,
+    COL_2_X,
+    ROW_1_Y,
+    GRID_W,
+    BTN_H,
+    "TP Hutan",
+    Color3.fromRGB(180, 255, 160),
+    Color3.fromRGB(20, 45, 25)
+)
+
+tpHutanBtn.MouseButton1Click:Connect(function()
+    teleportTo(Vector3.new(1088.06, 774.54, 427.31))
+    tweenService:Create(tpHutanBtn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(35, 80, 45)}):Play()
+    task.delay(0.12, function()
+        tweenService:Create(tpHutanBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 45, 25)}):Play()
+    end)
+end)
+
+local autoWorldAnimalsEnabled = config.autoCollectAnimals
+local toggleBtn3 = createActionButton(
+    main,
+    COL_2_X,
+    ROW_2_Y,
+    GRID_W,
+    BTN_H,
+    "Collect Animals\n[OFF]",
+    Color3.fromRGB(255, 100, 100),
+    Color3.fromRGB(30, 20, 40)
+)
+applyToggleVisual(toggleBtn3, "Collect Animals", autoWorldAnimalsEnabled, true)
+
+toggleBtn3.MouseButton1Click:Connect(function()
+    autoWorldAnimalsEnabled = not autoWorldAnimalsEnabled
+    config.autoCollectAnimals = autoWorldAnimalsEnabled
+    saveConfig()
+    applyToggleVisual(toggleBtn3, "Collect Animals", autoWorldAnimalsEnabled, false)
+end)
+
+task.spawn(function()
+    while true do
+        if autoWorldAnimalsEnabled then
+            pcall(function()
+                local worldAnimals = workspace:FindFirstChild("WorldAnimals")
+                local char = localPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if worldAnimals and rootPart then
+                    for _, obj in ipairs(worldAnimals:GetDescendants()) do
+                        if not autoWorldAnimalsEnabled then break end
+                        if obj:IsA("BasePart") then
+                            safeFireTouch(rootPart, obj)
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.2)
+    end
+end)
+
+-- ==================== KOLOM 3 (KANAN): TP RUBIK & COLLECT ITEM ====================
+local tpRubikBtn = createActionButton(
+    main,
+    COL_3_X,
+    ROW_1_Y,
+    GRID_W,
+    BTN_H,
+    "TP Rubik",
+    Color3.fromRGB(215, 160, 255),
+    Color3.fromRGB(38, 20, 55)
+)
+
+tpRubikBtn.MouseButton1Click:Connect(function()
+    teleportTo(Vector3.new(583.60, 770.09, 513.07))
+    tweenService:Create(tpRubikBtn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(68, 35, 95)}):Play()
+    task.delay(0.12, function()
+        tweenService:Create(tpRubikBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(38, 20, 55)}):Play()
+    end)
+end)
+
+local autoSpawnedObjectsEnabled = config.autoCollectItem
+local toggleBtn4 = createActionButton(
+    main,
+    COL_3_X,
+    ROW_2_Y,
+    GRID_W,
+    BTN_H,
+    "Collect Item\n[OFF]",
+    Color3.fromRGB(255, 100, 100),
+    Color3.fromRGB(30, 20, 40)
+)
+applyToggleVisual(toggleBtn4, "Collect Item", autoSpawnedObjectsEnabled, true)
+
+toggleBtn4.MouseButton1Click:Connect(function()
+    autoSpawnedObjectsEnabled = not autoSpawnedObjectsEnabled
+    config.autoCollectItem = autoSpawnedObjectsEnabled
+    saveConfig()
+    applyToggleVisual(toggleBtn4, "Collect Item", autoSpawnedObjectsEnabled, false)
+end)
+
+task.spawn(function()
+    while true do
+        if autoSpawnedObjectsEnabled then
+            pcall(function()
+                local runtimeFolder = workspace:FindFirstChild("Runtime")
+                local spawnedObjects = runtimeFolder and runtimeFolder:FindFirstChild("SpawnedObjects")
+                local char = localPlayer.Character
+                local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if spawnedObjects and rootPart then
+                    for _, obj in ipairs(spawnedObjects:GetDescendants()) do
+                        if not autoSpawnedObjectsEnabled then break end
+                        if obj:IsA("BasePart") then
+                            local hasTouch = obj:FindFirstChildWhichIsA("TouchTransmitter", true) or obj:FindFirstChild("TouchInterest")
+                            if hasTouch or not obj.CanCollide then
+                                safeFireTouch(rootPart, obj)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.2)
+    end
+end)
+-- ============================================================================
+
+-- Tombol Close (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Minimize (-)
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+-- Pop-up ikon kecil saat minimize
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- Interaksi Tombol Minimize
+minBtn.MouseEnter:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+end)
+
+minBtn.MouseLeave:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+end)
+
+minBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+    tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+        tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+-- Interaksi Tombol Close
+closeBtn.MouseEnter:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+end)
+
+closeBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+    tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    })
+    tweenClose:Play()
+    tweenClose.Completed:Connect(function()
+        gui:Destroy()
+    end)
+end)
+
+-- Fungsi Toggle Minimize / Restore
+minBtn.MouseButton1Click:Connect(function()
+    minimized = true
+    floatingIcon.Position = main.Position
+    
+    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, MINI_W, 0, MINI_H),
+        BackgroundTransparency = 1
+    })
+    
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        if minimized then
+            main.Visible = false
+            floatingIcon.Visible = true
+        end
+    end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+    minimized = false
+    main.Position = floatingIcon.Position
+    main.Visible = true
+    floatingIcon.Visible = false
+    
+    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+    main.BackgroundTransparency = 1
+    
+    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, FULL_W, 0, FULL_H),
+        BackgroundTransparency = 0.15
+    })
+    tweenIn:Play()
+end)
+
+-- Sistem Dragging
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                dragging = true
+                dragStart = i.Position
+                startPos = obj.Position
+            end
+        end)
+    end
+    
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local targetObj = minimized and floatingIcon or main
+            local gs = targetObj.AbsoluteSize
+            
+            targetObj.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+            )
+        end
+    end)
+    
+    userInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
