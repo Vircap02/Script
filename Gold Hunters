@@ -1,33 +1,99 @@
+--// 「 Credits to Remote Detector 」
 local coreGui = cloneref(game:GetService("CoreGui"))
 local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local players = cloneref(game:GetService("Players"))
+local teleportService = cloneref(game:GetService("TeleportService"))
+local httpService = cloneref(game:GetService("HttpService"))
+
+local TARGET_PLACE_ID = 4655652068
+local TP_HEIGHT_OFFSET = 6.5 -- Ketinggian tambahan di atas target agar tidak jatuh saat teleport
+
+local CONFIG_FOLDER = "VirgoboyUI"
+local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
 
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
 end
 
--- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)[cite: 1]
-local COL_BG = Color3.fromRGB(15, 12, 22) -- Warna latar belakang gelap panel utama[cite: 1]
-local MIN_NORMAL = Color3.fromRGB(45, 25, 15) -- Warna normal tombol minimize[cite: 1]
-local MIN_HOVER = Color3.fromRGB(70, 35, 18) -- Warna hover tombol minimize[cite: 1]
-local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15) -- Merah gelap khas horor[cite: 1]
-local CLOSE_HOVER = Color3.fromRGB(80, 20, 20) -- Merah terang saat disentuh[cite: 1]
+-- Sistem Auto-Write & Auto-Load Konfigurasi
+local configData = {
+    beamToggleEnabled = false,
+    minimized = false,
+    posX = nil,
+    posY = nil,
+}
+
+local function loadConfig()
+    if typeof(isfile) == "function" and typeof(readfile) == "function" then
+        local ok, raw = pcall(function()
+            if isfile(CONFIG_FILE) then
+                return readfile(CONFIG_FILE)
+            end
+            return nil
+        end)
+        if ok and type(raw) == "string" and #raw > 0 then
+            local decOk, decoded = pcall(function()
+                return httpService:JSONDecode(raw)
+            end)
+            if decOk and type(decoded) == "table" then
+                if type(decoded.beamToggleEnabled) == "boolean" then
+                    configData.beamToggleEnabled = decoded.beamToggleEnabled
+                end
+                if type(decoded.minimized) == "boolean" then
+                    configData.minimized = decoded.minimized
+                end
+                if type(decoded.posX) == "number" and type(decoded.posY) == "number" then
+                    configData.posX = decoded.posX
+                    configData.posY = decoded.posY
+                end
+            end
+        end
+    end
+end
+
+local function saveConfig()
+    if typeof(writefile) ~= "function" then return end
+    pcall(function()
+        if typeof(makefolder) == "function" and typeof(isfolder) == "function" then
+            if not isfolder(CONFIG_FOLDER) then
+                makefolder(CONFIG_FOLDER)
+            end
+        end
+        local encoded = httpService:JSONEncode(configData)
+        writefile(CONFIG_FILE, encoded)
+    end)
+end
+
+loadConfig()
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local MIN_HOVER = Color3.fromRGB(70, 35, 18)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
 local TP_NORMAL = Color3.fromRGB(48, 22, 72)
 local TP_HOVER = Color3.fromRGB(82, 36, 118)
 local BEAM_NORMAL = Color3.fromRGB(75, 36, 14)
 local BEAM_HOVER = Color3.fromRGB(120, 58, 20)
 local BEAM_ACTIVE = Color3.fromRGB(115, 32, 145)
 local BEAM_ACTIVE_HOVER = Color3.fromRGB(155, 48, 195)
+local GAME_NORMAL = Color3.fromRGB(25, 58, 52)
+local GAME_HOVER = Color3.fromRGB(38, 92, 82)
+local GOLD_NORMAL = Color3.fromRGB(85, 62, 16)
+local GOLD_HOVER = Color3.fromRGB(135, 98, 24)
+local SMELTER_NORMAL = Color3.fromRGB(92, 34, 18)
+local SMELTER_HOVER = Color3.fromRGB(142, 54, 28)
 
 local STROKE_CS = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)), -- Keypoint awal gradasi ungu[cite: 1]
-    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)), -- Keypoint oranye gelap[cite: 1]
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)), -- Keypoint oranye terang[cite: 1]
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)), -- Keypoint tengah oranye terang[cite: 1]
-    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)), -- Keypoint akhir oranye gelap[cite: 1]
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)), -- Keypoint akhir gradasi ungu[cite: 1]
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
 })
 
 local allGrads = {}
@@ -52,6 +118,7 @@ end
 -- Pelacakan target yang sudah dikunjungi agar tidak mengulang target yang sama
 local visitedStands = {}
 local visitedBeams = {}
+local visitedPortals = {}
 
 local function safeDebugId(obj)
     local id = "obj"
@@ -78,7 +145,6 @@ local function pickUnvisitedCandidate(candidates, visitedSet)
         end
     end
 
-    -- Jika semua target sudah pernah dikunjungi, reset riwayat dan pakai semua kandidat lagi
     if #unvisited == 0 then
         table.clear(visitedSet)
         resetHappened = true
@@ -94,18 +160,24 @@ local function pickUnvisitedCandidate(candidates, visitedSet)
     return chosen, resetHappened
 end
 
--- Fungsi mencari posisi CFrame objek
+-- Fungsi mencari posisi CFrame objek (dengan offset ke atas agar tidak jatuh)
 local function getTargetCFrame(obj)
     if not obj or not obj.Parent then return nil end
     if obj:IsA("BasePart") then
-        return obj.CFrame + Vector3.new(0, (obj.Size.Y * 0.5) + 3, 0)
+        return obj.CFrame + Vector3.new(0, (obj.Size.Y * 0.5) + TP_HEIGHT_OFFSET, 0)
     elseif obj:IsA("Model") then
         local pivot = obj:GetPivot()
-        return pivot + Vector3.new(0, 3, 0)
+        return pivot + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
+    elseif obj:IsA("Attachment") then
+        return obj.WorldCFrame + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
     else
         local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
         if innerPart then
-            return innerPart.CFrame + Vector3.new(0, (innerPart.Size.Y * 0.5) + 3, 0)
+            return innerPart.CFrame + Vector3.new(0, (innerPart.Size.Y * 0.5) + TP_HEIGHT_OFFSET, 0)
+        end
+        local innerAtt = obj:FindFirstChildWhichIsA("Attachment", true)
+        if innerAtt then
+            return innerAtt.WorldCFrame + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
         end
     end
     return nil
@@ -117,10 +189,16 @@ local function getBasePositionCFrame(obj)
         return obj.CFrame
     elseif obj:IsA("Model") then
         return obj:GetPivot()
+    elseif obj:IsA("Attachment") then
+        return obj.WorldCFrame
     else
         local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
         if innerPart then
             return innerPart.CFrame
+        end
+        local innerAtt = obj:FindFirstChildWhichIsA("Attachment", true)
+        if innerAtt then
+            return innerAtt.WorldCFrame
         end
     end
     return nil
@@ -224,7 +302,6 @@ local function collectPromptsForTarget(targetObj)
         end
     end
 
-    -- Jika prompt tidak berada di dalam targetObj langsung, cek prompt di dekat posisi targetObj
     if #prompts == 0 then
         local targetBaseCf = getBasePositionCFrame(targetObj)
         if targetBaseCf then
@@ -241,7 +318,7 @@ local function collectPromptsForTarget(targetObj)
                         pPos = p.WorldPosition
                     end
 
-                    if pPos and (pPos - targetPos).Magnitude <= 14 then
+                    if pPos and (pPos - targetPos).Magnitude <= 16 then
                         table.insert(prompts, desc)
                     end
                 end
@@ -261,6 +338,107 @@ local function triggerPromptsIn(standObj)
         end
     end
     return firedCount
+end
+
+local function isPortalChild(child)
+    if not child or not child.Parent then return false end
+    local lowerName = string.lower(child.Name)
+    if string.find(lowerName, "portal", 1, true) ~= nil then
+        return true
+    end
+    if child:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil then
+        return true
+    end
+    return false
+end
+
+local function teleportAndFireGoldHunterPortal()
+    local localPlayer = players.LocalPlayer
+    local character = localPlayer and localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return false, "Character tidak ditemukan"
+    end
+
+    local candidates = {}
+    for _, child in ipairs(workspace:GetChildren()) do
+        if isPortalChild(child) then
+            local tpCf = getTargetCFrame(child)
+            local baseCf = getBasePositionCFrame(child)
+            if tpCf and baseCf then
+                table.insert(candidates, {
+                    instance = child,
+                    tpCFrame = tpCf,
+                    key = buildTargetKey(child, baseCf)
+                })
+            end
+        end
+    end
+
+    if #candidates == 0 then
+        return false, "Portal tidak ditemukan"
+    end
+
+    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedPortals)
+    hrp.CFrame = chosen.tpCFrame
+
+    task.wait(0.08)
+    local fired = triggerPromptsIn(chosen.instance)
+
+    local prefix = resetHappened and "Reset & " or ""
+    if fired > 0 then
+        return true, ("%sPortal TP & Fired (%d)"):format(prefix, fired)
+    else
+        return true, ("%sPortal TP Sukses"):format(prefix)
+    end
+end
+
+local function findSmelterTarget()
+    local env = workspace:FindFirstChild("Environment")
+    local inWorldUI = env and env:FindFirstChild("InWorldUI")
+    local smelter = inWorldUI and inWorldUI:FindFirstChild("Smelter")
+    if smelter then
+        return smelter
+    end
+
+    if inWorldUI then
+        for _, desc in ipairs(inWorldUI:GetDescendants()) do
+            if desc.Name == "Smelter" then
+                return desc
+            end
+        end
+    end
+
+    return nil
+end
+
+local function teleportAndFireSmelter()
+    local localPlayer = players.LocalPlayer
+    local character = localPlayer and localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return false, "Character tidak ditemukan"
+    end
+
+    local smelterObj = findSmelterTarget()
+    if not smelterObj then
+        return false, "Smelter tidak ditemukan"
+    end
+
+    local tpCf = getTargetCFrame(smelterObj)
+    if not tpCf then
+        return false, "Posisi Smelter invalid"
+    end
+
+    hrp.CFrame = tpCf
+    task.wait(0.08)
+    local fired = triggerPromptsIn(smelterObj)
+
+    if fired > 0 then
+        return true, ("Smelter TP & Fired (%d)"):format(fired)
+    else
+        return true, "Smelter TP (No Prompt)"
+    end
 end
 
 local function teleportToScanningStand()
@@ -293,7 +471,6 @@ local function teleportToScanningStand()
     local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedStands)
     hrp.CFrame = chosen.cframe
 
-    -- Beri jeda singkat agar posisi & prompt siap, lalu langsung fireproximityprompt
     task.wait(0.08)
     local fired = triggerPromptsIn(chosen.instance)
 
@@ -361,10 +538,9 @@ local function focusOrAdvanceLocationBeam()
         return false, "Location Beam tidak ada", false
     end
 
-    -- Jika target aktif masih ada dan ProximityPrompt-nya belum hilang, tetap fokus di target ini
     if activeBeamTarget and isTargetStillNeedsPrompt(activeBeamTarget) then
         local liveTpCf = getTargetCFrame(activeBeamTarget.instance) or activeBeamTarget.tpCFrame
-        if hrp and (hrp.Position - liveTpCf.Position).Magnitude > 8 then
+        if hrp and (hrp.Position - liveTpCf.Position).Magnitude > 11 then
             hrp.CFrame = liveTpCf
         end
 
@@ -375,7 +551,6 @@ local function focusOrAdvanceLocationBeam()
         return true, ("Focus Beam (Prompt:%d | Fired:%d)"):format(leftPrompts, fired), false
     end
 
-    -- Jika target sebelumnya baru saja selesai (prompt hilang / objek hilang), beri jeda 1 detik sebelum ke target berikutnya
     local hadPreviousTarget = (activeBeamTarget ~= nil)
     activeBeamTarget = nil
 
@@ -405,23 +580,27 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
-local FULL_W, FULL_H = 290, 104 -- Dimensi lebar dan tinggi penuh panel utama[cite: 1]
-local MINI_W, MINI_H = 42, 42 -- Dimensi ikon kecil saat mode minimize[cite: 1]
+local FULL_W, FULL_H = 290, 194
+local MINI_W, MINI_H = 42, 42
+
+local initialPos = (configData.posX and configData.posY)
+    and UDim2.new(0, configData.posX, 0, configData.posY)
+    or UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
-main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.Position = initialPos
 main.BackgroundColor3 = COL_BG
 main.BackgroundTransparency = 0.15
 main.BorderSizePixel = 0
 main.ClipsDescendants = true
 main.Active = true
+main.Visible = not configData.minimized
 main.Parent = gui
 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 animStroke(main, 1.5)
 
--- Logo Gambar di sebelah kiri Judul Utama[cite: 1]
 local logoImg = Instance.new("ImageLabel")
 logoImg.Size = UDim2.new(0, 24, 0, 24)
 logoImg.Position = UDim2.new(0, 10, 0, 9)
@@ -459,7 +638,6 @@ desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
--- Tombol Teleport ke ScanningStand di bawah Title/Desc
 local tpBtn = Instance.new("TextButton")
 tpBtn.Size = UDim2.new(1, -20, 0, 24)
 tpBtn.Position = UDim2.new(0, 10, 0, 40)
@@ -478,14 +656,13 @@ local tpScale = Instance.new("UIScale")
 tpScale.Scale = 1
 tpScale.Parent = tpBtn
 
--- Tombol Toggle Location Beam (Fokus 1 Target Sampai Prompt Hilang + Delay 1s Saat Ganti Target + Loop Prompt)
-local beamToggleEnabled = false
+local beamToggleEnabled = configData.beamToggleEnabled
 local beamBtn = Instance.new("TextButton")
 beamBtn.Size = UDim2.new(1, -20, 0, 24)
 beamBtn.Position = UDim2.new(0, 10, 0, 70)
-beamBtn.BackgroundColor3 = BEAM_NORMAL
-beamBtn.Text = "FOCUS BEAM + PROMPT LOOP: OFF"
-beamBtn.TextColor3 = Color3.fromRGB(255, 210, 130)
+beamBtn.BackgroundColor3 = beamToggleEnabled and BEAM_ACTIVE or BEAM_NORMAL
+beamBtn.Text = beamToggleEnabled and "FOCUS BEAM + PROMPT LOOP: ON" or "FOCUS BEAM + PROMPT LOOP: OFF"
+beamBtn.TextColor3 = beamToggleEnabled and Color3.fromRGB(165, 255, 185) or Color3.fromRGB(255, 210, 130)
 beamBtn.Font = Enum.Font.GothamBold
 beamBtn.TextSize = 10
 beamBtn.BorderSizePixel = 0
@@ -498,7 +675,60 @@ local beamScale = Instance.new("UIScale")
 beamScale.Scale = 1
 beamScale.Parent = beamBtn
 
--- Tombol Close (X) di dalam panel utama (posisi paling kanan)[cite: 1]
+local gameBtn = Instance.new("TextButton")
+gameBtn.Size = UDim2.new(1, -20, 0, 24)
+gameBtn.Position = UDim2.new(0, 10, 0, 100)
+gameBtn.BackgroundColor3 = GAME_NORMAL
+gameBtn.Text = ("TO GAME (%d)"):format(TARGET_PLACE_ID)
+gameBtn.TextColor3 = Color3.fromRGB(150, 255, 225)
+gameBtn.Font = Enum.Font.GothamBold
+gameBtn.TextSize = 10
+gameBtn.BorderSizePixel = 0
+gameBtn.AutoButtonColor = false
+gameBtn.Parent = main
+Instance.new("UICorner", gameBtn).CornerRadius = UDim.new(0, 6)
+animStroke(gameBtn, 1)
+
+local gameScale = Instance.new("UIScale")
+gameScale.Scale = 1
+gameScale.Parent = gameBtn
+
+local goldBtn = Instance.new("TextButton")
+goldBtn.Size = UDim2.new(1, -20, 0, 24)
+goldBtn.Position = UDim2.new(0, 10, 0, 130)
+goldBtn.BackgroundColor3 = GOLD_NORMAL
+goldBtn.Text = "TP & FIRE GOLD HUNTER PORTAL"
+goldBtn.TextColor3 = Color3.fromRGB(255, 225, 110)
+goldBtn.Font = Enum.Font.GothamBold
+goldBtn.TextSize = 10
+goldBtn.BorderSizePixel = 0
+goldBtn.AutoButtonColor = false
+goldBtn.Parent = main
+Instance.new("UICorner", goldBtn).CornerRadius = UDim.new(0, 6)
+animStroke(goldBtn, 1)
+
+local goldScale = Instance.new("UIScale")
+goldScale.Scale = 1
+goldScale.Parent = goldBtn
+
+local smelterBtn = Instance.new("TextButton")
+smelterBtn.Size = UDim2.new(1, -20, 0, 24)
+smelterBtn.Position = UDim2.new(0, 10, 0, 160)
+smelterBtn.BackgroundColor3 = SMELTER_NORMAL
+smelterBtn.Text = "TP & FIRE SMELTER"
+smelterBtn.TextColor3 = Color3.fromRGB(255, 175, 120)
+smelterBtn.Font = Enum.Font.GothamBold
+smelterBtn.TextSize = 10
+smelterBtn.BorderSizePixel = 0
+smelterBtn.AutoButtonColor = false
+smelterBtn.Parent = main
+Instance.new("UICorner", smelterBtn).CornerRadius = UDim.new(0, 6)
+animStroke(smelterBtn, 1)
+
+local smelterScale = Instance.new("UIScale")
+smelterScale.Scale = 1
+smelterScale.Parent = smelterBtn
+
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 22, 0, 22)
 closeBtn.Position = UDim2.new(1, -30, 0, 8)
@@ -517,8 +747,7 @@ local closeScale = Instance.new("UIScale")
 closeScale.Scale = 1
 closeScale.Parent = closeBtn
 
--- Tombol Minimize (-) bergeser sedikit ke kiri agar ada ruang untuk tombol Close[cite: 1]
-local minimized = false
+local minimized = configData.minimized
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
 minBtn.Position = UDim2.new(1, -56, 0, 8)
@@ -537,14 +766,13 @@ local minScale = Instance.new("UIScale")
 minScale.Scale = 1
 minScale.Parent = minBtn
 
--- Pop-up ikon kecil menggunakan gambar kustom saat minimize[cite: 1]
 local floatingIcon = Instance.new("ImageButton")
 floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
-floatingIcon.Position = main.Position
+floatingIcon.Position = initialPos
 floatingIcon.BackgroundColor3 = COL_BG
 floatingIcon.BackgroundTransparency = 0.15
 floatingIcon.Image = "rbxassetid://134667732794034"
-floatingIcon.Visible = false
+floatingIcon.Visible = configData.minimized
 floatingIcon.AutoButtonColor = false
 floatingIcon.BorderSizePixel = 0
 floatingIcon.Parent = gui
@@ -597,6 +825,8 @@ tpBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Fungsi update visual & loop Toggle Location Beam
+local isBeamLoopRunning = false
+
 local function refreshBeamButtonVisual(customStatusText)
     if not beamBtn or not beamBtn.Parent then return end
     if beamToggleEnabled then
@@ -611,7 +841,9 @@ local function refreshBeamButtonVisual(customStatusText)
 end
 
 local function startBeamLoop()
-    -- Loop fokus 1 target: menembak ProximityPrompt terus sampai hilang, lalu jeda 1 detik sebelum pindah target baru
+    if isBeamLoopRunning then return end
+    isBeamLoopRunning = true
+
     task.spawn(function()
         while beamToggleEnabled and not isGuiDestroyed do
             local prevTarget = activeBeamTarget
@@ -622,7 +854,6 @@ local function startBeamLoop()
             end
 
             if switchedAfterComplete and beamToggleEnabled and not isGuiDestroyed then
-                -- Selama jeda 1 detik sebelum lanjut ke target baru, tetap fire prompt jika masih ada
                 local elapsed = 0
                 while elapsed < 1 and beamToggleEnabled and not isGuiDestroyed do
                     if prevTarget and prevTarget.instance then
@@ -635,7 +866,13 @@ local function startBeamLoop()
                 task.wait(0.12)
             end
         end
+        isBeamLoopRunning = false
     end)
+end
+
+if beamToggleEnabled then
+    refreshBeamButtonVisual()
+    startBeamLoop()
 end
 
 beamBtn.MouseEnter:Connect(function()
@@ -658,6 +895,9 @@ end)
 
 beamBtn.MouseButton1Click:Connect(function()
     beamToggleEnabled = not beamToggleEnabled
+    configData.beamToggleEnabled = beamToggleEnabled
+    saveConfig()
+
     if not beamToggleEnabled then
         activeBeamTarget = nil
     end
@@ -668,7 +908,157 @@ beamBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Interaksi Tombol Minimize[cite: 1]
+-- Interaksi Tombol To Game
+local gameResetTask = nil
+local isGameTeleporting = false
+
+gameBtn.MouseEnter:Connect(function()
+    tweenService:Create(gameBtn, TweenInfo.new(0.15), {BackgroundColor3 = GAME_HOVER}):Play()
+end)
+
+gameBtn.MouseLeave:Connect(function()
+    tweenService:Create(gameBtn, TweenInfo.new(0.15), {BackgroundColor3 = GAME_NORMAL}):Play()
+end)
+
+gameBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(gameScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
+
+gameBtn.MouseButton1Up:Connect(function()
+    tweenService:Create(gameScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+gameBtn.MouseButton1Click:Connect(function()
+    if isGameTeleporting then return end
+    isGameTeleporting = true
+
+    configData.beamToggleEnabled = beamToggleEnabled
+    configData.minimized = minimized
+    saveConfig()
+
+    beamToggleEnabled = false
+    activeBeamTarget = nil
+
+    gameBtn.Text = ("TELEPORTING (%d)..."):format(TARGET_PLACE_ID)
+    gameBtn.TextColor3 = Color3.fromRGB(255, 230, 120)
+
+    local ok = pcall(function()
+        local lp = players.LocalPlayer
+        if lp then
+            teleportService:Teleport(TARGET_PLACE_ID, lp)
+        else
+            teleportService:Teleport(TARGET_PLACE_ID)
+        end
+    end)
+
+    if not ok and gameBtn and gameBtn.Parent then
+        gameBtn.Text = "TP FAILED"
+        gameBtn.TextColor3 = Color3.fromRGB(255, 130, 130)
+        if gameResetTask then
+            task.cancel(gameResetTask)
+        end
+        gameResetTask = task.delay(1.5, function()
+            if gameBtn and gameBtn.Parent then
+                gameBtn.Text = ("TO GAME (%d)"):format(TARGET_PLACE_ID)
+                gameBtn.TextColor3 = Color3.fromRGB(150, 255, 225)
+            end
+        end)
+    end
+
+    task.delay(1.5, function()
+        isGameTeleporting = false
+    end)
+end)
+
+-- Interaksi Tombol Gold Hunter Portal (workspace:GetChildren() -> Portal + fireproximityprompt)
+local goldResetTask = nil
+local isGoldTeleporting = false
+
+goldBtn.MouseEnter:Connect(function()
+    tweenService:Create(goldBtn, TweenInfo.new(0.15), {BackgroundColor3 = GOLD_HOVER}):Play()
+end)
+
+goldBtn.MouseLeave:Connect(function()
+    tweenService:Create(goldBtn, TweenInfo.new(0.15), {BackgroundColor3 = GOLD_NORMAL}):Play()
+end)
+
+goldBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(goldScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
+
+goldBtn.MouseButton1Up:Connect(function()
+    tweenService:Create(goldScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+goldBtn.MouseButton1Click:Connect(function()
+    if isGoldTeleporting then return end
+    isGoldTeleporting = true
+
+    task.spawn(function()
+        local ok, msg = teleportAndFireGoldHunterPortal()
+        if goldBtn and goldBtn.Parent then
+            goldBtn.Text = string.upper(msg)
+            goldBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
+
+            if goldResetTask then
+                task.cancel(goldResetTask)
+            end
+            goldResetTask = task.delay(1.5, function()
+                if goldBtn and goldBtn.Parent then
+                    goldBtn.Text = "TP & FIRE GOLD HUNTER PORTAL"
+                    goldBtn.TextColor3 = Color3.fromRGB(255, 225, 110)
+                end
+            end)
+        end
+        isGoldTeleporting = false
+    end)
+end)
+
+-- Interaksi Tombol TP & Fire Smelter
+local smelterResetTask = nil
+local isSmelterTeleporting = false
+
+smelterBtn.MouseEnter:Connect(function()
+    tweenService:Create(smelterBtn, TweenInfo.new(0.15), {BackgroundColor3 = SMELTER_HOVER}):Play()
+end)
+
+smelterBtn.MouseLeave:Connect(function()
+    tweenService:Create(smelterBtn, TweenInfo.new(0.15), {BackgroundColor3 = SMELTER_NORMAL}):Play()
+end)
+
+smelterBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(smelterScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
+
+smelterBtn.MouseButton1Up:Connect(function()
+    tweenService:Create(smelterScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+smelterBtn.MouseButton1Click:Connect(function()
+    if isSmelterTeleporting then return end
+    isSmelterTeleporting = true
+
+    task.spawn(function()
+        local ok, msg = teleportAndFireSmelter()
+        if smelterBtn and smelterBtn.Parent then
+            smelterBtn.Text = string.upper(msg)
+            smelterBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
+
+            if smelterResetTask then
+                task.cancel(smelterResetTask)
+            end
+            smelterResetTask = task.delay(1.5, function()
+                if smelterBtn and smelterBtn.Parent then
+                    smelterBtn.Text = "TP & FIRE SMELTER"
+                    smelterBtn.TextColor3 = Color3.fromRGB(255, 175, 120)
+                end
+            end)
+        end
+        isSmelterTeleporting = false
+    end)
+end)
+
+-- Interaksi Tombol Minimize
 minBtn.MouseEnter:Connect(function()
     tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
 end)
@@ -686,7 +1076,7 @@ minBtn.MouseButton1Down:Connect(function()
     end)
 end)
 
--- Interaksi Tombol Close[cite: 1]
+-- Interaksi Tombol Close
 closeBtn.MouseEnter:Connect(function()
     tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
 end)
@@ -701,11 +1091,11 @@ closeBtn.MouseButton1Down:Connect(function()
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
+    saveConfig()
     isGuiDestroyed = true
     beamToggleEnabled = false
     activeBeamTarget = nil
 
-    -- Animasi keluar sebelum GUI dihancurkan sepenuhnya[cite: 1]
     if markerFolder then
         markerFolder:Destroy()
     end
@@ -719,9 +1109,11 @@ closeBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Fungsi Toggle Minimize / Restore[cite: 1]
+-- Fungsi Toggle Minimize / Restore + Auto-Write status minimize
 minBtn.MouseButton1Click:Connect(function()
     minimized = true
+    configData.minimized = true
+    saveConfig()
     
     floatingIcon.Position = main.Position
     
@@ -741,6 +1133,8 @@ end)
 
 floatingIcon.MouseButton1Click:Connect(function()
     minimized = false
+    configData.minimized = false
+    saveConfig()
     
     main.Position = floatingIcon.Position
     main.Visible = true
@@ -756,7 +1150,7 @@ floatingIcon.MouseButton1Click:Connect(function()
     tweenIn:Play()
 end)
 
--- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil[cite: 1]
+-- Sistem Dragging + Auto-Write posisi saat dilepas
 do
     local dragging, dragStart, startPos = false, nil, nil
     
@@ -794,7 +1188,13 @@ do
     
     userInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
+            if dragging then
+                dragging = false
+                local targetObj = minimized and floatingIcon or main
+                configData.posX = targetObj.Position.X.Offset
+                configData.posY = targetObj.Position.Y.Offset
+                saveConfig()
+            end
         end
     end)
 end
