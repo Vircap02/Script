@@ -214,7 +214,7 @@ ugcInputBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 ugcInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 ugcInputBox.PlaceholderColor3 = Color3.fromRGB(150, 130, 180)
 ugcInputBox.PlaceholderText = "Target Angka"
-ugcInputBox.Text = "3"
+ugcInputBox.Text = "6"
 ugcInputBox.TextSize = 11
 ugcInputBox.Font = Enum.Font.GothamBold
 ugcInputBox.ClearTextOnFocus = false
@@ -439,6 +439,9 @@ claimBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = not autoClaimActive
 
 	if autoClaimActive then
+		if ugcInputBox.Text == "" then
+			ugcInputBox.Text = "6"
+		end
 		claimBtn.Text = "AUTO THETHING : ON"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
 		statusLabel.Text = "Status: Precision Single-Hit Armed"
