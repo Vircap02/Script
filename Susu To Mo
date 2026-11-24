@@ -7,6 +7,13 @@ local teleportService = cloneref(game:GetService("TeleportService"))
 local players = cloneref(game:GetService("Players"))
 local localPlayer = players.LocalPlayer
 
+-- Jalankan Anti-AFK di latar belakang
+task.spawn(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Anti%20AFK"))()
+    end)
+end)
+
 if coreGui:FindFirstChild("AceSniperUI") then
     coreGui.AceSniperUI:Destroy()
 end
