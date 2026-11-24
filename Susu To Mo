@@ -3,6 +3,7 @@ local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local httpService = cloneref(game:GetService("HttpService"))
+local teleportService = cloneref(game:GetService("TeleportService"))
 local players = cloneref(game:GetService("Players"))
 local localPlayer = players.LocalPlayer
 
@@ -17,6 +18,7 @@ local DEFAULT_CONFIG = {
     autoFinishObby = false,
     autoCollectAnimals = false,
     autoCollectItem = false,
+    autoRejoinLeaderboard = false,
 }
 
 local function loadConfig()
@@ -109,7 +111,7 @@ end
 
 local function applyToggleVisual(btn, baseLabel, enabled, instant)
     local targetText = baseLabel .. (enabled and "\n[ON]" or "\n[OFF]")
-    if baseLabel == "Auto Collect Star" then
+    if baseLabel == "Auto Collect Star" or baseLabel == "Auto Rejoin" then
         targetText = baseLabel .. (enabled and ": ON" or ": OFF")
     end
 
@@ -145,13 +147,36 @@ local function safeFireTouch(rootPart, targetPart)
     end)
 end
 
+-- Infinite Yield style rejoin
+local rejoiningTriggered = false
+local function rejoinServer()
+    if rejoiningTriggered then return end
+    rejoiningTriggered = true
+
+    if #players:GetPlayers() <= 1 then
+        localPlayer:Kick("\nRejoining...")
+        task.wait()
+        teleportService:Teleport(game.PlaceId, localPlayer)
+    else
+        teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, localPlayer)
+    end
+end
+
+teleportService.TeleportInitFailed:Connect(function(player, teleportResult, message)
+    if player == localPlayer then
+        pcall(function()
+            teleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, localPlayer)
+        end)
+    end
+end)
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
--- Ukuran UI diperkecil karena memakai layout Grid 3 Kolom
-local FULL_W, FULL_H = 310, 172
+-- Ukuran UI disesuaikan untuk baris atas + grid 3x2 + Auto Rejoin + Rejoin Server
+local FULL_W, FULL_H = 310, 228
 local MINI_W, MINI_H = 42, 42
 
 local main = Instance.new("Frame")
@@ -206,17 +231,17 @@ desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
 -- ==================== KONFIGURASI POSISI GRID ====================
--- Lebar total = 310 | Margin kiri/kanan = 10 | Gap antar kolom = 6
--- Lebar tiap kolom = (310 - 20 - 12) / 3 = 92.6 -> 92px
 local COL_1_X = 10
 local COL_2_X = 109
 local COL_3_X = 208
 local GRID_W  = 92
 
-local ROW_TOP_Y = 44   -- Baris Auto Collect Star (Full Width)
-local ROW_1_Y   = 82   -- Baris Grid Atas (TP)
-local ROW_2_Y   = 122  -- Baris Grid Bawah (Auto)
-local BTN_H     = 34
+local ROW_TOP_Y         = 44   -- Baris Auto Collect Star (Full Width)
+local ROW_1_Y           = 82   -- Baris Grid Atas (TP)
+local ROW_2_Y           = 122  -- Baris Grid Bawah (Auto)
+local ROW_AUTO_REJOIN_Y = 162  -- Baris Auto Rejoin saat Leaderboard MainFrame muncul
+local ROW_REJOIN_Y      = 194  -- Baris Rejoin Server Manual (Full Width)
+local BTN_H             = 34
 
 -- ==================== BARIS ATAS (FULL): AUTO COLLECT STAR ====================
 local autoCollectStarEnabled = config.autoCollectStar
@@ -458,6 +483,85 @@ task.spawn(function()
         end
         task.wait(0.2)
     end
+end)
+
+-- ==================== BARIS BAWAH: AUTO REJOIN & REJOIN SERVER ====================
+local autoRejoinLeaderboardEnabled = config.autoRejoinLeaderboard
+local autoRejoinBtn = createActionButton(
+    main,
+    COL_1_X,
+    ROW_AUTO_REJOIN_Y,
+    FULL_W - 20,
+    26,
+    "Auto Rejoin: OFF",
+    Color3.fromRGB(255, 100, 100),
+    Color3.fromRGB(30, 20, 40)
+)
+applyToggleVisual(autoRejoinBtn, "Auto Rejoin", autoRejoinLeaderboardEnabled, true)
+
+autoRejoinBtn.MouseButton1Click:Connect(function()
+    autoRejoinLeaderboardEnabled = not autoRejoinLeaderboardEnabled
+    config.autoRejoinLeaderboard = autoRejoinLeaderboardEnabled
+    saveConfig()
+    applyToggleVisual(autoRejoinBtn, "Auto Rejoin", autoRejoinLeaderboardEnabled, false)
+end)
+
+local function isMainFrameShown(mainFrame)
+    if not mainFrame or not mainFrame:IsA("GuiObject") then
+        return false
+    end
+    if not mainFrame.Visible then
+        return false
+    end
+
+    local current = mainFrame.Parent
+    while current and current ~= localPlayer:FindFirstChild("PlayerGui") do
+        if current:IsA("GuiObject") and not current.Visible then
+            return false
+        elseif current:IsA("LayerCollector") and not current.Enabled then
+            return false
+        end
+        current = current.Parent
+    end
+    return true
+end
+
+task.spawn(function()
+    while true do
+        if autoRejoinLeaderboardEnabled and not rejoiningTriggered then
+            pcall(function()
+                local playerGui = localPlayer:FindFirstChild("PlayerGui")
+                local leaderboardGui = playerGui and playerGui:FindFirstChild("LeaderboardGui")
+                local frame = leaderboardGui and leaderboardGui:FindFirstChild("Frame")
+                local mainFrame = frame and frame:FindFirstChild("MainFrame")
+
+                if isMainFrameShown(mainFrame) then
+                    task.wait(1.5)
+                    if autoRejoinLeaderboardEnabled and isMainFrameShown(mainFrame) then
+                        rejoinServer()
+                    end
+                end
+            end)
+        end
+        task.wait(0.35)
+    end
+end)
+
+local rejoinBtn = createActionButton(
+    main,
+    COL_1_X,
+    ROW_REJOIN_Y,
+    FULL_W - 20,
+    26,
+    "Rejoin Server",
+    Color3.fromRGB(255, 190, 90),
+    Color3.fromRGB(50, 25, 15)
+)
+
+rejoinBtn.MouseButton1Click:Connect(function()
+    rejoinBtn.Text = "Rejoining..."
+    tweenService:Create(rejoinBtn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(90, 45, 20)}):Play()
+    rejoinServer()
 end)
 -- ============================================================================
 
