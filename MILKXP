@@ -235,7 +235,7 @@ toggleBtn.Parent = contentFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 5)
 animStroke(toggleBtn, 1)
 
--- 3. Tombol Toggle Auto Claim / AUTO THETHING
+-- 3. Tombol Toggle Auto Claim / AUTO CLAIM
 local claimBtn = Instance.new("TextButton")
 claimBtn.Size = UDim2.new(0.9, 0, 0, 26)
 claimBtn.Position = UDim2.new(0.05, 0, 0.33, 0)
@@ -243,7 +243,7 @@ claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 claimBtn.TextSize = 11
 claimBtn.Font = Enum.Font.GothamBold
-claimBtn.Text = "AUTO THETHING : OFF"
+claimBtn.Text = "AUTO CLAIM : OFF"
 claimBtn.Parent = contentFrame
 Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 5)
 animStroke(claimBtn, 1)
@@ -442,14 +442,14 @@ claimBtn.MouseButton1Click:Connect(function()
 		if ugcInputBox.Text == "" then
 			ugcInputBox.Text = "6"
 		end
-		claimBtn.Text = "AUTO THETHING : ON"
+		claimBtn.Text = "AUTO CLAIM : ON"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
 		statusLabel.Text = "Status: Precision Single-Hit Armed"
 		hasTriggeredThisHour = -1
 	else
-		claimBtn.Text = "AUTO THETHING : OFF"
+		claimBtn.Text = "AUTO CLAIM : OFF"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
-		statusLabel.Text = "Status: Auto TheThing Stopped"
+		statusLabel.Text = "Status: Auto Claim Stopped"
 	end
 end)
 
