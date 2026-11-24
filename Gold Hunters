@@ -1,72 +1,528 @@
---// 「 Credits to Remote Detector 」
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+
 local coreGui = cloneref(game:GetService("CoreGui"))
 local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
-local players = cloneref(game:GetService("Players"))
-local teleportService = cloneref(game:GetService("TeleportService"))
-local httpService = cloneref(game:GetService("HttpService"))
-
-local TARGET_PLACE_ID = 4655652068
-local TP_HEIGHT_OFFSET = 6.5 -- Ketinggian tambahan di atas target agar tidak jatuh saat teleport
-
-local CONFIG_FOLDER = "VirgoboyUI"
-local CONFIG_FILE = CONFIG_FOLDER .. "/config.json"
 
 if coreGui:FindFirstChild("AceSniperUI") then
-    coreGui.AceSniperUI:Destroy()
+	coreGui.AceSniperUI:Destroy()
 end
 
--- Sistem Auto-Write & Auto-Load Konfigurasi
-local configData = {
-    beamToggleEnabled = false,
-    minimized = false,
-    posX = nil,
-    posY = nil,
-}
+--// 「 Credits to Remote Detector 」
+local TARGET_PLACE_ID = 4655652068
+local MAX_REVEALS = 10
 
-local function loadConfig()
-    if typeof(isfile) == "function" and typeof(readfile) == "function" then
-        local ok, raw = pcall(function()
-            if isfile(CONFIG_FILE) then
-                return readfile(CONFIG_FILE)
-            end
-            return nil
-        end)
-        if ok and type(raw) == "string" and #raw > 0 then
-            local decOk, decoded = pcall(function()
-                return httpService:JSONDecode(raw)
-            end)
-            if decOk and type(decoded) == "table" then
-                if type(decoded.beamToggleEnabled) == "boolean" then
-                    configData.beamToggleEnabled = decoded.beamToggleEnabled
-                end
-                if type(decoded.minimized) == "boolean" then
-                    configData.minimized = decoded.minimized
-                end
-                if type(decoded.posX) == "number" and type(decoded.posY) == "number" then
-                    configData.posX = decoded.posX
-                    configData.posY = decoded.posY
-                end
-            end
-        end
-    end
+local AutoRunning = false
+local RunToken = 0
+
+local RecordedReveals = {}
+local SeenRevealKeys = {}
+
+-- Forward declaration agar bisa dipanggil di fungsi Auto Play
+local onStatusChange = function(statusText, stepText)
+	-- print(string.format("[%s] %s", stepText or "-", statusText))
 end
 
-local function saveConfig()
-    if typeof(writefile) ~= "function" then return end
-    pcall(function()
-        if typeof(makefolder) == "function" and typeof(isfolder) == "function" then
-            if not isfolder(CONFIG_FOLDER) then
-                makefolder(CONFIG_FOLDER)
-            end
-        end
-        local encoded = httpService:JSONEncode(configData)
-        writefile(CONFIG_FILE, encoded)
-    end)
+local function makePosKey(cf)
+	local p = cf.Position
+	return string.format("%.0f_%.0f_%.0f", p.X, p.Y, p.Z)
 end
 
-loadConfig()
+local function resetRecordedReveals()
+	table.clear(RecordedReveals)
+	table.clear(SeenRevealKeys)
+end
+
+local function addUniqueReveals(rawBeams, maxLimit)
+	local limit = maxLimit or MAX_REVEALS
+	local addedCount = 0
+	for _, entry in ipairs(rawBeams) do
+		if #RecordedReveals >= limit then
+			break
+		end
+		local key = entry.key or makePosKey(entry.cframe)
+		if not SeenRevealKeys[key] then
+			SeenRevealKeys[key] = true
+			table.insert(RecordedReveals, {
+				instance = entry.instance,
+				cframe = entry.cframe,
+				key = key,
+			})
+			addedCount += 1
+		end
+	end
+	return addedCount
+end
+
+local function isActive(token)
+	return AutoRunning and (token == RunToken)
+end
+
+local function getRootPart()
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	return char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 10)
+end
+
+local function getPivotCFrame(obj)
+	if not obj or not obj.Parent then
+		return nil
+	end
+	if obj:IsA("BasePart") then
+		return obj.CFrame
+	elseif obj:IsA("Attachment") then
+		return obj.WorldCFrame
+	elseif obj:IsA("Model") then
+		local ok, cf = pcall(function()
+			return obj:GetPivot()
+		end)
+		if ok and typeof(cf) == "CFrame" then
+			return cf
+		end
+		if obj.PrimaryPart then
+			return obj.PrimaryPart.CFrame
+		end
+		local part = obj:FindFirstChildWhichIsA("BasePart", true)
+		if part then
+			return part.CFrame
+		end
+	else
+		local part = obj:FindFirstChildWhichIsA("BasePart", true)
+		if part then
+			return part.CFrame
+		end
+	end
+	return nil
+end
+
+local function teleportTo(cf)
+	if not cf then return end
+	local hrp = getRootPart()
+	if hrp then
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
+		hrp.CFrame = cf * CFrame.new(0, 3, 0)
+	end
+end
+
+local function firePrompt(prompt)
+	if not prompt or not prompt.Parent or not prompt:IsA("ProximityPrompt") then
+		return false
+	end
+	local okFire = false
+	if typeof(fireproximityprompt) == "function" then
+		okFire = pcall(function()
+			fireproximityprompt(prompt)
+		end)
+	end
+	if not okFire then
+		pcall(function()
+			prompt:InputHoldBegin()
+			task.wait(math.max(prompt.HoldDuration, 0.05))
+			prompt:InputHoldEnd()
+		end)
+	end
+	return true
+end
+
+local function findPromptIn(container, preferredName)
+	if not container then return nil end
+	if preferredName then
+		local direct = container:FindFirstChild(preferredName, true)
+		if direct and direct:IsA("ProximityPrompt") then
+			return direct
+		end
+	end
+	return container:FindFirstChildWhichIsA("ProximityPrompt", true)
+end
+
+local function getScanObjects()
+	local scanner = workspace:FindFirstChild("[WGC Integration] Scanner")
+	if not scanner then return nil, nil end
+	local att = scanner:FindFirstChild("Attachment")
+	local scanPrompt = findPromptIn(att, "@SCAN_PROMPT") or findPromptIn(scanner, "@SCAN_PROMPT")
+	return scanner, scanPrompt
+end
+
+local function getPortalObjects()
+	local scanner = workspace:FindFirstChild("[WGC Integration] Scanner")
+	if not scanner then return nil, nil end
+	local portal = scanner:FindFirstChild("Portal")
+	if not portal then return scanner, nil end
+	local face = portal:FindFirstChild("@FACE")
+	local att = face and face:FindFirstChild("Attachment")
+	local portalPrompt = findPromptIn(att, "@PROMPT") or findPromptIn(portal, "@PROMPT")
+	return portal, portalPrompt
+end
+
+local function getSmelterObjects()
+	local interactable = workspace:FindFirstChild("Interactable")
+	local smelter = interactable and interactable:FindFirstChild("Smelter") or workspace:FindFirstChild("Smelter", true)
+	if not smelter then return nil, nil end
+	local att = smelter:FindFirstChild("Attachment")
+	local prompt = findPromptIn(att, "@PROMPT") or findPromptIn(smelter, "@PROMPT")
+	return smelter, prompt
+end
+
+local function deliverToSmelter()
+	onStatusChange("Delivering...", "Deliver")
+	local smelter, prompt = getSmelterObjects()
+	if not smelter and not prompt then
+		onStatusChange("Smelter not found", "Deliver")
+		return false
+	end
+	local targetCF = (prompt and (getPivotCFrame(prompt.Parent) or getPivotCFrame(prompt))) or getPivotCFrame(smelter)
+	if targetCF then
+		teleportTo(targetCF)
+		task.wait(0.2)
+	end
+	if prompt then
+		firePrompt(prompt)
+		onStatusChange("Delivered", "Deliver")
+		return true
+	else
+		onStatusChange("Smelt prompt not found", "Deliver")
+		return false
+	end
+end
+
+local function getWorkspaceByName(name)
+	local items = {}
+	for _, child in ipairs(workspace:GetChildren()) do
+		if child.Name == name then
+			table.insert(items, child)
+		end
+	end
+	return items
+end
+
+local function collectCurrentReveals()
+	local beams = getWorkspaceByName("Location Beam")
+	local list = {}
+	for _, beam in ipairs(beams) do
+		local cf = getPivotCFrame(beam)
+		if cf then
+			table.insert(list, {
+				instance = beam,
+				cframe = cf,
+				key = makePosKey(cf),
+			})
+		end
+	end
+	return list
+end
+
+local function getDigPrompt(digSpot)
+	if not digSpot or not digSpot.Parent then return nil end
+	local part = digSpot:FindFirstChild("Part")
+	if part then
+		local p = part:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if p and p.Enabled then return p end
+	end
+	for _, desc in ipairs(digSpot:GetDescendants()) do
+		if desc:IsA("ProximityPrompt") and desc.Enabled then
+			return desc
+		end
+	end
+	return nil
+end
+
+local function isSpotStillClaimable(digSpot, trackedPrompt)
+	if not digSpot or digSpot.Parent == nil then
+		return false
+	end
+	local currentPrompt = getDigPrompt(digSpot)
+	if trackedPrompt then
+		if trackedPrompt.Parent == nil or not trackedPrompt.Enabled then
+			if not currentPrompt then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+local function pickNextDigSpot(failedSpots)
+	local digSpots = getWorkspaceByName("Dig Spot")
+	for _, spot in ipairs(digSpots) do
+		if spot and spot.Parent ~= nil and not failedSpots[spot] then
+			return spot
+		end
+	end
+	return nil
+end
+
+local function focusSingleDigSpot(token, targetDig)
+	if not targetDig or targetDig.Parent == nil then
+		return
+	end
+
+	local digCF = getPivotCFrame(targetDig)
+	if not digCF then
+		return
+	end
+
+	local lockedCF = digCF
+	onStatusChange("Focus 1 dig spot...", "Dig")
+	teleportTo(lockedCF)
+	task.wait(0.2)
+
+	local activePrompt = getDigPrompt(targetDig)
+	if activePrompt and activePrompt.Parent and activePrompt.Enabled then
+		firePrompt(activePrompt)
+	end
+
+	local lastReFire = os.clock()
+	local startFocusClock = os.clock()
+
+	while isActive(token) and isSpotStillClaimable(targetDig, activePrompt) do
+		onStatusChange("Focus 1 dig spot...", "Dig")
+
+		local updatedCF = getPivotCFrame(targetDig) or lockedCF
+		lockedCF = updatedCF
+		teleportTo(lockedCF)
+
+		local latestPrompt = getDigPrompt(targetDig)
+		if latestPrompt and latestPrompt.Parent and latestPrompt.Enabled then
+			activePrompt = latestPrompt
+			if (os.clock() - lastReFire) >= 1.0 then
+				firePrompt(latestPrompt)
+				lastReFire = os.clock()
+			end
+		else
+			task.wait(0.2)
+			if not targetDig or targetDig.Parent == nil or not getDigPrompt(targetDig) then
+				break
+			end
+		end
+
+		if (os.clock() - startFocusClock) > 25 then
+			break
+		end
+
+		task.wait(0.15)
+	end
+
+	task.wait(0.25)
+end
+
+local function processDigSpots(token)
+	local failedSpots = {}
+	while isActive(token) do
+		local targetDig = pickNextDigSpot(failedSpots)
+		if not targetDig then
+			break
+		end
+
+		local beforeClock = os.clock()
+		focusSingleDigSpot(token, targetDig)
+
+		if targetDig and targetDig.Parent ~= nil and (os.clock() - beforeClock) > 24 then
+			failedSpots[targetDig] = true
+		end
+	end
+end
+
+local function teleportToTargetPlace()
+	onStatusChange("Teleporting to game...", "Teleport To Game")
+	--// 「 Credits to Remote Detector 」
+	local ok, err = pcall(function()
+		TeleportService:Teleport(TARGET_PLACE_ID)
+	end)
+	if not ok then
+		onStatusChange("TP Error: " .. tostring(err), "Teleport To Game")
+	end
+end
+
+local function runAutoPlayCycle(token)
+	resetRecordedReveals()
+
+	onStatusChange("Scanning...", "Scan")
+	local _, scanPrompt = getScanObjects()
+	if not scanPrompt then
+		onStatusChange("Scan not found, delivering...", "Deliver")
+		deliverToSmelter()
+		task.wait(0.5)
+		if isActive(token) then
+			onStatusChange("Waiting 18s...", "Wait")
+			local waitStart = os.clock()
+			while isActive(token) do
+				local remaining = 18 - (os.clock() - waitStart)
+				if remaining <= 0 then break end
+				onStatusChange(string.format("Waiting %ds...", math.floor(remaining)), "Wait")
+				task.wait(0.5)
+			end
+			if isActive(token) then
+				teleportToTargetPlace()
+				task.wait(5)
+			end
+		end
+		return
+	end
+
+	local promptCF = getPivotCFrame(scanPrompt.Parent) or getPivotCFrame(scanPrompt)
+	if promptCF then
+		teleportTo(promptCF)
+		task.wait(0.2)
+	end
+	firePrompt(scanPrompt)
+
+	onStatusChange("Waiting...", "Reveal")
+	local revealWaitStart = os.clock()
+	repeat
+		if not isActive(token) then return end
+		local current = collectCurrentReveals()
+		if #current > 0 then
+			onStatusChange("Recording...", "Record")
+			addUniqueReveals(current, MAX_REVEALS)
+			if #RecordedReveals >= MAX_REVEALS then
+				break
+			end
+		end
+		task.wait(0.15)
+	until (os.clock() - revealWaitStart) > 8
+
+	if #RecordedReveals > 0 then
+		onStatusChange("Waiting...", "Hide Reveal")
+		local vanishStart = os.clock()
+		repeat
+			if not isActive(token) then return end
+			if #RecordedReveals < MAX_REVEALS then
+				local latest = collectCurrentReveals()
+				if #latest > 0 then
+					addUniqueReveals(latest, MAX_REVEALS)
+				end
+			end
+			local masihAda = 0
+			for _, item in ipairs(RecordedReveals) do
+				if item.instance and item.instance.Parent == workspace then
+					masihAda += 1
+				end
+			end
+			if masihAda == 0 then
+				break
+			end
+			task.wait(0.15)
+		until (os.clock() - vanishStart) > 12
+
+		local maxVisit = math.min(#RecordedReveals, MAX_REVEALS)
+		for idx = 1, maxVisit do
+			if not isActive(token) then return end
+			local item = RecordedReveals[idx]
+			onStatusChange(string.format("Teleporting (%d/%d)...", idx, maxVisit), "TP Reveal")
+			teleportTo(item.cframe)
+			task.wait(0.35)
+		end
+	end
+
+	onStatusChange("Waiting...", "Wait Dig")
+	local digWaitStart = os.clock()
+	repeat
+		if not isActive(token) then return end
+		if #getWorkspaceByName("Dig Spot") > 0 then
+			break
+		end
+		task.wait(0.2)
+	until (os.clock() - digWaitStart) > 6
+
+	while isActive(token) do
+		if #getWorkspaceByName("Dig Spot") > 0 then
+			processDigSpots(token)
+			if not isActive(token) then return end
+		end
+
+		local countdown = 5
+		local foundDigDuringCountdown = false
+
+		while isActive(token) and countdown > 0 do
+			if #getWorkspaceByName("Dig Spot") > 0 then
+				foundDigDuringCountdown = true
+				onStatusChange("Digging...", "Dig")
+				task.wait(0.2)
+				break
+			end
+			onStatusChange(string.format("Portal in %ds...", countdown), "Countdown")
+			local stepStart = os.clock()
+			while isActive(token) and (os.clock() - stepStart) < 1 do
+				if #getWorkspaceByName("Dig Spot") > 0 then
+					foundDigDuringCountdown = true
+					break
+				end
+				task.wait(0.1)
+			end
+			if foundDigDuringCountdown then
+				onStatusChange("Digging...", "Dig")
+				task.wait(0.15)
+				break
+			end
+			countdown -= 1
+		end
+
+		if not isActive(token) then return end
+		if not foundDigDuringCountdown and #getWorkspaceByName("Dig Spot") == 0 then
+			break
+		end
+	end
+
+	onStatusChange("Going to portal...", "Portal")
+	local portalObj, portalPrompt = getPortalObjects()
+	local portalCF = getPivotCFrame(portalObj) or (portalPrompt and (getPivotCFrame(portalPrompt.Parent) or getPivotCFrame(portalPrompt)))
+	if portalCF then
+		teleportTo(portalCF)
+		task.wait(0.25)
+	end
+	if portalPrompt then
+		firePrompt(portalPrompt)
+	end
+	task.wait(0.5)
+
+	if isActive(token) then
+		deliverToSmelter()
+		onStatusChange("Waiting 18s...", "Wait")
+		local waitStart = os.clock()
+		while isActive(token) do
+			local remaining = 18 - (os.clock() - waitStart)
+			if remaining <= 0 then break end
+			onStatusChange(string.format("Waiting %ds...", math.floor(remaining)), "Wait")
+			task.wait(0.5)
+		end
+		if isActive(token) then
+			teleportToTargetPlace()
+			task.wait(5)
+		end
+	end
+end
+
+local function setAutoPlay(enabled)
+	AutoRunning = enabled
+	RunToken += 1
+	local activeToken = RunToken
+
+	if not enabled then
+		onStatusChange("Idle", "-")
+		return
+	end
+
+	onStatusChange("Auto started", "Init")
+	task.spawn(function()
+		while isActive(activeToken) do
+			local ok, err = pcall(function()
+				runAutoPlayCycle(activeToken)
+			end)
+			if not ok then
+				onStatusChange("Error: " .. tostring(err), "Error")
+				task.wait(1)
+			end
+		end
+		if activeToken == RunToken and not AutoRunning then
+			onStatusChange("Idle", "-")
+		end
+	end)
+end
+
+--// ===================== CUSTOM GUI ===================== //--
 
 -- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
 local COL_BG = Color3.fromRGB(15, 12, 22)
@@ -74,505 +530,37 @@ local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
 local MIN_HOVER = Color3.fromRGB(70, 35, 18)
 local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
 local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
-local TP_NORMAL = Color3.fromRGB(48, 22, 72)
-local TP_HOVER = Color3.fromRGB(82, 36, 118)
-local BEAM_NORMAL = Color3.fromRGB(75, 36, 14)
-local BEAM_HOVER = Color3.fromRGB(120, 58, 20)
-local BEAM_ACTIVE = Color3.fromRGB(115, 32, 145)
-local BEAM_ACTIVE_HOVER = Color3.fromRGB(155, 48, 195)
-local GAME_NORMAL = Color3.fromRGB(25, 58, 52)
-local GAME_HOVER = Color3.fromRGB(38, 92, 82)
-local GOLD_NORMAL = Color3.fromRGB(85, 62, 16)
-local GOLD_HOVER = Color3.fromRGB(135, 98, 24)
-local SMELTER_NORMAL = Color3.fromRGB(92, 34, 18)
-local SMELTER_HOVER = Color3.fromRGB(142, 54, 28)
+
+local AUTO_OFF_NORMAL = Color3.fromRGB(32, 22, 45)
+local AUTO_OFF_HOVER = Color3.fromRGB(48, 32, 68)
+local AUTO_ON_NORMAL = Color3.fromRGB(165, 72, 0)
+local AUTO_ON_HOVER = Color3.fromRGB(205, 92, 0)
 
 local STROKE_CS = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
-    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
-    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
 })
 
 local allGrads = {}
-local isGuiDestroyed = false
 
 local function animStroke(parent, thick)
-    local s = Instance.new("UIStroke")
-    s.Thickness = thick or 1
-    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    s.Color = Color3.new(1, 1, 1)
-    s.Parent = parent
-    
-    local g = Instance.new("UIGradient")
-    g.Color = STROKE_CS
-    g.Rotation = 45
-    g.Parent = s
-    
-    table.insert(allGrads, g)
-    return s
-end
-
--- Pelacakan target yang sudah dikunjungi agar tidak mengulang target yang sama
-local visitedStands = {}
-local visitedBeams = {}
-local visitedPortals = {}
-
-local function safeDebugId(obj)
-    local id = "obj"
-    if obj then
-        pcall(function()
-            id = obj:GetDebugId()
-        end)
-    end
-    return id
-end
-
-local function buildTargetKey(obj, baseCf)
-    local pos = baseCf and baseCf.Position or Vector3.zero
-    return ("%s_%.1f_%.1f_%.1f"):format(safeDebugId(obj), pos.X, pos.Y, pos.Z)
-end
-
-local function pickUnvisitedCandidate(candidates, visitedSet)
-    local unvisited = {}
-    local resetHappened = false
-
-    for _, item in ipairs(candidates) do
-        if not visitedSet[item.key] then
-            table.insert(unvisited, item)
-        end
-    end
-
-    if #unvisited == 0 then
-        table.clear(visitedSet)
-        resetHappened = true
-        for _, item in ipairs(candidates) do
-            table.insert(unvisited, item)
-        end
-    end
-
-    local chosenIndex = math.random(1, #unvisited)
-    local chosen = unvisited[chosenIndex]
-    visitedSet[chosen.key] = true
-
-    return chosen, resetHappened
-end
-
--- Fungsi mencari posisi CFrame objek (dengan offset ke atas agar tidak jatuh)
-local function getTargetCFrame(obj)
-    if not obj or not obj.Parent then return nil end
-    if obj:IsA("BasePart") then
-        return obj.CFrame + Vector3.new(0, (obj.Size.Y * 0.5) + TP_HEIGHT_OFFSET, 0)
-    elseif obj:IsA("Model") then
-        local pivot = obj:GetPivot()
-        return pivot + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
-    elseif obj:IsA("Attachment") then
-        return obj.WorldCFrame + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
-    else
-        local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
-        if innerPart then
-            return innerPart.CFrame + Vector3.new(0, (innerPart.Size.Y * 0.5) + TP_HEIGHT_OFFSET, 0)
-        end
-        local innerAtt = obj:FindFirstChildWhichIsA("Attachment", true)
-        if innerAtt then
-            return innerAtt.WorldCFrame + Vector3.new(0, TP_HEIGHT_OFFSET, 0)
-        end
-    end
-    return nil
-end
-
-local function getBasePositionCFrame(obj)
-    if not obj or not obj.Parent then return nil end
-    if obj:IsA("BasePart") then
-        return obj.CFrame
-    elseif obj:IsA("Model") then
-        return obj:GetPivot()
-    elseif obj:IsA("Attachment") then
-        return obj.WorldCFrame
-    else
-        local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
-        if innerPart then
-            return innerPart.CFrame
-        end
-        local innerAtt = obj:FindFirstChildWhichIsA("Attachment", true)
-        if innerAtt then
-            return innerAtt.WorldCFrame
-        end
-    end
-    return nil
-end
-
--- Fungsi menandai tempat Location Beam di workspace
-local markerFolder = Instance.new("Folder")
-markerFolder.Name = "AceSniperBeamMarkers"
-markerFolder.Parent = workspace
-
-local function markLocationBeam(obj, baseCFrame, indexLabel, isSelected)
-    if not baseCFrame then return end
-
-    local markerId = ("BeamMarker_%s"):format(safeDebugId(obj))
-    local existing = markerFolder:FindFirstChild(markerId)
-    if existing then
-        existing:Destroy()
-    end
-
-    local markerPart = Instance.new("Part")
-    markerPart.Name = markerId
-    markerPart.Size = isSelected and Vector3.new(5.5, 0.55, 5.5) or Vector3.new(4, 0.4, 4)
-    markerPart.CFrame = CFrame.new(baseCFrame.Position)
-    markerPart.Anchored = true
-    markerPart.CanCollide = false
-    markerPart.CanTouch = false
-    markerPart.CanQuery = false
-    markerPart.Material = Enum.Material.Neon
-    markerPart.Color = isSelected and Color3.fromRGB(255, 70, 220) or Color3.fromRGB(255, 140, 0)
-    markerPart.Transparency = isSelected and 0.15 or 0.45
-    markerPart.Parent = markerFolder
-
-    local box = Instance.new("SelectionBox")
-    box.Adornee = markerPart
-    box.Color3 = isSelected and Color3.fromRGB(255, 90, 230) or Color3.fromRGB(255, 165, 30)
-    box.LineThickness = isSelected and 0.09 or 0.05
-    box.SurfaceTransparency = isSelected and 0.55 or 0.82
-    box.SurfaceColor3 = isSelected and Color3.fromRGB(220, 80, 255) or Color3.fromRGB(140, 70, 210)
-    box.Parent = markerPart
-
-    local billboard = Instance.new("BillboardGui")
-    billboard.Size = UDim2.new(0, 155, 0, 36)
-    billboard.StudsOffset = Vector3.new(0, 4, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = markerPart
-
-    local tagLabel = Instance.new("TextLabel")
-    tagLabel.Size = UDim2.new(1, 0, 1, 0)
-    tagLabel.BackgroundColor3 = Color3.fromRGB(18, 12, 28)
-    tagLabel.BackgroundTransparency = 0.2
-    tagLabel.Text = isSelected
-        and ("[ACTIVE #%d] %s"):format(indexLabel, obj.Name)
-        or ("[BEAM #%d] %s"):format(indexLabel, obj.Name)
-    tagLabel.TextColor3 = isSelected and Color3.fromRGB(255, 140, 240) or Color3.fromRGB(255, 185, 80)
-    tagLabel.Font = Enum.Font.GothamBold
-    tagLabel.TextSize = 11
-    tagLabel.Parent = billboard
-    Instance.new("UICorner", tagLabel).CornerRadius = UDim.new(0, 6)
-
-    local tagStroke = Instance.new("UIStroke")
-    tagStroke.Color = isSelected and Color3.fromRGB(255, 90, 230) or Color3.fromRGB(255, 140, 0)
-    tagStroke.Thickness = 1
-    tagStroke.Parent = tagLabel
-end
-
--- Fungsi mengeksekusi ProximityPrompt pada objek tertentu
-local function activateSinglePrompt(prompt)
-    if not prompt or not prompt:IsA("ProximityPrompt") or not prompt.Parent then
-        return false
-    end
-
-    local oldMaxDist = prompt.MaxActivationDistance
-    prompt.MaxActivationDistance = math.max(oldMaxDist, 60)
-
-    if typeof(fireproximityprompt) == "function" then
-        pcall(fireproximityprompt, prompt)
-        return true
-    else
-        pcall(function()
-            prompt:InputHoldBegin()
-            task.wait(math.clamp(prompt.HoldDuration, 0.05, 0.2))
-            prompt:InputHoldEnd()
-        end)
-        return true
-    end
-end
-
-local function collectPromptsForTarget(targetObj)
-    local prompts = {}
-    if not targetObj or not targetObj.Parent then
-        return prompts
-    end
-
-    if targetObj:IsA("ProximityPrompt") and targetObj.Parent then
-        table.insert(prompts, targetObj)
-    end
-
-    for _, desc in ipairs(targetObj:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") and desc.Parent then
-            table.insert(prompts, desc)
-        end
-    end
-
-    if #prompts == 0 then
-        local targetBaseCf = getBasePositionCFrame(targetObj)
-        if targetBaseCf then
-            local targetPos = targetBaseCf.Position
-            for _, desc in ipairs(workspace:GetDescendants()) do
-                if desc:IsA("ProximityPrompt") and desc.Parent then
-                    local p = desc.Parent
-                    local pPos = nil
-                    if p:IsA("BasePart") then
-                        pPos = p.Position
-                    elseif p:IsA("Model") then
-                        pPos = p:GetPivot().Position
-                    elseif p:IsA("Attachment") then
-                        pPos = p.WorldPosition
-                    end
-
-                    if pPos and (pPos - targetPos).Magnitude <= 16 then
-                        table.insert(prompts, desc)
-                    end
-                end
-            end
-        end
-    end
-
-    return prompts
-end
-
-local function triggerPromptsIn(standObj)
-    local firedCount = 0
-    local prompts = collectPromptsForTarget(standObj)
-    for _, prompt in ipairs(prompts) do
-        if activateSinglePrompt(prompt) then
-            firedCount += 1
-        end
-    end
-    return firedCount
-end
-
-local function isPortalChild(child)
-    if not child or not child.Parent then return false end
-    local lowerName = string.lower(child.Name)
-    if string.find(lowerName, "portal", 1, true) ~= nil then
-        return true
-    end
-    if child:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil then
-        return true
-    end
-    return false
-end
-
-local function teleportAndFireGoldHunterPortal()
-    local localPlayer = players.LocalPlayer
-    local character = localPlayer and localPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return false, "Character tidak ditemukan"
-    end
-
-    local candidates = {}
-    for _, child in ipairs(workspace:GetChildren()) do
-        if isPortalChild(child) then
-            local tpCf = getTargetCFrame(child)
-            local baseCf = getBasePositionCFrame(child)
-            if tpCf and baseCf then
-                table.insert(candidates, {
-                    instance = child,
-                    tpCFrame = tpCf,
-                    key = buildTargetKey(child, baseCf)
-                })
-            end
-        end
-    end
-
-    if #candidates == 0 then
-        return false, "Portal tidak ditemukan"
-    end
-
-    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedPortals)
-    hrp.CFrame = chosen.tpCFrame
-
-    task.wait(0.08)
-    local fired = triggerPromptsIn(chosen.instance)
-
-    local prefix = resetHappened and "Reset & " or ""
-    if fired > 0 then
-        return true, ("%sPortal TP & Fired (%d)"):format(prefix, fired)
-    else
-        return true, ("%sPortal TP Sukses"):format(prefix)
-    end
-end
-
-local function findSmelterTarget()
-    local env = workspace:FindFirstChild("Environment")
-    local inWorldUI = env and env:FindFirstChild("InWorldUI")
-    local smelter = inWorldUI and inWorldUI:FindFirstChild("Smelter")
-    if smelter then
-        return smelter
-    end
-
-    if inWorldUI then
-        for _, desc in ipairs(inWorldUI:GetDescendants()) do
-            if desc.Name == "Smelter" then
-                return desc
-            end
-        end
-    end
-
-    return nil
-end
-
-local function teleportAndFireSmelter()
-    local localPlayer = players.LocalPlayer
-    local character = localPlayer and localPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return false, "Character tidak ditemukan"
-    end
-
-    local smelterObj = findSmelterTarget()
-    if not smelterObj then
-        return false, "Smelter tidak ditemukan"
-    end
-
-    local tpCf = getTargetCFrame(smelterObj)
-    if not tpCf then
-        return false, "Posisi Smelter invalid"
-    end
-
-    hrp.CFrame = tpCf
-    task.wait(0.08)
-    local fired = triggerPromptsIn(smelterObj)
-
-    if fired > 0 then
-        return true, ("Smelter TP & Fired (%d)"):format(fired)
-    else
-        return true, "Smelter TP (No Prompt)"
-    end
-end
-
-local function teleportToScanningStand()
-    local localPlayer = players.LocalPlayer
-    local character = localPlayer and localPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return false, "Character tidak ditemukan"
-    end
-
-    local candidates = {}
-    for _, desc in ipairs(workspace:GetDescendants()) do
-        if desc.Name == "ScanningStand" then
-            local cf = getTargetCFrame(desc)
-            local baseCf = getBasePositionCFrame(desc)
-            if cf and baseCf then
-                table.insert(candidates, {
-                    instance = desc,
-                    cframe = cf,
-                    key = buildTargetKey(desc, baseCf)
-                })
-            end
-        end
-    end
-
-    if #candidates == 0 then
-        return false, "ScanningStand tidak ada"
-    end
-
-    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedStands)
-    hrp.CFrame = chosen.cframe
-
-    task.wait(0.08)
-    local fired = triggerPromptsIn(chosen.instance)
-
-    local prefix = resetHappened and "Reset & " or ""
-    if fired > 0 then
-        return true, ("%sTP & Fired (%d)"):format(prefix, fired)
-    else
-        return true, ("%sTP Sukses"):format(prefix)
-    end
-end
-
-local function isLocationBeamName(name)
-    local normalized = string.lower(name):gsub("[%s_-]+", "")
-    return normalized == "locationbeam"
-end
-
-local activeBeamTarget = nil
-
-local function refreshAllBeamMarkers(candidates)
-    for idx, item in ipairs(candidates) do
-        local isSelected = (activeBeamTarget ~= nil and item.key == activeBeamTarget.key)
-        markLocationBeam(item.instance, item.baseCFrame, idx, isSelected)
-    end
-end
-
-local function collectLocationBeamCandidates()
-    local candidates = {}
-    for _, desc in ipairs(workspace:GetDescendants()) do
-        if isLocationBeamName(desc.Name) and desc.Parent then
-            local tpCf = getTargetCFrame(desc)
-            local baseCf = getBasePositionCFrame(desc)
-            if tpCf and baseCf then
-                table.insert(candidates, {
-                    instance = desc,
-                    tpCFrame = tpCf,
-                    baseCFrame = baseCf,
-                    key = buildTargetKey(desc, baseCf)
-                })
-            end
-        end
-    end
-    return candidates
-end
-
-local function isTargetStillNeedsPrompt(target)
-    if not target or not target.instance or not target.instance.Parent then
-        return false
-    end
-
-    local remainingPrompts = collectPromptsForTarget(target.instance)
-    return #remainingPrompts > 0
-end
-
-local function focusOrAdvanceLocationBeam()
-    local localPlayer = players.LocalPlayer
-    local character = localPlayer and localPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return false, "Character tidak ditemukan", false
-    end
-
-    local candidates = collectLocationBeamCandidates()
-    if #candidates == 0 then
-        activeBeamTarget = nil
-        return false, "Location Beam tidak ada", false
-    end
-
-    if activeBeamTarget and isTargetStillNeedsPrompt(activeBeamTarget) then
-        local liveTpCf = getTargetCFrame(activeBeamTarget.instance) or activeBeamTarget.tpCFrame
-        if hrp and (hrp.Position - liveTpCf.Position).Magnitude > 11 then
-            hrp.CFrame = liveTpCf
-        end
-
-        local fired = triggerPromptsIn(activeBeamTarget.instance)
-        local leftPrompts = #collectPromptsForTarget(activeBeamTarget.instance)
-        refreshAllBeamMarkers(candidates)
-
-        return true, ("Focus Beam (Prompt:%d | Fired:%d)"):format(leftPrompts, fired), false
-    end
-
-    local hadPreviousTarget = (activeBeamTarget ~= nil)
-    activeBeamTarget = nil
-
-    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedBeams)
-    activeBeamTarget = chosen
-
-    local chosenDisplayIndex = 1
-    for idx, item in ipairs(candidates) do
-        if item.key == chosen.key then
-            chosenDisplayIndex = idx
-            break
-        end
-    end
-
-    refreshAllBeamMarkers(candidates)
-
-    local tpCfNow = getTargetCFrame(chosen.instance) or chosen.tpCFrame
-    hrp.CFrame = tpCfNow
-    local firedNow = triggerPromptsIn(chosen.instance)
-
-    local prefix = resetHappened and "Reset & " or ""
-    return true, ("%sBeam #%d/%d (Fired:%d)"):format(prefix, chosenDisplayIndex, #candidates, firedNow), hadPreviousTarget
+	local s = Instance.new("UIStroke")
+	s.Thickness = thick or 1
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	s.Color = Color3.new(1, 1, 1)
+	s.Parent = parent
+
+	local g = Instance.new("UIGradient")
+	g.Color = STROKE_CS
+	g.Rotation = 45
+	g.Parent = s
+
+	table.insert(allGrads, g)
+	return s
 end
 
 local gui = Instance.new("ScreenGui")
@@ -580,27 +568,23 @@ gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
 gui.Parent = coreGui
 
-local FULL_W, FULL_H = 290, 194
+local FULL_W, FULL_H = 290, 92
 local MINI_W, MINI_H = 42, 42
-
-local initialPos = (configData.posX and configData.posY)
-    and UDim2.new(0, configData.posX, 0, configData.posY)
-    or UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
-main.Position = initialPos
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
 main.BackgroundColor3 = COL_BG
 main.BackgroundTransparency = 0.15
 main.BorderSizePixel = 0
 main.ClipsDescendants = true
 main.Active = true
-main.Visible = not configData.minimized
 main.Parent = gui
 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 animStroke(main, 1.5)
 
+-- Logo Gambar di sebelah kiri Judul Utama
 local logoImg = Instance.new("ImageLabel")
 logoImg.Size = UDim2.new(0, 24, 0, 24)
 logoImg.Position = UDim2.new(0, 10, 0, 9)
@@ -621,9 +605,9 @@ title.Parent = main
 
 local tGrad = Instance.new("UIGradient")
 tGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
 })
 tGrad.Parent = title
 
@@ -638,97 +622,94 @@ desc.TextColor3 = Color3.fromRGB(180, 130, 220)
 desc.TextXAlignment = Enum.TextXAlignment.Left
 desc.Parent = main
 
-local tpBtn = Instance.new("TextButton")
-tpBtn.Size = UDim2.new(1, -20, 0, 24)
-tpBtn.Position = UDim2.new(0, 10, 0, 40)
-tpBtn.BackgroundColor3 = TP_NORMAL
-tpBtn.Text = "TP & FIRE SCANNINGSTAND"
-tpBtn.TextColor3 = Color3.fromRGB(255, 195, 110)
-tpBtn.Font = Enum.Font.GothamBold
-tpBtn.TextSize = 10
-tpBtn.BorderSizePixel = 0
-tpBtn.AutoButtonColor = false
-tpBtn.Parent = main
-Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0, 6)
-animStroke(tpBtn, 1)
+-- Garis pemisah tipis di bawah header
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, -20, 0, 1)
+divider.Position = UDim2.new(0, 10, 0, 39)
+divider.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+divider.BackgroundTransparency = 0.75
+divider.BorderSizePixel = 0
+divider.Parent = main
 
-local tpScale = Instance.new("UIScale")
-tpScale.Scale = 1
-tpScale.Parent = tpBtn
+-- Tombol Auto Play di bawah judul (Auto ON saat execute)
+local autoPlayEnabled = true
+local autoBtn = Instance.new("TextButton")
+autoBtn.Size = UDim2.new(1, -20, 0, 24)
+autoBtn.Position = UDim2.new(0, 10, 0, 45)
+autoBtn.BackgroundColor3 = AUTO_ON_NORMAL
+autoBtn.Text = "AUTO PLAY : ON"
+autoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoBtn.Font = Enum.Font.GothamBlack
+autoBtn.TextSize = 10
+autoBtn.BorderSizePixel = 0
+autoBtn.AutoButtonColor = false
+autoBtn.Parent = main
+Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoBtn, 1)
 
-local beamToggleEnabled = configData.beamToggleEnabled
-local beamBtn = Instance.new("TextButton")
-beamBtn.Size = UDim2.new(1, -20, 0, 24)
-beamBtn.Position = UDim2.new(0, 10, 0, 70)
-beamBtn.BackgroundColor3 = beamToggleEnabled and BEAM_ACTIVE or BEAM_NORMAL
-beamBtn.Text = beamToggleEnabled and "FOCUS BEAM + PROMPT LOOP: ON" or "FOCUS BEAM + PROMPT LOOP: OFF"
-beamBtn.TextColor3 = beamToggleEnabled and Color3.fromRGB(165, 255, 185) or Color3.fromRGB(255, 210, 130)
-beamBtn.Font = Enum.Font.GothamBold
-beamBtn.TextSize = 10
-beamBtn.BorderSizePixel = 0
-beamBtn.AutoButtonColor = false
-beamBtn.Parent = main
-Instance.new("UICorner", beamBtn).CornerRadius = UDim.new(0, 6)
-animStroke(beamBtn, 1)
+local autoScale = Instance.new("UIScale")
+autoScale.Scale = 1
+autoScale.Parent = autoBtn
 
-local beamScale = Instance.new("UIScale")
-beamScale.Scale = 1
-beamScale.Parent = beamBtn
+-- Label Status kecil di bawah tombol Auto Play
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 14)
+statusLabel.Position = UDim2.new(0, 10, 0, 72)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Status: Auto started (Init)"
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextSize = 8.5
+statusLabel.TextColor3 = Color3.fromRGB(190, 175, 215)
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+statusLabel.Parent = main
 
-local gameBtn = Instance.new("TextButton")
-gameBtn.Size = UDim2.new(1, -20, 0, 24)
-gameBtn.Position = UDim2.new(0, 10, 0, 100)
-gameBtn.BackgroundColor3 = GAME_NORMAL
-gameBtn.Text = ("TO GAME (%d)"):format(TARGET_PLACE_ID)
-gameBtn.TextColor3 = Color3.fromRGB(150, 255, 225)
-gameBtn.Font = Enum.Font.GothamBold
-gameBtn.TextSize = 10
-gameBtn.BorderSizePixel = 0
-gameBtn.AutoButtonColor = false
-gameBtn.Parent = main
-Instance.new("UICorner", gameBtn).CornerRadius = UDim.new(0, 6)
-animStroke(gameBtn, 1)
+local function refreshAutoBtnVisual(isHover)
+	if autoPlayEnabled then
+		autoBtn.BackgroundColor3 = isHover and AUTO_ON_HOVER or AUTO_ON_NORMAL
+		autoBtn.Text = "AUTO PLAY : ON"
+		autoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		autoBtn.BackgroundColor3 = isHover and AUTO_OFF_HOVER or AUTO_OFF_NORMAL
+		autoBtn.Text = "AUTO PLAY : OFF"
+		autoBtn.TextColor3 = Color3.fromRGB(220, 195, 255)
+	end
+end
 
-local gameScale = Instance.new("UIScale")
-gameScale.Scale = 1
-gameScale.Parent = gameBtn
+onStatusChange = function(statusText, stepText)
+	statusLabel.Text = string.format("Status: %s (%s)", tostring(statusText or "-"), tostring(stepText or "-"))
+end
 
-local goldBtn = Instance.new("TextButton")
-goldBtn.Size = UDim2.new(1, -20, 0, 24)
-goldBtn.Position = UDim2.new(0, 10, 0, 130)
-goldBtn.BackgroundColor3 = GOLD_NORMAL
-goldBtn.Text = "TP & FIRE GOLD HUNTER PORTAL"
-goldBtn.TextColor3 = Color3.fromRGB(255, 225, 110)
-goldBtn.Font = Enum.Font.GothamBold
-goldBtn.TextSize = 10
-goldBtn.BorderSizePixel = 0
-goldBtn.AutoButtonColor = false
-goldBtn.Parent = main
-Instance.new("UICorner", goldBtn).CornerRadius = UDim.new(0, 6)
-animStroke(goldBtn, 1)
+local isAutoHovered = false
+autoBtn.MouseEnter:Connect(function()
+	isAutoHovered = true
+	tweenService:Create(autoBtn, TweenInfo.new(0.15), {
+		BackgroundColor3 = autoPlayEnabled and AUTO_ON_HOVER or AUTO_OFF_HOVER
+	}):Play()
+end)
 
-local goldScale = Instance.new("UIScale")
-goldScale.Scale = 1
-goldScale.Parent = goldBtn
+autoBtn.MouseLeave:Connect(function()
+	isAutoHovered = false
+	tweenService:Create(autoBtn, TweenInfo.new(0.15), {
+		BackgroundColor3 = autoPlayEnabled and AUTO_ON_NORMAL or AUTO_OFF_NORMAL
+	}):Play()
+end)
 
-local smelterBtn = Instance.new("TextButton")
-smelterBtn.Size = UDim2.new(1, -20, 0, 24)
-smelterBtn.Position = UDim2.new(0, 10, 0, 160)
-smelterBtn.BackgroundColor3 = SMELTER_NORMAL
-smelterBtn.Text = "TP & FIRE SMELTER"
-smelterBtn.TextColor3 = Color3.fromRGB(255, 175, 120)
-smelterBtn.Font = Enum.Font.GothamBold
-smelterBtn.TextSize = 10
-smelterBtn.BorderSizePixel = 0
-smelterBtn.AutoButtonColor = false
-smelterBtn.Parent = main
-Instance.new("UICorner", smelterBtn).CornerRadius = UDim.new(0, 6)
-animStroke(smelterBtn, 1)
+autoBtn.MouseButton1Down:Connect(function()
+	tweenService:Create(autoScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
 
-local smelterScale = Instance.new("UIScale")
-smelterScale.Scale = 1
-smelterScale.Parent = smelterBtn
+autoBtn.MouseButton1Up:Connect(function()
+	tweenService:Create(autoScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
 
+autoBtn.MouseButton1Click:Connect(function()
+	autoPlayEnabled = not autoPlayEnabled
+	refreshAutoBtnVisual(isAutoHovered)
+	setAutoPlay(autoPlayEnabled)
+end)
+
+-- Tombol Close (X) di dalam panel utama (posisi paling kanan)
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 22, 0, 22)
 closeBtn.Position = UDim2.new(1, -30, 0, 8)
@@ -747,7 +728,8 @@ local closeScale = Instance.new("UIScale")
 closeScale.Scale = 1
 closeScale.Parent = closeBtn
 
-local minimized = configData.minimized
+-- Tombol Minimize (-) bergeser sedikit ke kiri agar ada ruang untuk tombol Close
+local minimized = false
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 22, 0, 22)
 minBtn.Position = UDim2.new(1, -56, 0, 8)
@@ -766,13 +748,14 @@ local minScale = Instance.new("UIScale")
 minScale.Scale = 1
 minScale.Parent = minBtn
 
+-- Pop-up ikon kecil menggunakan gambar kustom saat minimize
 local floatingIcon = Instance.new("ImageButton")
 floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
-floatingIcon.Position = initialPos
+floatingIcon.Position = main.Position
 floatingIcon.BackgroundColor3 = COL_BG
 floatingIcon.BackgroundTransparency = 0.15
 floatingIcon.Image = "rbxassetid://134667732794034"
-floatingIcon.Visible = configData.minimized
+floatingIcon.Visible = false
 floatingIcon.AutoButtonColor = false
 floatingIcon.BorderSizePixel = 0
 floatingIcon.Parent = gui
@@ -780,428 +763,139 @@ floatingIcon.Parent = gui
 Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
--- Interaksi Tombol TP ScanningStand
-local tpResetTask = nil
-local isTeleporting = false
-
-tpBtn.MouseEnter:Connect(function()
-    tweenService:Create(tpBtn, TweenInfo.new(0.15), {BackgroundColor3 = TP_HOVER}):Play()
-end)
-
-tpBtn.MouseLeave:Connect(function()
-    tweenService:Create(tpBtn, TweenInfo.new(0.15), {BackgroundColor3 = TP_NORMAL}):Play()
-end)
-
-tpBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(tpScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
-end)
-
-tpBtn.MouseButton1Up:Connect(function()
-    tweenService:Create(tpScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-end)
-
-tpBtn.MouseButton1Click:Connect(function()
-    if isTeleporting then return end
-    isTeleporting = true
-
-    task.spawn(function()
-        local ok, msg = teleportToScanningStand()
-        if tpBtn and tpBtn.Parent then
-            tpBtn.Text = string.upper(msg)
-            tpBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
-
-            if tpResetTask then
-                task.cancel(tpResetTask)
-            end
-            tpResetTask = task.delay(1.5, function()
-                if tpBtn and tpBtn.Parent then
-                    tpBtn.Text = "TP & FIRE SCANNINGSTAND"
-                    tpBtn.TextColor3 = Color3.fromRGB(255, 195, 110)
-                end
-            end)
-        end
-        isTeleporting = false
-    end)
-end)
-
--- Fungsi update visual & loop Toggle Location Beam
-local isBeamLoopRunning = false
-
-local function refreshBeamButtonVisual(customStatusText)
-    if not beamBtn or not beamBtn.Parent then return end
-    if beamToggleEnabled then
-        beamBtn.BackgroundColor3 = BEAM_ACTIVE
-        beamBtn.Text = customStatusText and string.upper(customStatusText) or "FOCUS BEAM + PROMPT LOOP: ON"
-        beamBtn.TextColor3 = Color3.fromRGB(165, 255, 185)
-    else
-        beamBtn.BackgroundColor3 = BEAM_NORMAL
-        beamBtn.Text = customStatusText and string.upper(customStatusText) or "FOCUS BEAM + PROMPT LOOP: OFF"
-        beamBtn.TextColor3 = Color3.fromRGB(255, 210, 130)
-    end
-end
-
-local function startBeamLoop()
-    if isBeamLoopRunning then return end
-    isBeamLoopRunning = true
-
-    task.spawn(function()
-        while beamToggleEnabled and not isGuiDestroyed do
-            local prevTarget = activeBeamTarget
-            local ok, msg, switchedAfterComplete = focusOrAdvanceLocationBeam()
-
-            if beamToggleEnabled and not isGuiDestroyed then
-                refreshBeamButtonVisual(msg)
-            end
-
-            if switchedAfterComplete and beamToggleEnabled and not isGuiDestroyed then
-                local elapsed = 0
-                while elapsed < 1 and beamToggleEnabled and not isGuiDestroyed do
-                    if prevTarget and prevTarget.instance then
-                        triggerPromptsIn(prevTarget.instance)
-                    end
-                    task.wait(0.1)
-                    elapsed += 0.1
-                end
-            else
-                task.wait(0.12)
-            end
-        end
-        isBeamLoopRunning = false
-    end)
-end
-
-if beamToggleEnabled then
-    refreshBeamButtonVisual()
-    startBeamLoop()
-end
-
-beamBtn.MouseEnter:Connect(function()
-    local targetColor = beamToggleEnabled and BEAM_ACTIVE_HOVER or BEAM_HOVER
-    tweenService:Create(beamBtn, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
-end)
-
-beamBtn.MouseLeave:Connect(function()
-    local targetColor = beamToggleEnabled and BEAM_ACTIVE or BEAM_NORMAL
-    tweenService:Create(beamBtn, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
-end)
-
-beamBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(beamScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
-end)
-
-beamBtn.MouseButton1Up:Connect(function()
-    tweenService:Create(beamScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-end)
-
-beamBtn.MouseButton1Click:Connect(function()
-    beamToggleEnabled = not beamToggleEnabled
-    configData.beamToggleEnabled = beamToggleEnabled
-    saveConfig()
-
-    if not beamToggleEnabled then
-        activeBeamTarget = nil
-    end
-    refreshBeamButtonVisual()
-
-    if beamToggleEnabled then
-        startBeamLoop()
-    end
-end)
-
--- Interaksi Tombol To Game
-local gameResetTask = nil
-local isGameTeleporting = false
-
-gameBtn.MouseEnter:Connect(function()
-    tweenService:Create(gameBtn, TweenInfo.new(0.15), {BackgroundColor3 = GAME_HOVER}):Play()
-end)
-
-gameBtn.MouseLeave:Connect(function()
-    tweenService:Create(gameBtn, TweenInfo.new(0.15), {BackgroundColor3 = GAME_NORMAL}):Play()
-end)
-
-gameBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(gameScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
-end)
-
-gameBtn.MouseButton1Up:Connect(function()
-    tweenService:Create(gameScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-end)
-
-gameBtn.MouseButton1Click:Connect(function()
-    if isGameTeleporting then return end
-    isGameTeleporting = true
-
-    configData.beamToggleEnabled = beamToggleEnabled
-    configData.minimized = minimized
-    saveConfig()
-
-    beamToggleEnabled = false
-    activeBeamTarget = nil
-
-    gameBtn.Text = ("TELEPORTING (%d)..."):format(TARGET_PLACE_ID)
-    gameBtn.TextColor3 = Color3.fromRGB(255, 230, 120)
-
-    local ok = pcall(function()
-        local lp = players.LocalPlayer
-        if lp then
-            teleportService:Teleport(TARGET_PLACE_ID, lp)
-        else
-            teleportService:Teleport(TARGET_PLACE_ID)
-        end
-    end)
-
-    if not ok and gameBtn and gameBtn.Parent then
-        gameBtn.Text = "TP FAILED"
-        gameBtn.TextColor3 = Color3.fromRGB(255, 130, 130)
-        if gameResetTask then
-            task.cancel(gameResetTask)
-        end
-        gameResetTask = task.delay(1.5, function()
-            if gameBtn and gameBtn.Parent then
-                gameBtn.Text = ("TO GAME (%d)"):format(TARGET_PLACE_ID)
-                gameBtn.TextColor3 = Color3.fromRGB(150, 255, 225)
-            end
-        end)
-    end
-
-    task.delay(1.5, function()
-        isGameTeleporting = false
-    end)
-end)
-
--- Interaksi Tombol Gold Hunter Portal (workspace:GetChildren() -> Portal + fireproximityprompt)
-local goldResetTask = nil
-local isGoldTeleporting = false
-
-goldBtn.MouseEnter:Connect(function()
-    tweenService:Create(goldBtn, TweenInfo.new(0.15), {BackgroundColor3 = GOLD_HOVER}):Play()
-end)
-
-goldBtn.MouseLeave:Connect(function()
-    tweenService:Create(goldBtn, TweenInfo.new(0.15), {BackgroundColor3 = GOLD_NORMAL}):Play()
-end)
-
-goldBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(goldScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
-end)
-
-goldBtn.MouseButton1Up:Connect(function()
-    tweenService:Create(goldScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-end)
-
-goldBtn.MouseButton1Click:Connect(function()
-    if isGoldTeleporting then return end
-    isGoldTeleporting = true
-
-    task.spawn(function()
-        local ok, msg = teleportAndFireGoldHunterPortal()
-        if goldBtn and goldBtn.Parent then
-            goldBtn.Text = string.upper(msg)
-            goldBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
-
-            if goldResetTask then
-                task.cancel(goldResetTask)
-            end
-            goldResetTask = task.delay(1.5, function()
-                if goldBtn and goldBtn.Parent then
-                    goldBtn.Text = "TP & FIRE GOLD HUNTER PORTAL"
-                    goldBtn.TextColor3 = Color3.fromRGB(255, 225, 110)
-                end
-            end)
-        end
-        isGoldTeleporting = false
-    end)
-end)
-
--- Interaksi Tombol TP & Fire Smelter
-local smelterResetTask = nil
-local isSmelterTeleporting = false
-
-smelterBtn.MouseEnter:Connect(function()
-    tweenService:Create(smelterBtn, TweenInfo.new(0.15), {BackgroundColor3 = SMELTER_HOVER}):Play()
-end)
-
-smelterBtn.MouseLeave:Connect(function()
-    tweenService:Create(smelterBtn, TweenInfo.new(0.15), {BackgroundColor3 = SMELTER_NORMAL}):Play()
-end)
-
-smelterBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(smelterScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
-end)
-
-smelterBtn.MouseButton1Up:Connect(function()
-    tweenService:Create(smelterScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-end)
-
-smelterBtn.MouseButton1Click:Connect(function()
-    if isSmelterTeleporting then return end
-    isSmelterTeleporting = true
-
-    task.spawn(function()
-        local ok, msg = teleportAndFireSmelter()
-        if smelterBtn and smelterBtn.Parent then
-            smelterBtn.Text = string.upper(msg)
-            smelterBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
-
-            if smelterResetTask then
-                task.cancel(smelterResetTask)
-            end
-            smelterResetTask = task.delay(1.5, function()
-                if smelterBtn and smelterBtn.Parent then
-                    smelterBtn.Text = "TP & FIRE SMELTER"
-                    smelterBtn.TextColor3 = Color3.fromRGB(255, 175, 120)
-                end
-            end)
-        end
-        isSmelterTeleporting = false
-    end)
-end)
-
 -- Interaksi Tombol Minimize
 minBtn.MouseEnter:Connect(function()
-    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+	tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
 end)
 
 minBtn.MouseLeave:Connect(function()
-    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+	tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
 end)
 
 minBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
-    tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
-    task.delay(0.07, function()
-        tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
-        tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-    end)
+	tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+	tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+	task.delay(0.07, function()
+		tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+		tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+	end)
 end)
 
 -- Interaksi Tombol Close
 closeBtn.MouseEnter:Connect(function()
-    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+	tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
 end)
 
 closeBtn.MouseLeave:Connect(function()
-    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+	tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
 end)
 
 closeBtn.MouseButton1Down:Connect(function()
-    tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
-    tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+	tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+	tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
-    saveConfig()
-    isGuiDestroyed = true
-    beamToggleEnabled = false
-    activeBeamTarget = nil
+	autoPlayEnabled = false
+	setAutoPlay(false)
 
-    if markerFolder then
-        markerFolder:Destroy()
-    end
-    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1
-    })
-    tweenClose:Play()
-    tweenClose.Completed:Connect(function()
-        gui:Destroy()
-    end)
+	local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	})
+	tweenClose:Play()
+	tweenClose.Completed:Connect(function()
+		gui:Destroy()
+	end)
 end)
 
--- Fungsi Toggle Minimize / Restore + Auto-Write status minimize
+-- Fungsi Toggle Minimize / Restore
 minBtn.MouseButton1Click:Connect(function()
-    minimized = true
-    configData.minimized = true
-    saveConfig()
-    
-    floatingIcon.Position = main.Position
-    
-    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, MINI_W, 0, MINI_H),
-        BackgroundTransparency = 1
-    })
-    
-    tweenOut:Play()
-    tweenOut.Completed:Connect(function()
-        if minimized then
-            main.Visible = false
-            floatingIcon.Visible = true
-        end
-    end)
+	minimized = true
+
+	floatingIcon.Position = main.Position
+
+	local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, MINI_W, 0, MINI_H),
+		BackgroundTransparency = 1
+	})
+
+	tweenOut:Play()
+	tweenOut.Completed:Connect(function()
+		if minimized then
+			main.Visible = false
+			floatingIcon.Visible = true
+		end
+	end)
 end)
 
 floatingIcon.MouseButton1Click:Connect(function()
-    minimized = false
-    configData.minimized = false
-    saveConfig()
-    
-    main.Position = floatingIcon.Position
-    main.Visible = true
-    floatingIcon.Visible = false
-    
-    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
-    main.BackgroundTransparency = 1
-    
-    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-        Size = UDim2.new(0, FULL_W, 0, FULL_H),
-        BackgroundTransparency = 0.15
-    })
-    tweenIn:Play()
+	minimized = false
+
+	main.Position = floatingIcon.Position
+	main.Visible = true
+	floatingIcon.Visible = false
+
+	main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+	main.BackgroundTransparency = 1
+
+	local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+		Size = UDim2.new(0, FULL_W, 0, FULL_H),
+		BackgroundTransparency = 0.15
+	})
+	tweenIn:Play()
 end)
 
--- Sistem Dragging + Auto-Write posisi saat dilepas
+-- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
 do
-    local dragging, dragStart, startPos = false, nil, nil
-    
-    local function applyDrag(obj)
-        obj.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                local abs = obj.AbsolutePosition
-                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
-                dragging = true
-                dragStart = i.Position
-                startPos = obj.Position
-            end
-        end)
-    end
-    
-    applyDrag(main)
-    applyDrag(floatingIcon)
-    
-    userInputService.InputChanged:Connect(function(i)
-        if not dragging then return end
-        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-            local d = i.Position - dragStart
-            local vp = workspace.CurrentCamera.ViewportSize
-            local targetObj = minimized and floatingIcon or main
-            local gs = targetObj.AbsoluteSize
-            
-            targetObj.Position = UDim2.new(
-                0,
-                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
-                0,
-                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
-            )
-        end
-    end)
-    
-    userInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            if dragging then
-                dragging = false
-                local targetObj = minimized and floatingIcon or main
-                configData.posX = targetObj.Position.X.Offset
-                configData.posY = targetObj.Position.Y.Offset
-                saveConfig()
-            end
-        end
-    end)
+	local dragging, dragStart, startPos = false, nil, nil
+
+	local function applyDrag(obj)
+		obj.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+				local abs = obj.AbsolutePosition
+				obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+				dragging = true
+				dragStart = i.Position
+				startPos = obj.Position
+			end
+		end)
+	end
+
+	applyDrag(main)
+	applyDrag(floatingIcon)
+
+	userInputService.InputChanged:Connect(function(i)
+		if not dragging then return end
+		if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+			local d = i.Position - dragStart
+			local vp = workspace.CurrentCamera.ViewportSize
+			local targetObj = minimized and floatingIcon or main
+			local gs = targetObj.AbsoluteSize
+
+			targetObj.Position = UDim2.new(
+				0,
+				math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+				0,
+				math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+			)
+		end
+	end)
+
+	userInputService.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
 end
 
 runService.RenderStepped:Connect(function()
-    local off = Vector2.new(math.sin(tick() * 2.8), 0)
-    for _, g in ipairs(allGrads) do
-        g.Offset = off
-    end
+	local off = Vector2.new(math.sin(tick() * 2.8), 0)
+	for _, g in ipairs(allGrads) do
+		g.Offset = off
+	end
 end)
+
+-- Jalankan Auto Play otomatis saat script di-execute
+refreshAutoBtnVisual(false)
+setAutoPlay(true)
