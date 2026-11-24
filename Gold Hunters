@@ -1,0 +1,807 @@
+local coreGui = cloneref(game:GetService("CoreGui"))
+local userInputService = cloneref(game:GetService("UserInputService"))
+local runService = cloneref(game:GetService("RunService"))
+local tweenService = cloneref(game:GetService("TweenService"))
+local players = cloneref(game:GetService("Players"))
+
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)[cite: 1]
+local COL_BG = Color3.fromRGB(15, 12, 22) -- Warna latar belakang gelap panel utama[cite: 1]
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15) -- Warna normal tombol minimize[cite: 1]
+local MIN_HOVER = Color3.fromRGB(70, 35, 18) -- Warna hover tombol minimize[cite: 1]
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15) -- Merah gelap khas horor[cite: 1]
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20) -- Merah terang saat disentuh[cite: 1]
+local TP_NORMAL = Color3.fromRGB(48, 22, 72)
+local TP_HOVER = Color3.fromRGB(82, 36, 118)
+local BEAM_NORMAL = Color3.fromRGB(75, 36, 14)
+local BEAM_HOVER = Color3.fromRGB(120, 58, 20)
+local BEAM_ACTIVE = Color3.fromRGB(115, 32, 145)
+local BEAM_ACTIVE_HOVER = Color3.fromRGB(155, 48, 195)
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)), -- Keypoint awal gradasi ungu[cite: 1]
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)), -- Keypoint oranye gelap[cite: 1]
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)), -- Keypoint oranye terang[cite: 1]
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)), -- Keypoint tengah oranye terang[cite: 1]
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)), -- Keypoint akhir oranye gelap[cite: 1]
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)), -- Keypoint akhir gradasi ungu[cite: 1]
+})
+
+local allGrads = {}
+local isGuiDestroyed = false
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+-- Pelacakan target yang sudah dikunjungi agar tidak mengulang target yang sama
+local visitedStands = {}
+local visitedBeams = {}
+
+local function safeDebugId(obj)
+    local id = "obj"
+    if obj then
+        pcall(function()
+            id = obj:GetDebugId()
+        end)
+    end
+    return id
+end
+
+local function buildTargetKey(obj, baseCf)
+    local pos = baseCf and baseCf.Position or Vector3.zero
+    return ("%s_%.1f_%.1f_%.1f"):format(safeDebugId(obj), pos.X, pos.Y, pos.Z)
+end
+
+local function pickUnvisitedCandidate(candidates, visitedSet)
+    local unvisited = {}
+    local resetHappened = false
+
+    for _, item in ipairs(candidates) do
+        if not visitedSet[item.key] then
+            table.insert(unvisited, item)
+        end
+    end
+
+    -- Jika semua target sudah pernah dikunjungi, reset riwayat dan pakai semua kandidat lagi
+    if #unvisited == 0 then
+        table.clear(visitedSet)
+        resetHappened = true
+        for _, item in ipairs(candidates) do
+            table.insert(unvisited, item)
+        end
+    end
+
+    local chosenIndex = math.random(1, #unvisited)
+    local chosen = unvisited[chosenIndex]
+    visitedSet[chosen.key] = true
+
+    return chosen, resetHappened
+end
+
+-- Fungsi mencari posisi CFrame objek
+local function getTargetCFrame(obj)
+    if not obj or not obj.Parent then return nil end
+    if obj:IsA("BasePart") then
+        return obj.CFrame + Vector3.new(0, (obj.Size.Y * 0.5) + 3, 0)
+    elseif obj:IsA("Model") then
+        local pivot = obj:GetPivot()
+        return pivot + Vector3.new(0, 3, 0)
+    else
+        local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
+        if innerPart then
+            return innerPart.CFrame + Vector3.new(0, (innerPart.Size.Y * 0.5) + 3, 0)
+        end
+    end
+    return nil
+end
+
+local function getBasePositionCFrame(obj)
+    if not obj or not obj.Parent then return nil end
+    if obj:IsA("BasePart") then
+        return obj.CFrame
+    elseif obj:IsA("Model") then
+        return obj:GetPivot()
+    else
+        local innerPart = obj:FindFirstChildWhichIsA("BasePart", true)
+        if innerPart then
+            return innerPart.CFrame
+        end
+    end
+    return nil
+end
+
+-- Fungsi menandai tempat Location Beam di workspace
+local markerFolder = Instance.new("Folder")
+markerFolder.Name = "AceSniperBeamMarkers"
+markerFolder.Parent = workspace
+
+local function markLocationBeam(obj, baseCFrame, indexLabel, isSelected)
+    if not baseCFrame then return end
+
+    local markerId = ("BeamMarker_%s"):format(safeDebugId(obj))
+    local existing = markerFolder:FindFirstChild(markerId)
+    if existing then
+        existing:Destroy()
+    end
+
+    local markerPart = Instance.new("Part")
+    markerPart.Name = markerId
+    markerPart.Size = isSelected and Vector3.new(5.5, 0.55, 5.5) or Vector3.new(4, 0.4, 4)
+    markerPart.CFrame = CFrame.new(baseCFrame.Position)
+    markerPart.Anchored = true
+    markerPart.CanCollide = false
+    markerPart.CanTouch = false
+    markerPart.CanQuery = false
+    markerPart.Material = Enum.Material.Neon
+    markerPart.Color = isSelected and Color3.fromRGB(255, 70, 220) or Color3.fromRGB(255, 140, 0)
+    markerPart.Transparency = isSelected and 0.15 or 0.45
+    markerPart.Parent = markerFolder
+
+    local box = Instance.new("SelectionBox")
+    box.Adornee = markerPart
+    box.Color3 = isSelected and Color3.fromRGB(255, 90, 230) or Color3.fromRGB(255, 165, 30)
+    box.LineThickness = isSelected and 0.09 or 0.05
+    box.SurfaceTransparency = isSelected and 0.55 or 0.82
+    box.SurfaceColor3 = isSelected and Color3.fromRGB(220, 80, 255) or Color3.fromRGB(140, 70, 210)
+    box.Parent = markerPart
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 155, 0, 36)
+    billboard.StudsOffset = Vector3.new(0, 4, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = markerPart
+
+    local tagLabel = Instance.new("TextLabel")
+    tagLabel.Size = UDim2.new(1, 0, 1, 0)
+    tagLabel.BackgroundColor3 = Color3.fromRGB(18, 12, 28)
+    tagLabel.BackgroundTransparency = 0.2
+    tagLabel.Text = isSelected
+        and ("[ACTIVE #%d] %s"):format(indexLabel, obj.Name)
+        or ("[BEAM #%d] %s"):format(indexLabel, obj.Name)
+    tagLabel.TextColor3 = isSelected and Color3.fromRGB(255, 140, 240) or Color3.fromRGB(255, 185, 80)
+    tagLabel.Font = Enum.Font.GothamBold
+    tagLabel.TextSize = 11
+    tagLabel.Parent = billboard
+    Instance.new("UICorner", tagLabel).CornerRadius = UDim.new(0, 6)
+
+    local tagStroke = Instance.new("UIStroke")
+    tagStroke.Color = isSelected and Color3.fromRGB(255, 90, 230) or Color3.fromRGB(255, 140, 0)
+    tagStroke.Thickness = 1
+    tagStroke.Parent = tagLabel
+end
+
+-- Fungsi mengeksekusi ProximityPrompt pada objek tertentu
+local function activateSinglePrompt(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") or not prompt.Parent then
+        return false
+    end
+
+    local oldMaxDist = prompt.MaxActivationDistance
+    prompt.MaxActivationDistance = math.max(oldMaxDist, 60)
+
+    if typeof(fireproximityprompt) == "function" then
+        pcall(fireproximityprompt, prompt)
+        return true
+    else
+        pcall(function()
+            prompt:InputHoldBegin()
+            task.wait(math.clamp(prompt.HoldDuration, 0.05, 0.2))
+            prompt:InputHoldEnd()
+        end)
+        return true
+    end
+end
+
+local function collectPromptsForTarget(targetObj)
+    local prompts = {}
+    if not targetObj or not targetObj.Parent then
+        return prompts
+    end
+
+    if targetObj:IsA("ProximityPrompt") and targetObj.Parent then
+        table.insert(prompts, targetObj)
+    end
+
+    for _, desc in ipairs(targetObj:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") and desc.Parent then
+            table.insert(prompts, desc)
+        end
+    end
+
+    -- Jika prompt tidak berada di dalam targetObj langsung, cek prompt di dekat posisi targetObj
+    if #prompts == 0 then
+        local targetBaseCf = getBasePositionCFrame(targetObj)
+        if targetBaseCf then
+            local targetPos = targetBaseCf.Position
+            for _, desc in ipairs(workspace:GetDescendants()) do
+                if desc:IsA("ProximityPrompt") and desc.Parent then
+                    local p = desc.Parent
+                    local pPos = nil
+                    if p:IsA("BasePart") then
+                        pPos = p.Position
+                    elseif p:IsA("Model") then
+                        pPos = p:GetPivot().Position
+                    elseif p:IsA("Attachment") then
+                        pPos = p.WorldPosition
+                    end
+
+                    if pPos and (pPos - targetPos).Magnitude <= 14 then
+                        table.insert(prompts, desc)
+                    end
+                end
+            end
+        end
+    end
+
+    return prompts
+end
+
+local function triggerPromptsIn(standObj)
+    local firedCount = 0
+    local prompts = collectPromptsForTarget(standObj)
+    for _, prompt in ipairs(prompts) do
+        if activateSinglePrompt(prompt) then
+            firedCount += 1
+        end
+    end
+    return firedCount
+end
+
+local function teleportToScanningStand()
+    local localPlayer = players.LocalPlayer
+    local character = localPlayer and localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return false, "Character tidak ditemukan"
+    end
+
+    local candidates = {}
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc.Name == "ScanningStand" then
+            local cf = getTargetCFrame(desc)
+            local baseCf = getBasePositionCFrame(desc)
+            if cf and baseCf then
+                table.insert(candidates, {
+                    instance = desc,
+                    cframe = cf,
+                    key = buildTargetKey(desc, baseCf)
+                })
+            end
+        end
+    end
+
+    if #candidates == 0 then
+        return false, "ScanningStand tidak ada"
+    end
+
+    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedStands)
+    hrp.CFrame = chosen.cframe
+
+    -- Beri jeda singkat agar posisi & prompt siap, lalu langsung fireproximityprompt
+    task.wait(0.08)
+    local fired = triggerPromptsIn(chosen.instance)
+
+    local prefix = resetHappened and "Reset & " or ""
+    if fired > 0 then
+        return true, ("%sTP & Fired (%d)"):format(prefix, fired)
+    else
+        return true, ("%sTP Sukses"):format(prefix)
+    end
+end
+
+local function isLocationBeamName(name)
+    local normalized = string.lower(name):gsub("[%s_-]+", "")
+    return normalized == "locationbeam"
+end
+
+local activeBeamTarget = nil
+
+local function refreshAllBeamMarkers(candidates)
+    for idx, item in ipairs(candidates) do
+        local isSelected = (activeBeamTarget ~= nil and item.key == activeBeamTarget.key)
+        markLocationBeam(item.instance, item.baseCFrame, idx, isSelected)
+    end
+end
+
+local function collectLocationBeamCandidates()
+    local candidates = {}
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if isLocationBeamName(desc.Name) and desc.Parent then
+            local tpCf = getTargetCFrame(desc)
+            local baseCf = getBasePositionCFrame(desc)
+            if tpCf and baseCf then
+                table.insert(candidates, {
+                    instance = desc,
+                    tpCFrame = tpCf,
+                    baseCFrame = baseCf,
+                    key = buildTargetKey(desc, baseCf)
+                })
+            end
+        end
+    end
+    return candidates
+end
+
+local function isTargetStillNeedsPrompt(target)
+    if not target or not target.instance or not target.instance.Parent then
+        return false
+    end
+
+    local remainingPrompts = collectPromptsForTarget(target.instance)
+    return #remainingPrompts > 0
+end
+
+local function focusOrAdvanceLocationBeam()
+    local localPlayer = players.LocalPlayer
+    local character = localPlayer and localPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return false, "Character tidak ditemukan", false
+    end
+
+    local candidates = collectLocationBeamCandidates()
+    if #candidates == 0 then
+        activeBeamTarget = nil
+        return false, "Location Beam tidak ada", false
+    end
+
+    -- Jika target aktif masih ada dan ProximityPrompt-nya belum hilang, tetap fokus di target ini
+    if activeBeamTarget and isTargetStillNeedsPrompt(activeBeamTarget) then
+        local liveTpCf = getTargetCFrame(activeBeamTarget.instance) or activeBeamTarget.tpCFrame
+        if hrp and (hrp.Position - liveTpCf.Position).Magnitude > 8 then
+            hrp.CFrame = liveTpCf
+        end
+
+        local fired = triggerPromptsIn(activeBeamTarget.instance)
+        local leftPrompts = #collectPromptsForTarget(activeBeamTarget.instance)
+        refreshAllBeamMarkers(candidates)
+
+        return true, ("Focus Beam (Prompt:%d | Fired:%d)"):format(leftPrompts, fired), false
+    end
+
+    -- Jika target sebelumnya baru saja selesai (prompt hilang / objek hilang), beri jeda 1 detik sebelum ke target berikutnya
+    local hadPreviousTarget = (activeBeamTarget ~= nil)
+    activeBeamTarget = nil
+
+    local chosen, resetHappened = pickUnvisitedCandidate(candidates, visitedBeams)
+    activeBeamTarget = chosen
+
+    local chosenDisplayIndex = 1
+    for idx, item in ipairs(candidates) do
+        if item.key == chosen.key then
+            chosenDisplayIndex = idx
+            break
+        end
+    end
+
+    refreshAllBeamMarkers(candidates)
+
+    local tpCfNow = getTargetCFrame(chosen.instance) or chosen.tpCFrame
+    hrp.CFrame = tpCfNow
+    local firedNow = triggerPromptsIn(chosen.instance)
+
+    local prefix = resetHappened and "Reset & " or ""
+    return true, ("%sBeam #%d/%d (Fired:%d)"):format(prefix, chosenDisplayIndex, #candidates, firedNow), hadPreviousTarget
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+local FULL_W, FULL_H = 290, 104 -- Dimensi lebar dan tinggi penuh panel utama[cite: 1]
+local MINI_W, MINI_H = 42, 42 -- Dimensi ikon kecil saat mode minimize[cite: 1]
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.15
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar di sebelah kiri Judul Utama[cite: 1]
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -96, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "GOLD HUNTER"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- Tombol Teleport ke ScanningStand di bawah Title/Desc
+local tpBtn = Instance.new("TextButton")
+tpBtn.Size = UDim2.new(1, -20, 0, 24)
+tpBtn.Position = UDim2.new(0, 10, 0, 40)
+tpBtn.BackgroundColor3 = TP_NORMAL
+tpBtn.Text = "TP & FIRE SCANNINGSTAND"
+tpBtn.TextColor3 = Color3.fromRGB(255, 195, 110)
+tpBtn.Font = Enum.Font.GothamBold
+tpBtn.TextSize = 10
+tpBtn.BorderSizePixel = 0
+tpBtn.AutoButtonColor = false
+tpBtn.Parent = main
+Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0, 6)
+animStroke(tpBtn, 1)
+
+local tpScale = Instance.new("UIScale")
+tpScale.Scale = 1
+tpScale.Parent = tpBtn
+
+-- Tombol Toggle Location Beam (Fokus 1 Target Sampai Prompt Hilang + Delay 1s Saat Ganti Target + Loop Prompt)
+local beamToggleEnabled = false
+local beamBtn = Instance.new("TextButton")
+beamBtn.Size = UDim2.new(1, -20, 0, 24)
+beamBtn.Position = UDim2.new(0, 10, 0, 70)
+beamBtn.BackgroundColor3 = BEAM_NORMAL
+beamBtn.Text = "FOCUS BEAM + PROMPT LOOP: OFF"
+beamBtn.TextColor3 = Color3.fromRGB(255, 210, 130)
+beamBtn.Font = Enum.Font.GothamBold
+beamBtn.TextSize = 10
+beamBtn.BorderSizePixel = 0
+beamBtn.AutoButtonColor = false
+beamBtn.Parent = main
+Instance.new("UICorner", beamBtn).CornerRadius = UDim.new(0, 6)
+animStroke(beamBtn, 1)
+
+local beamScale = Instance.new("UIScale")
+beamScale.Scale = 1
+beamScale.Parent = beamBtn
+
+-- Tombol Close (X) di dalam panel utama (posisi paling kanan)[cite: 1]
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Minimize (-) bergeser sedikit ke kiri agar ada ruang untuk tombol Close[cite: 1]
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+-- Pop-up ikon kecil menggunakan gambar kustom saat minimize[cite: 1]
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- Interaksi Tombol TP ScanningStand
+local tpResetTask = nil
+local isTeleporting = false
+
+tpBtn.MouseEnter:Connect(function()
+    tweenService:Create(tpBtn, TweenInfo.new(0.15), {BackgroundColor3 = TP_HOVER}):Play()
+end)
+
+tpBtn.MouseLeave:Connect(function()
+    tweenService:Create(tpBtn, TweenInfo.new(0.15), {BackgroundColor3 = TP_NORMAL}):Play()
+end)
+
+tpBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(tpScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
+
+tpBtn.MouseButton1Up:Connect(function()
+    tweenService:Create(tpScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+tpBtn.MouseButton1Click:Connect(function()
+    if isTeleporting then return end
+    isTeleporting = true
+
+    task.spawn(function()
+        local ok, msg = teleportToScanningStand()
+        if tpBtn and tpBtn.Parent then
+            tpBtn.Text = string.upper(msg)
+            tpBtn.TextColor3 = ok and Color3.fromRGB(140, 255, 160) or Color3.fromRGB(255, 130, 130)
+
+            if tpResetTask then
+                task.cancel(tpResetTask)
+            end
+            tpResetTask = task.delay(1.5, function()
+                if tpBtn and tpBtn.Parent then
+                    tpBtn.Text = "TP & FIRE SCANNINGSTAND"
+                    tpBtn.TextColor3 = Color3.fromRGB(255, 195, 110)
+                end
+            end)
+        end
+        isTeleporting = false
+    end)
+end)
+
+-- Fungsi update visual & loop Toggle Location Beam
+local function refreshBeamButtonVisual(customStatusText)
+    if not beamBtn or not beamBtn.Parent then return end
+    if beamToggleEnabled then
+        beamBtn.BackgroundColor3 = BEAM_ACTIVE
+        beamBtn.Text = customStatusText and string.upper(customStatusText) or "FOCUS BEAM + PROMPT LOOP: ON"
+        beamBtn.TextColor3 = Color3.fromRGB(165, 255, 185)
+    else
+        beamBtn.BackgroundColor3 = BEAM_NORMAL
+        beamBtn.Text = customStatusText and string.upper(customStatusText) or "FOCUS BEAM + PROMPT LOOP: OFF"
+        beamBtn.TextColor3 = Color3.fromRGB(255, 210, 130)
+    end
+end
+
+local function startBeamLoop()
+    -- Loop fokus 1 target: menembak ProximityPrompt terus sampai hilang, lalu jeda 1 detik sebelum pindah target baru
+    task.spawn(function()
+        while beamToggleEnabled and not isGuiDestroyed do
+            local prevTarget = activeBeamTarget
+            local ok, msg, switchedAfterComplete = focusOrAdvanceLocationBeam()
+
+            if beamToggleEnabled and not isGuiDestroyed then
+                refreshBeamButtonVisual(msg)
+            end
+
+            if switchedAfterComplete and beamToggleEnabled and not isGuiDestroyed then
+                -- Selama jeda 1 detik sebelum lanjut ke target baru, tetap fire prompt jika masih ada
+                local elapsed = 0
+                while elapsed < 1 and beamToggleEnabled and not isGuiDestroyed do
+                    if prevTarget and prevTarget.instance then
+                        triggerPromptsIn(prevTarget.instance)
+                    end
+                    task.wait(0.1)
+                    elapsed += 0.1
+                end
+            else
+                task.wait(0.12)
+            end
+        end
+    end)
+end
+
+beamBtn.MouseEnter:Connect(function()
+    local targetColor = beamToggleEnabled and BEAM_ACTIVE_HOVER or BEAM_HOVER
+    tweenService:Create(beamBtn, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
+end)
+
+beamBtn.MouseLeave:Connect(function()
+    local targetColor = beamToggleEnabled and BEAM_ACTIVE or BEAM_NORMAL
+    tweenService:Create(beamBtn, TweenInfo.new(0.15), {BackgroundColor3 = targetColor}):Play()
+end)
+
+beamBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(beamScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.96}):Play()
+end)
+
+beamBtn.MouseButton1Up:Connect(function()
+    tweenService:Create(beamScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+end)
+
+beamBtn.MouseButton1Click:Connect(function()
+    beamToggleEnabled = not beamToggleEnabled
+    if not beamToggleEnabled then
+        activeBeamTarget = nil
+    end
+    refreshBeamButtonVisual()
+
+    if beamToggleEnabled then
+        startBeamLoop()
+    end
+end)
+
+-- Interaksi Tombol Minimize[cite: 1]
+minBtn.MouseEnter:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+end)
+
+minBtn.MouseLeave:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+end)
+
+minBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+    tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+        tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+-- Interaksi Tombol Close[cite: 1]
+closeBtn.MouseEnter:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+end)
+
+closeBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+    tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    isGuiDestroyed = true
+    beamToggleEnabled = false
+    activeBeamTarget = nil
+
+    -- Animasi keluar sebelum GUI dihancurkan sepenuhnya[cite: 1]
+    if markerFolder then
+        markerFolder:Destroy()
+    end
+    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    })
+    tweenClose:Play()
+    tweenClose.Completed:Connect(function()
+        gui:Destroy()
+    end)
+end)
+
+-- Fungsi Toggle Minimize / Restore[cite: 1]
+minBtn.MouseButton1Click:Connect(function()
+    minimized = true
+    
+    floatingIcon.Position = main.Position
+    
+    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, MINI_W, 0, MINI_H),
+        BackgroundTransparency = 1
+    })
+    
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        if minimized then
+            main.Visible = false
+            floatingIcon.Visible = true
+        end
+    end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+    minimized = false
+    
+    main.Position = floatingIcon.Position
+    main.Visible = true
+    floatingIcon.Visible = false
+    
+    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+    main.BackgroundTransparency = 1
+    
+    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, FULL_W, 0, FULL_H),
+        BackgroundTransparency = 0.15
+    })
+    tweenIn:Play()
+end)
+
+-- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil[cite: 1]
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                dragging = true
+                dragStart = i.Position
+                startPos = obj.Position
+            end
+        end)
+    end
+    
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local targetObj = minimized and floatingIcon or main
+            local gs = targetObj.AbsoluteSize
+            
+            targetObj.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+            )
+        end
+    end)
+    
+    userInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
