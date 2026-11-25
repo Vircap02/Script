@@ -439,9 +439,6 @@ claimBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = not autoClaimActive
 
 	if autoClaimActive then
-		if ugcInputBox.Text == "" then
-			ugcInputBox.Text = "6"
-		end
 		claimBtn.Text = "AUTO CLAIM : ON"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
 		statusLabel.Text = "Status: Precision Single-Hit Armed"
@@ -449,7 +446,7 @@ claimBtn.MouseButton1Click:Connect(function()
 	else
 		claimBtn.Text = "AUTO CLAIM : OFF"
 		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
-		statusLabel.Text = "Status: Auto Claim Stopped"
+		statusLabel.Text = "Status: AUTO CLAIM Stopped"
 	end
 end)
 
