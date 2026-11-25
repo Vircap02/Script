@@ -14,11 +14,9 @@ end
 --// 「 Credits to Remote Detector 」
 local TARGET_PLACE_ID = 4655652068
 local MAX_REVEALS = 10
-local SCRIPT_URL = "https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/Gold%20Hunters"
 
 local AutoRunning = false
 local RunToken = 0
-local QueuedForTeleport = false
 
 local RecordedReveals = {}
 local SeenRevealKeys = {}
@@ -256,21 +254,20 @@ local function pickNextDigSpot(failedSpots)
 	return nil
 end
 
--- Fokus 1 item saja: teleport 1x ke item, trigger prompt, lalu tunggu sampai item benar-benar terambil/hilang
-local function focusSingleDigSpot(token, targetDig, itemIndex, totalTarget)
+local function focusSingleDigSpot(token, targetDig)
 	if not targetDig or targetDig.Parent == nil then
-		return false
+		return
 	end
 
 	local digCF = getPivotCFrame(targetDig)
 	if not digCF then
-		return false
+		return
 	end
 
-	-- Teleport 1 kali saja ke posisi item yang sedang difokuskan
-	onStatusChange(string.format("Focus item %d/%d (TP 1x)...", itemIndex, totalTarget), "Dig")
-	teleportTo(digCF)
-	task.wait(0.25)
+	local lockedCF = digCF
+	onStatusChange("Focus 1 dig spot...", "Dig")
+	teleportTo(lockedCF)
+	task.wait(0.2)
 
 	local activePrompt = getDigPrompt(targetDig)
 	if activePrompt and activePrompt.Parent and activePrompt.Enabled then
@@ -280,19 +277,22 @@ local function focusSingleDigSpot(token, targetDig, itemIndex, totalTarget)
 	local lastReFire = os.clock()
 	local startFocusClock = os.clock()
 
-	-- Tunggu sampai item terambil (hilang dari workspace atau prompt tidak lagi aktif)
 	while isActive(token) and isSpotStillClaimable(targetDig, activePrompt) do
-		onStatusChange(string.format("Waiting item %d/%d...", itemIndex, totalTarget), "Dig")
+		onStatusChange("Focus 1 dig spot...", "Dig")
+
+		local updatedCF = getPivotCFrame(targetDig) or lockedCF
+		lockedCF = updatedCF
+		teleportTo(lockedCF)
 
 		local latestPrompt = getDigPrompt(targetDig)
 		if latestPrompt and latestPrompt.Parent and latestPrompt.Enabled then
 			activePrompt = latestPrompt
-			if (os.clock() - lastReFire) >= 1.1 then
+			if (os.clock() - lastReFire) >= 1.0 then
 				firePrompt(latestPrompt)
 				lastReFire = os.clock()
 			end
 		else
-			task.wait(0.25)
+			task.wait(0.2)
 			if not targetDig or targetDig.Parent == nil or not getDigPrompt(targetDig) then
 				break
 			end
@@ -306,25 +306,18 @@ local function focusSingleDigSpot(token, targetDig, itemIndex, totalTarget)
 	end
 
 	task.wait(0.25)
-	return (targetDig == nil or targetDig.Parent == nil)
 end
 
--- Proses 1 per 1 sampai maksimal MAX_REVEALS (10 item) per sesi
 local function processDigSpots(token)
 	local failedSpots = {}
-	local claimedOrProcessedCount = 0
-
-	while isActive(token) and claimedOrProcessedCount < MAX_REVEALS do
+	while isActive(token) do
 		local targetDig = pickNextDigSpot(failedSpots)
 		if not targetDig then
 			break
 		end
 
-		local nextNumber = claimedOrProcessedCount + 1
 		local beforeClock = os.clock()
-		focusSingleDigSpot(token, targetDig, nextNumber, MAX_REVEALS)
-
-		claimedOrProcessedCount += 1
+		focusSingleDigSpot(token, targetDig)
 
 		if targetDig and targetDig.Parent ~= nil and (os.clock() - beforeClock) > 24 then
 			failedSpots[targetDig] = true
@@ -332,79 +325,15 @@ local function processDigSpots(token)
 	end
 end
 
-local function queueAutoExecOnTeleport()
-	if QueuedForTeleport then
-		return true
-	end
-
-	local qot = queue_on_teleport
-		or (queueonteleport)
-		or (syn and syn.queue_on_teleport)
-		or (fluxus and fluxus.queue_on_teleport)
-
-	if typeof(qot) ~= "function" then
-		warn("[Gold Hunters] queue_on_teleport tidak didukung di executor ini.")
-		return false
-	end
-
-	local payload = string.format([[
-		if not game:IsLoaded() then
-			game.Loaded:Wait()
-		end
-		local Players = game:GetService("Players")
-		local lp = Players.LocalPlayer or Players.PlayerAdded:Wait()
-		local char = lp.Character or lp.CharacterAdded:Wait()
-		if not char:FindFirstChild("HumanoidRootPart") then
-			char:WaitForChild("HumanoidRootPart")
-		end
-		task.wait(2)
-		local ok, src = pcall(function()
-			return game:HttpGet(%q)
-		end)
-		if ok and type(src) == "string" and #src > 0 then
-			local fn, loadErr = loadstring(src)
-			if fn then
-				fn()
-			else
-				warn("[Gold Hunters] Loadstring error:", loadErr)
-			end
-		else
-			warn("[Gold Hunters] HttpGet failed:", src)
-		end
-	]], SCRIPT_URL)
-
-	local ok, err = pcall(function()
-		qot(payload)
-	end)
-
-	if ok then
-		QueuedForTeleport = true
-		return true
-	else
-		warn("[Gold Hunters] Gagal mengantrekan queue_on_teleport:", err)
-		return false
-	end
-end
-
 local function teleportToTargetPlace()
 	onStatusChange("Teleporting to game...", "Teleport To Game")
-	queueAutoExecOnTeleport()
-
 	--// 「 Credits to Remote Detector 」
 	local ok, err = pcall(function()
 		TeleportService:Teleport(TARGET_PLACE_ID)
 	end)
 	if not ok then
-		QueuedForTeleport = false
 		onStatusChange("TP Error: " .. tostring(err), "Teleport To Game")
-		return
 	end
-
-	task.delay(6, function()
-		if game.PlaceId ~= TARGET_PLACE_ID then
-			QueuedForTeleport = false
-		end
-	end)
 end
 
 local function runAutoPlayCycle(token)
@@ -667,7 +596,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -96, 0, 16)
 title.Position = UDim2.new(0, 40, 0, 8)
 title.BackgroundTransparency = 1
-title.Text = "GOLD HUNTERS"
+title.Text = "VIRGOBOY UI NEW"
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 11.5
 title.TextColor3 = Color3.fromRGB(255, 140, 0)
