@@ -11,25 +11,36 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
 -- State Variables
 local autoFarmActive = false
 local autoClaimActive = false
 local farmConnection = nil
 
--- Daftar Target Zone Video untuk Tombol Siklus
-local zonePaths = {
-	Workspace:WaitForChild("Video"):WaitForChild("Video 1"):WaitForChild("Zone"),
-	Workspace:WaitForChild("Video"):WaitForChild("Video 2"):WaitForChild("Zone"),
-	Workspace:WaitForChild("Video"):WaitForChild("Video 3"):WaitForChild("Zone"),
-	Workspace:WaitForChild("Video"):WaitForChild("Video 4"):WaitForChild("Zone"),
-	Workspace:WaitForChild("Video"):WaitForChild("Video 5"):WaitForChild("Zone")
-}
-local currentVideoIndex = 1
+local PREFIRE_MS = 250
+local PREFIRE_SEC = PREFIRE_MS / 1000
+local fireCount = 0
+local activeSlotConnections = {}
+local hookedCount = 0
+local lastHourIndex = math.floor(Workspace:GetServerTimeNow() / 3600)
+local firedForThisHour = false
 
 -- Bersihkan GUI lama jika ada
-if CoreGui:FindFirstChild("AceSniperUI") then
-	CoreGui.AceSniperUI:Destroy()
-end
+pcall(function()
+	if CoreGui:FindFirstChild("AceSniperUI") then
+		CoreGui.AceSniperUI:Destroy()
+	end
+end)
+pcall(function()
+	local pg = player:FindFirstChild("PlayerGui")
+	if pg and pg:FindFirstChild("AceSniperUI") then
+		pg.AceSniperUI:Destroy()
+	end
+end)
 
 -- Tema Warna (Halloween Theme)
 local COL_BG = Color3.fromRGB(15, 12, 22)
@@ -55,24 +66,30 @@ local function animStroke(parent, thick)
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Color = Color3.new(1, 1, 1)
 	s.Parent = parent
-	
+
 	local g = Instance.new("UIGradient")
 	g.Color = STROKE_CS
 	g.Rotation = 45
 	g.Parent = s
-	
+
 	table.insert(allGrads, g)
 	return s
 end
 
--- Buat ScreenGui di CoreGui
+-- Buat ScreenGui dengan fallback ke PlayerGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
-gui.Parent = CoreGui
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function()
+	gui.Parent = CoreGui
+end)
+if not gui.Parent then
+	gui.Parent = player:WaitForChild("PlayerGui")
+end
 
 -- Ukuran Compact yang pas di layar HP
-local FULL_W, FULL_H = 240, 350
+local FULL_W, FULL_H = 240, 340
 local MINI_W, MINI_H = 38, 38
 
 -- Frame Utama
@@ -182,21 +199,25 @@ floatingIcon.Parent = gui
 Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 8)
 animStroke(floatingIcon, 1.5)
 
--- Container untuk Menu Konten di Dalam Panel Utama
-local contentFrame = Instance.new("Frame")
+-- Container Scrollable untuk Menu Konten di Dalam Panel Utama
+local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Name = "ContentFrame"
 contentFrame.Size = UDim2.new(1, 0, 1, -34)
 contentFrame.Position = UDim2.new(0, 0, 0, 34)
 contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.ScrollBarThickness = 3
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 140, 0)
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 360)
 contentFrame.Parent = main
 
--- Display Timer
+-- Display Timer (PinkHeader + Server Countdown -250ms)
 local timerDisplay = Instance.new("TextLabel")
-timerDisplay.Size = UDim2.new(0.9, 0, 0, 30)
-timerDisplay.Position = UDim2.new(0.05, 0, 0.01, 0)
+timerDisplay.Size = UDim2.new(0.9, 0, 0, 34)
+timerDisplay.Position = UDim2.new(0.05, 0, 0, 4)
 timerDisplay.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
 timerDisplay.TextColor3 = Color3.fromRGB(255, 200, 50)
-timerDisplay.TextSize = 9.5
+timerDisplay.TextSize = 9
 timerDisplay.Font = Enum.Font.GothamBold
 timerDisplay.Text = "Timer: Loading..."
 timerDisplay.TextWrapped = true
@@ -206,14 +227,14 @@ timerDisplay.Parent = contentFrame
 Instance.new("UICorner", timerDisplay).CornerRadius = UDim.new(0, 5)
 animStroke(timerDisplay, 1)
 
--- 1. Kotak Input Text UGC Target (Argumen Remote)
+-- 1. Kotak Input Text UGC Target (Argumen Remote & Slot Monitor)
 local ugcInputBox = Instance.new("TextBox")
 ugcInputBox.Size = UDim2.new(0.9, 0, 0, 26)
-ugcInputBox.Position = UDim2.new(0.05, 0, 0.11, 0)
+ugcInputBox.Position = UDim2.new(0.05, 0, 0, 43)
 ugcInputBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 ugcInputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 ugcInputBox.PlaceholderColor3 = Color3.fromRGB(150, 130, 180)
-ugcInputBox.PlaceholderText = "Target Angka"
+ugcInputBox.PlaceholderText = "Target Angka / Slot (1-11)"
 ugcInputBox.Text = "6"
 ugcInputBox.TextSize = 11
 ugcInputBox.Font = Enum.Font.GothamBold
@@ -222,10 +243,78 @@ ugcInputBox.Parent = contentFrame
 Instance.new("UICorner", ugcInputBox).CornerRadius = UDim.new(0, 5)
 animStroke(ugcInputBox, 1)
 
+-- Slot UI Monitor Card (Read-Only Info)
+local slotCard = Instance.new("Frame")
+slotCard.Size = UDim2.new(0.9, 0, 0, 74)
+slotCard.Position = UDim2.new(0.05, 0, 0, 74)
+slotCard.BackgroundColor3 = Color3.fromRGB(24, 18, 36)
+slotCard.BorderSizePixel = 0
+slotCard.Parent = contentFrame
+Instance.new("UICorner", slotCard).CornerRadius = UDim.new(0, 5)
+animStroke(slotCard, 1)
+
+local slotHeader = Instance.new("TextLabel")
+slotHeader.Size = UDim2.new(1, -10, 0, 13)
+slotHeader.Position = UDim2.new(0, 5, 0, 3)
+slotHeader.BackgroundTransparency = 1
+slotHeader.Text = "SLOT MONITOR • #6"
+slotHeader.TextColor3 = Color3.fromRGB(255, 165, 55)
+slotHeader.TextSize = 8.5
+slotHeader.Font = Enum.Font.GothamBold
+slotHeader.TextXAlignment = Enum.TextXAlignment.Left
+slotHeader.Parent = slotCard
+
+local slotItemLabel = Instance.new("TextLabel")
+slotItemLabel.Size = UDim2.new(1, -10, 0, 14)
+slotItemLabel.Position = UDim2.new(0, 5, 0, 16)
+slotItemLabel.BackgroundTransparency = 1
+slotItemLabel.Text = "Item: Buka menu UGC dulu"
+slotItemLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
+slotItemLabel.TextSize = 9.5
+slotItemLabel.Font = Enum.Font.GothamBold
+slotItemLabel.TextXAlignment = Enum.TextXAlignment.Left
+slotItemLabel.TextTruncate = Enum.TextTruncate.AtEnd
+slotItemLabel.Parent = slotCard
+
+local slotStatusLabel = Instance.new("TextLabel")
+slotStatusLabel.Size = UDim2.new(1, -10, 0, 13)
+slotStatusLabel.Position = UDim2.new(0, 5, 0, 31)
+slotStatusLabel.BackgroundTransparency = 1
+slotStatusLabel.Text = "STATUS: WAITING UI..."
+slotStatusLabel.TextColor3 = Color3.fromRGB(255, 165, 55)
+slotStatusLabel.TextSize = 8.5
+slotStatusLabel.Font = Enum.Font.GothamBold
+slotStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+slotStatusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+slotStatusLabel.Parent = slotCard
+
+local slotStockTimerLabel = Instance.new("TextLabel")
+slotStockTimerLabel.Size = UDim2.new(1, -10, 0, 13)
+slotStockTimerLabel.Position = UDim2.new(0, 5, 0, 45)
+slotStockTimerLabel.BackgroundTransparency = 1
+slotStockTimerLabel.Text = "STOCK: - | UI TIMER: -"
+slotStockTimerLabel.TextColor3 = Color3.fromRGB(190, 175, 220)
+slotStockTimerLabel.TextSize = 8.5
+slotStockTimerLabel.Font = Enum.Font.Code
+slotStockTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+slotStockTimerLabel.TextTruncate = Enum.TextTruncate.AtEnd
+slotStockTimerLabel.Parent = slotCard
+
+local slotMetaLabel = Instance.new("TextLabel")
+slotMetaLabel.Size = UDim2.new(1, -10, 0, 12)
+slotMetaLabel.Position = UDim2.new(0, 5, 0, 59)
+slotMetaLabel.BackgroundTransparency = 1
+slotMetaLabel.Text = "PREFIRE: -250ms | FIRES: 0 | UI: 0"
+slotMetaLabel.TextColor3 = Color3.fromRGB(150, 135, 185)
+slotMetaLabel.TextSize = 8
+slotMetaLabel.Font = Enum.Font.Code
+slotMetaLabel.TextXAlignment = Enum.TextXAlignment.Left
+slotMetaLabel.Parent = slotCard
+
 -- 2. Tombol Toggle Auto Farm Item
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 26)
-toggleBtn.Position = UDim2.new(0.05, 0, 0.22, 0)
+toggleBtn.Position = UDim2.new(0.05, 0, 0, 154)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.TextSize = 11
@@ -235,49 +324,23 @@ toggleBtn.Parent = contentFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 5)
 animStroke(toggleBtn, 1)
 
--- 3. Tombol Toggle Auto Claim / AUTO CLAIM
+-- 3. Tombol Toggle Auto Claim (-250ms Pre-Fire)
 local claimBtn = Instance.new("TextButton")
 claimBtn.Size = UDim2.new(0.9, 0, 0, 26)
-claimBtn.Position = UDim2.new(0.05, 0, 0.33, 0)
+claimBtn.Position = UDim2.new(0.05, 0, 0, 185)
 claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
 claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 claimBtn.TextSize = 11
 claimBtn.Font = Enum.Font.GothamBold
-claimBtn.Text = "AUTO CLAIM : OFF"
+claimBtn.Text = "AUTO CLAIM : OFF "
 claimBtn.Parent = contentFrame
 Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 5)
 animStroke(claimBtn, 1)
 
--- 4. Tombol Teleport Video Zone
-local zoneBtn = Instance.new("TextButton")
-zoneBtn.Size = UDim2.new(0.9, 0, 0, 26)
-zoneBtn.Position = UDim2.new(0.05, 0, 0.44, 0)
-zoneBtn.BackgroundColor3 = Color3.fromRGB(30, 45, 70)
-zoneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-zoneBtn.TextSize = 11
-zoneBtn.Font = Enum.Font.GothamBold
-zoneBtn.Text = "Teleport: Video 1"
-zoneBtn.Parent = contentFrame
-Instance.new("UICorner", zoneBtn).CornerRadius = UDim.new(0, 5)
-animStroke(zoneBtn, 1)
-
--- 5. Tombol Trigger Quiz Run
-local mapPromptBtn = Instance.new("TextButton")
-mapPromptBtn.Size = UDim2.new(0.9, 0, 0, 26)
-mapPromptBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
-mapPromptBtn.BackgroundColor3 = Color3.fromRGB(70, 45, 20)
-mapPromptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-mapPromptBtn.TextSize = 11
-mapPromptBtn.Font = Enum.Font.GothamBold
-mapPromptBtn.Text = "Trigger Quiz Run"
-mapPromptBtn.Parent = contentFrame
-Instance.new("UICorner", mapPromptBtn).CornerRadius = UDim.new(0, 5)
-animStroke(mapPromptBtn, 1)
-
--- 6. Tombol All Server
+-- 4. Tombol All Server
 local allServerBtn = Instance.new("TextButton")
 allServerBtn.Size = UDim2.new(0.9, 0, 0, 26)
-allServerBtn.Position = UDim2.new(0.05, 0, 0.66, 0)
+allServerBtn.Position = UDim2.new(0.05, 0, 0, 216)
 allServerBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 70)
 allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 allServerBtn.TextSize = 11
@@ -287,90 +350,354 @@ allServerBtn.Parent = contentFrame
 Instance.new("UICorner", allServerBtn).CornerRadius = UDim.new(0, 5)
 animStroke(allServerBtn, 1)
 
+-- 5. Tombol Re-Scan UI & Manual Fire
+local rescanBtn = Instance.new("TextButton")
+rescanBtn.Size = UDim2.new(0.435, 0, 0, 26)
+rescanBtn.Position = UDim2.new(0.05, 0, 0, 247)
+rescanBtn.BackgroundColor3 = Color3.fromRGB(35, 30, 50)
+rescanBtn.TextColor3 = Color3.fromRGB(255, 210, 110)
+rescanBtn.TextSize = 10
+rescanBtn.Font = Enum.Font.GothamBold
+rescanBtn.Text = "RE-SCAN UI"
+rescanBtn.Parent = contentFrame
+Instance.new("UICorner", rescanBtn).CornerRadius = UDim.new(0, 5)
+animStroke(rescanBtn, 1)
+
+local manualFireBtn = Instance.new("TextButton")
+manualFireBtn.Size = UDim2.new(0.435, 0, 0, 26)
+manualFireBtn.Position = UDim2.new(0.515, 0, 0, 247)
+manualFireBtn.BackgroundColor3 = Color3.fromRGB(35, 65, 95)
+manualFireBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+manualFireBtn.TextSize = 10
+manualFireBtn.Font = Enum.Font.GothamBold
+manualFireBtn.Text = "FIRE NOW"
+manualFireBtn.Parent = contentFrame
+Instance.new("UICorner", manualFireBtn).CornerRadius = UDim.new(0, 5)
+animStroke(manualFireBtn, 1)
+
 -- Label Status
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 20)
-statusLabel.Position = UDim2.new(0, 0, 0.78, 0)
+statusLabel.Size = UDim2.new(0.9, 0, 0, 22)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 278)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
-statusLabel.TextSize = 10
+statusLabel.TextSize = 9.5
 statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextWrapped = true
 statusLabel.Text = "Status: Idle"
 statusLabel.Parent = contentFrame
 
--- Variabel Kontrol Tembakan Tunggal Presisi
-local hasTriggeredThisHour = -1
+-- Helper Meta Info
+local function updateMetaLabel()
+	slotMetaLabel.Text = ("PREFIRE: -%dms | FIRES: %d | UI: %d"):format(PREFIRE_MS, fireCount, hookedCount)
+end
 
--- Loop Utama RenderStepped dengan Mode Tembakan Tunggal Presisi Tinggi
+-- Fungsi Fire Remote Tunggal
+local function fireClaimRemote(reasonTag)
+	local rawArg = ugcInputBox.Text
+	if rawArg == "" then return false end
+	local finalArg = tonumber(rawArg) or rawArg
+	local ok = pcall(function()
+		local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
+		event:FireServer(finalArg)
+	end)
+	if ok then
+		fireCount += 1
+		updateMetaLabel()
+		if reasonTag then
+			statusLabel.Text = "Status: " .. reasonTag
+		end
+	end
+	return ok
+end
+
+-- ===== SLOT UI INDICATOR PARSER (READ-ONLY) =====
+local function isVisibleInCard(obj, cardRoot)
+	if (obj:IsA("TextLabel") or obj:IsA("TextButton")) and obj.TextTransparency >= 0.95 then
+		return false
+	end
+	local curr = obj
+	while curr and curr ~= cardRoot do
+		if curr:IsA("GuiObject") and not curr.Visible then
+			return false
+		end
+		curr = curr.Parent
+	end
+	return true
+end
+
+local function isZeroTimer(str)
+	local clean = str:gsub("%s+", "")
+	return clean == "00:00:00"
+		or clean == "0:00:00"
+		or clean == "00:00"
+		or clean == "0:00"
+		or clean == "0s"
+		or clean == "00s"
+end
+
+local function isReadyAction(str)
+	local low = str:lower()
+	return low:find("claim")
+		or low:find("get")
+		or low:find("free")
+		or low:find("buy")
+		or low:find("available")
+		or low:find("ready")
+		or low:find("in stock")
+end
+
+local function updateSlotIndicators(slotObj)
+	if not slotObj or not slotObj.Parent or not gui.Parent then return end
+
+	local foundTimer = nil
+	local foundStock = nil
+	local foundStatus = nil
+	local statusColor = Color3.fromRGB(240, 240, 250)
+	local foundName = nil
+
+	for _, obj in ipairs(slotObj:GetDescendants()) do
+		if (obj:IsA("TextLabel") or obj:IsA("TextButton")) and isVisibleInCard(obj, slotObj) then
+			local txt = obj.Text:gsub("^%s+", ""):gsub("%s+$", "")
+			local low = txt:lower()
+
+			if txt ~= "" then
+				if not foundTimer and (txt:match("%d+:%d%d") or txt:match("%d+[hms]%s*%d*[ms]?")) then
+					foundTimer = txt
+				elseif not foundStock and (
+					txt:match("%d+%s*/%s*%d+")
+					or low:find("stock")
+					or low:find("left")
+					or low:find("tersisa")
+				) then
+					foundStock = txt
+				elseif not foundStatus and (low:find("already") or low:find("owned") or low:find("dimiliki")) then
+					foundStatus = "ALREADY OWNED"
+					statusColor = Color3.fromRGB(235, 75, 75)
+				elseif not foundStatus and (low:find("sold") or low:find("out of stock") or low:find("habis")) then
+					foundStatus = "SOLD OUT"
+					statusColor = Color3.fromRGB(235, 75, 75)
+				elseif not foundStatus and isReadyAction(txt) then
+					foundStatus = txt:upper()
+					statusColor = Color3.fromRGB(60, 205, 125)
+				elseif not foundStatus and (low:find("restock") or low:find("soon") or low:find("wait") or low:find("locked") or low:find("coming")) then
+					foundStatus = txt:upper()
+					statusColor = Color3.fromRGB(255, 165, 55)
+				elseif not foundName and #txt >= 3 and not txt:match("^[%d%p%s]+$") then
+					foundName = txt
+				end
+			end
+		end
+	end
+
+	if foundStock and (foundStock:match("^0%s*/") or foundStock:match("%s0%s*/") or foundStock:lower():find(":%s*0$")) then
+		if foundStatus ~= "ALREADY OWNED" then
+			foundStatus = "OUT OF STOCK"
+			statusColor = Color3.fromRGB(235, 75, 75)
+		end
+	end
+
+	if not foundStatus and foundTimer then
+		foundStatus = isZeroTimer(foundTimer) and "TIMER READY" or "WAITING TIMER"
+		statusColor = isZeroTimer(foundTimer) and Color3.fromRGB(60, 205, 125) or Color3.fromRGB(255, 165, 55)
+	end
+
+	slotItemLabel.Text = "Item: " .. (foundName or ("Slot #" .. tostring(ugcInputBox.Text)))
+	slotStatusLabel.Text = "STATUS: " .. (foundStatus or "STANDBY")
+	slotStatusLabel.TextColor3 = foundStatus and statusColor or Color3.fromRGB(100, 175, 255)
+
+	local stockText = foundStock or "-"
+	local timerText = foundTimer or "-"
+	slotStockTimerLabel.Text = ("STOCK: %s | UI TIMER: %s"):format(stockText, timerText)
+end
+
+local function clearSlotConnections()
+	for _, conn in ipairs(activeSlotConnections) do
+		pcall(function() conn:Disconnect() end)
+	end
+	table.clear(activeSlotConnections)
+	hookedCount = 0
+end
+
+local function getUgcHolder()
+	local pg = player:FindFirstChild("PlayerGui")
+	local mainGui = pg and pg:FindFirstChild("Main")
+	local menus = mainGui and mainGui:FindFirstChild("Menus")
+	local ugc = menus and menus:FindFirstChild("UGC")
+	return ugc and ugc:FindFirstChild("Holder")
+end
+
+local function getGuiChildren(parent)
+	local list = {}
+	for _, child in ipairs(parent:GetChildren()) do
+		if child:IsA("GuiObject") then
+			table.insert(list, child)
+		end
+	end
+	return list
+end
+
+local function findTargetSlot(holder, slotId)
+	if not holder then return nil, 0 end
+	local idx = tonumber(slotId)
+	if not idx then return nil, 0 end
+
+	local listContainer = holder
+	local holderGuiChildren = getGuiChildren(holder)
+	if #holderGuiChildren == 1 then
+		local innerChildren = getGuiChildren(holderGuiChildren[1])
+		if #innerChildren >= 2 then
+			listContainer = holderGuiChildren[1]
+		end
+	end
+
+	local visibleCards = {}
+	for _, child in ipairs(listContainer:GetChildren()) do
+		if child:IsA("GuiObject") and child.Visible and not child.Name:lower():find("template") then
+			if child.Name == slotId or child.Name:match("^%D*" .. slotId .. "$") then
+				return child, #listContainer:GetChildren()
+			end
+			table.insert(visibleCards, child)
+		end
+	end
+
+	table.sort(visibleCards, function(a, b)
+		if a.LayoutOrder ~= b.LayoutOrder then
+			return a.LayoutOrder < b.LayoutOrder
+		end
+		if math.abs(a.AbsolutePosition.Y - b.AbsolutePosition.Y) > 5 then
+			return a.AbsolutePosition.Y < b.AbsolutePosition.Y
+		end
+		return a.AbsolutePosition.X < b.AbsolutePosition.X
+	end)
+
+	return visibleCards[idx], #visibleCards
+end
+
+local function bindSlotWatcher()
+	clearSlotConnections()
+	local slotId = ugcInputBox.Text
+
+	if slotId == "" or not slotId:match("^%d+$") then
+		slotHeader.Text = "SLOT MONITOR (NON-NUMERIC ARG)"
+		slotItemLabel.Text = "Item: Argumen " .. (slotId ~= "" and slotId or "-")
+		slotStatusLabel.Text = "STATUS: CUSTOM ARG MODE"
+		slotStatusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
+		slotStockTimerLabel.Text = "STOCK: - | UI TIMER: -"
+		updateMetaLabel()
+		return
+	end
+
+	local holder = getUgcHolder()
+	local slotObj, totalCards = findTargetSlot(holder, slotId)
+
+	if not slotObj then
+		slotHeader.Text = "SLOT MONITOR • #" .. slotId .. " (0/" .. tostring(totalCards) .. ")"
+		slotItemLabel.Text = "Item: Buka menu UGC dulu"
+		slotStatusLabel.Text = "STATUS: WAITING UI..."
+		slotStatusLabel.TextColor3 = Color3.fromRGB(255, 165, 55)
+		slotStockTimerLabel.Text = "STOCK: - | UI TIMER: -"
+		updateMetaLabel()
+		return
+	end
+
+	slotHeader.Text = ("SLOT MONITOR • #%s (%s/%d)"):format(slotId, slotId, totalCards)
+
+	local function hookElement(obj)
+		if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+			hookedCount += 1
+			local conn = obj:GetPropertyChangedSignal("Text"):Connect(function()
+				updateSlotIndicators(slotObj)
+			end)
+			table.insert(activeSlotConnections, conn)
+		end
+
+		if obj:IsA("GuiObject") and obj ~= slotObj then
+			local visConn = obj:GetPropertyChangedSignal("Visible"):Connect(function()
+				updateSlotIndicators(slotObj)
+			end)
+			table.insert(activeSlotConnections, visConn)
+		end
+	end
+
+	hookElement(slotObj)
+	for _, desc in ipairs(slotObj:GetDescendants()) do
+		hookElement(desc)
+	end
+
+	local addedConn = slotObj.DescendantAdded:Connect(function(desc)
+		hookElement(desc)
+		updateMetaLabel()
+		updateSlotIndicators(slotObj)
+	end)
+	table.insert(activeSlotConnections, addedConn)
+
+	updateMetaLabel()
+	updateSlotIndicators(slotObj)
+end
+
+-- Loop Utama RenderStepped: PinkHeader + Server Time + Pre-Fire 
 RunService.RenderStepped:Connect(function()
+	if not gui.Parent then return end
+
 	pcall(function()
-		-- 1. Update tampilan timer visual dari GUI game
-		local pinkHeader = player:WaitForChild("PlayerGui"):FindFirstChild("Main")
+		local serverNow = Workspace:GetServerTimeNow()
+		local currentHourIndex = math.floor(serverNow / 3600)
+
+		if currentHourIndex ~= lastHourIndex then
+			lastHourIndex = currentHourIndex
+			firedForThisHour = false
+		end
+
+		local nextHourTimestamp = (currentHourIndex + 1) * 3600
+		local remaining = math.max(0, nextHourTimestamp - serverNow)
+
+		local totalMs = math.floor(remaining * 1000)
+		local ms = totalMs % 1000
+		local totalSec = math.floor(totalMs / 1000)
+		local hours = math.floor(totalSec / 3600)
+		local minutes = math.floor((totalSec % 3600) / 60)
+		local seconds = totalSec % 60
+		local serverCountdown = string.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, ms)
+
+		-- 1. Update tampilan timer visual dari GUI game + server countdown
+		local pinkHeader = player:FindFirstChild("PlayerGui")
+			and player.PlayerGui:FindFirstChild("Main")
 			and player.PlayerGui.Main:FindFirstChild("Menus")
 			and player.PlayerGui.Main.Menus:FindFirstChild("UGC")
 			and player.PlayerGui.Main.Menus.UGC:FindFirstChild("PinkHeader")
-		
+
+		local uiTimerText = "PinkHeader Tidak Ditemukan"
 		if pinkHeader then
-			local textValue = ""
 			if pinkHeader:IsA("TextLabel") or pinkHeader:IsA("TextBox") or pinkHeader:IsA("TextButton") then
-				textValue = pinkHeader.Text
+				uiTimerText = pinkHeader.Text
 			else
 				local txtChild = pinkHeader:FindFirstChildWhichIsA("TextLabel", true)
-				if txtChild then
-					textValue = txtChild.Text
-				else
-					textValue = pinkHeader.Name
-				end
+				uiTimerText = txtChild and txtChild.Text or pinkHeader.Name
 			end
-			timerDisplay.Text = textValue
-		else
-			timerDisplay.Text = "Timer: PinkHeader Tidak Ditemukan"
 		end
 
-		-- 2. Logika Tembakan Tunggal Presisi Berdasarkan Jam Server
-		if autoClaimActive then
-			local serverTime = workspace:GetServerTimeNow()
-			local dateTable = os.date("!*t", serverTime)
-			
-			local currentHour = dateTable.hour
-			local currentMin = dateTable.min
-			local currentSec = dateTable.sec
-			local currentMillis = serverTime % 1
-			
-			-- Memicu tembakan persis pada detik 00 dan milidetik pertama (00:00.000)
-			local isExactZero = (currentMin == 0 and currentSec == 0 and currentMillis <= 0.15)
-			
-			if isExactZero then
-				if hasTriggeredThisHour ~= currentHour then
-					hasTriggeredThisHour = currentHour
-					statusLabel.Text = "Status: Single Precise Hit Fired!"
-					
-					local event = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TheTHING")
-					
-					-- MENGIRIM 1 TEMBAKAN BERSIH (Mendukung string atau angka dari kotak input)
-					pcall(function()
-						local rawArg = ugcInputBox.Text
-						local finalArg = tonumber(rawArg) or rawArg
-						event:FireServer(finalArg)
-					end)
-					
-					statusLabel.Text = "Status: Sukses Menembak Jam " .. currentHour .. ":00"
-				end
-			else
-				-- Reset pengaman ketika sudah melewati menit pertama
-				if currentMin > 1 then
-					hasTriggeredThisHour = -1
-				end
-			end
+		timerDisplay.Text = ("SRV: %s | UI: %s"):format(serverCountdown, uiTimerText)
+
+		-- 2. Logika Pre-Fire  Single-Hit per Jam Server
+		if autoClaimActive and not firedForThisHour and remaining <= PREFIRE_SEC and remaining > 0 then
+			firedForThisHour = true
+			local dateTable = os.date("!*t", serverNow)
+			fireClaimRemote(("Pre-Fire @ %dms (Jam %02d:00)"):format(math.floor(remaining * 1000), dateTable.hour))
 		end
 	end)
 end)
 
 -- Fungsi Logika Auto Farm Item & OpenBox
 local function startAutoFarm()
+	if farmConnection then
+		farmConnection:Disconnect()
+		farmConnection = nil
+	end
+
 	farmConnection = RunService.RenderStepped:Connect(function()
 		if not autoFarmActive then return end
-		
+
 		character = player.Character
 		if not character or not character:FindFirstChild("HumanoidRootPart") then return end
 		humanoidRootPart = character.HumanoidRootPart
@@ -378,35 +705,35 @@ local function startAutoFarm()
 		local itemSpawns = Workspace:FindFirstChild("ItemSpawns")
 		if itemSpawns then
 			local foundValidItem = false
-			
+
 			for _, spawnObj in ipairs(itemSpawns:GetChildren()) do
 				local item = spawnObj:FindFirstChild("Item")
-				
+
 				if item then
 					foundValidItem = true
 					local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
-					
+
 					if targetPart and targetPart:IsA("BasePart") then
 						humanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-						
+
 						local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true) or spawnObj:FindFirstChildWhichIsA("ProximityPrompt", true)
 						if prompt then
 							fireproximityprompt(prompt)
-							
+
 							pcall(function()
 								ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("OpenBox"):FireServer()
 							end)
-							
+
 							statusLabel.Text = "Status: Fired Item & OpenBox"
 							task.wait(0.3)
 						else
 							statusLabel.Text = "Status: Teleported (No Prompt)"
 						end
-						break 
+						break
 					end
 				end
 			end
-			
+
 			if not foundValidItem then
 				statusLabel.Text = "Status: Mencari Item..."
 			end
@@ -434,64 +761,18 @@ toggleBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Event Tombol Toggle Auto Claim
+-- Event Tombol Toggle Auto Claim 
 claimBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = not autoClaimActive
 
 	if autoClaimActive then
-		claimBtn.Text = "AUTO CLAIM : ON"
+		claimBtn.Text = "AUTO CLAIM : ON "
 		claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
-		statusLabel.Text = "Status: Precision Single-Hit Armed"
-		hasTriggeredThisHour = -1
+		statusLabel.Text = "Status: Pre-Fire -250ms Armed"
 	else
-		claimBtn.Text = "AUTO CLAIM : OFF"
+		claimBtn.Text = "AUTO CLAIM : OFF "
 		claimBtn.BackgroundColor3 = Color3.fromRGB(170, 45, 45)
 		statusLabel.Text = "Status: AUTO CLAIM Stopped"
-	end
-end)
-
--- Event Tombol Teleport Video Zone
-zoneBtn.MouseButton1Click:Connect(function()
-	character = player.Character
-	if not character or not character:FindFirstChild("HumanoidRootPart") then
-		statusLabel.Text = "Status: Karakter tidak ditemukan!"
-		return
-	end
-	humanoidRootPart = character.HumanoidRootPart
-
-	local targetZone = zonePaths[currentVideoIndex]
-	
-	if targetZone and targetZone:IsA("BasePart") then
-		humanoidRootPart.CFrame = targetZone.CFrame + Vector3.new(0, 3, 0)
-		statusLabel.Text = "Status: TP ke Video " .. currentVideoIndex
-		
-		currentVideoIndex = currentVideoIndex + 1
-		if currentVideoIndex > #zonePaths then
-			currentVideoIndex = 1
-		end
-		
-		zoneBtn.Text = "Teleport: Video " .. currentVideoIndex
-	else
-		statusLabel.Text = "Status: Zone Video " .. currentVideoIndex .. " Error/Hilang!"
-	end
-end)
-
--- Event Tombol Once Trigger ProximityPrompt di workspace.MAP
-mapPromptBtn.MouseButton1Click:Connect(function()
-	local mapFolder = Workspace:FindFirstChild("MAP")
-	if mapFolder then
-		local count = 0
-		for _, descendant in ipairs(mapFolder:GetDescendants()) do
-			if descendant:IsA("ProximityPrompt") then
-				pcall(function()
-					fireproximityprompt(descendant)
-				end)
-				count = count + 1
-			end
-		end
-		statusLabel.Text = "Status: Fired " .. count .. " Prompts di MAP!"
-	else
-		statusLabel.Text = "Status: Folder workspace.MAP tidak ada!"
 	end
 end)
 
@@ -501,6 +782,20 @@ allServerBtn.MouseButton1Click:Connect(function()
 	pcall(function()
 		loadstring(game:HttpGet("https://virgoboy.netlify.app/raw/2vyodcg2o4"))()
 	end)
+end)
+
+-- Event Tombol Re-Scan UI & Manual Fire
+rescanBtn.MouseButton1Click:Connect(function()
+	bindSlotWatcher()
+	statusLabel.Text = "Status: Slot UI Re-Scanned"
+end)
+
+manualFireBtn.MouseButton1Click:Connect(function()
+	fireClaimRemote("Manual Fire Sent")
+end)
+
+ugcInputBox.FocusLost:Connect(function()
+	bindSlotWatcher()
 end)
 
 -- Animasi Interaksi Minimize
@@ -540,8 +835,10 @@ closeBtn.MouseButton1Click:Connect(function()
 	autoClaimActive = false
 	if farmConnection then
 		farmConnection:Disconnect()
+		farmConnection = nil
 	end
-	
+	clearSlotConnections()
+
 	local tweenClose = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
 		Size = UDim2.new(0, 0, 0, 0),
 		BackgroundTransparency = 1
@@ -556,12 +853,12 @@ end)
 minBtn.MouseButton1Click:Connect(function()
 	minimized = true
 	floatingIcon.Position = main.Position
-	
+
 	local tweenOut = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
 		Size = UDim2.new(0, MINI_W, 0, MINI_H),
 		BackgroundTransparency = 1
 	})
-	
+
 	tweenOut:Play()
 	tweenOut.Completed:Connect(function()
 		if minimized then
@@ -576,10 +873,10 @@ floatingIcon.MouseButton1Click:Connect(function()
 	main.Position = floatingIcon.Position
 	main.Visible = true
 	floatingIcon.Visible = false
-	
+
 	main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
 	main.BackgroundTransparency = 1
-	
+
 	local tweenIn = TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
 		Size = UDim2.new(0, FULL_W, 0, FULL_H),
 		BackgroundTransparency = 0.15
@@ -590,7 +887,7 @@ end)
 -- Sistem Dragging
 do
 	local dragging, dragStart, startPos = false, nil, nil
-	
+
 	local function applyDrag(obj)
 		obj.InputBegan:Connect(function(i)
 			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -602,17 +899,17 @@ do
 			end
 		end)
 	end
-	
+
 	applyDrag(main)
 	applyDrag(floatingIcon)
-	
+
 	UserInputService.InputChanged:Connect(function(i)
 		if not dragging then return end
 		if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
 			local d = i.Position - dragStart
 			local vp = workspace.CurrentCamera.ViewportSize
 			local targetObj = minimized and floatingIcon or main
-			
+
 			targetObj.Position = UDim2.new(
 				0,
 				math.clamp(startPos.X.Offset + d.X, 0, vp.X - targetObj.AbsoluteSize.X),
@@ -621,7 +918,7 @@ do
 			)
 		end
 	end)
-	
+
 	UserInputService.InputEnded:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
@@ -629,8 +926,35 @@ do
 	end)
 end
 
+-- Auto-Attach UI Monitor dengan Debounce
+task.spawn(function()
+	local pg = player:WaitForChild("PlayerGui", 15)
+	local mainGui = pg and pg:WaitForChild("Main", 15)
+	local menus = mainGui and mainGui:FindFirstChild("Menus", 15)
+	local ugc = menus and menus:WaitForChild("UGC", 15)
+	local holder = ugc and ugc:WaitForChild("Holder", 15)
+
+	if holder then
+		local pendingScan = false
+		local function scheduleScan()
+			if pendingScan then return end
+			pendingScan = true
+			task.delay(0.15, function()
+				pendingScan = false
+				if gui.Parent then bindSlotWatcher() end
+			end)
+		end
+		holder.ChildAdded:Connect(scheduleScan)
+		holder.ChildRemoved:Connect(scheduleScan)
+	end
+
+	task.wait(0.2)
+	bindSlotWatcher()
+end)
+
 -- Animasi Efek Garis Bergerak (Stroke Gradient)
 RunService.RenderStepped:Connect(function()
+	if not gui.Parent then return end
 	local off = Vector2.new(math.sin(tick() * 2.8), 0)
 	for _, g in ipairs(allGrads) do
 		g.Offset = off
