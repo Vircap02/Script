@@ -1,15 +1,18 @@
--- --- UI CORE SETUP ---
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local Container = Instance.new("ScrollingFrame")
-local UIListLayout = Instance.new("UIListLayout")
-local CloseBtn = Instance.new("TextButton")
-local MinBtn = Instance.new("TextButton")
+-- Memuat Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-ScreenGui.Name = "VirgoboyCyberFinal_V6"
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ResetOnSpawn = false
+-- Membuat Window Utama
+local Window = Rayfield:CreateWindow({
+    Name = "TOKYO ANIME | VIRGOBOY",
+    LoadingTitle = "Thanks For Using...",
+    LoadingSubtitle = "by Virgoboy",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = nil,
+        FileName = "TokyoAnimeConfig"
+    },
+    KeySystem = false, -- Ganti true jika ingin pakai sistem kunci
+})
 
 -- --- CHARACTER REFRESH LOGIC ---
 local Player = game.Players.LocalPlayer
@@ -21,292 +24,1088 @@ Player.CharacterAdded:Connect(function(NewChar)
     Root = NewChar:WaitForChild("HumanoidRootPart")
 end)
 
--- --- UI DESIGN ---
-MainFrame.Name = "Main"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 240, 0, 320)
-MainFrame.Active = true
-MainFrame.Draggable = true 
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = MainFrame
-
-local Glow = Instance.new("UIStroke")
-Glow.Color = Color3.fromRGB(0, 255, 255)
-Glow.Thickness = 1.8
-Glow.Parent = MainFrame
-
--- Header
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, -65, 0, 40)
-Title.Position = UDim2.new(0, 12, 0, 0)
-Title.Text = "TOKYO ANIME | VIRGOBOY"
-Title.TextColor3 = Color3.fromRGB(0, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 13
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
--- Buttons Close & Min
-CloseBtn.Parent = MainFrame
-CloseBtn.Position = UDim2.new(1, -32, 0, 9)
-CloseBtn.Size = UDim2.new(0, 23, 0, 23)
-CloseBtn.Text = "X"
-CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-CloseBtn.TextColor3 = Color3.new(1,1,1)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-
-MinBtn.Parent = MainFrame
-MinBtn.Position = UDim2.new(1, -62, 0, 9)
-MinBtn.Size = UDim2.new(0, 23, 0, 23)
-MinBtn.Text = "-"
-MinBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-MinBtn.TextColor3 = Color3.new(1,1,1)
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.MouseButton1Click:Connect(function()
-    Container.Visible = not Container.Visible
-    MainFrame.Size = Container.Visible and UDim2.new(0, 240, 0, 320) or UDim2.new(0, 240, 0, 40)
-end)
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
-
--- Container
-Container.Parent = MainFrame
-Container.Position = UDim2.new(0, 8, 0, 45)
-Container.Size = UDim2.new(1, -16, 1, -55)
-Container.BackgroundTransparency = 1
-Container.ScrollBarThickness = 3
-Container.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-UIListLayout.Parent = Container
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Container.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 15)
-end)
-
--- --- COMPONENT BUILDERS ---
-local function CreateCategory(name)
-    local Frame = Instance.new("Frame")
-    local Btn = Instance.new("TextButton")
-    local Content = Instance.new("Frame")
-    local Layout = Instance.new("UIListLayout")
-    Frame.Parent = Container
-    Frame.Size = UDim2.new(1, 0, 0, 32)
-    Frame.BackgroundTransparency = 1
-    Frame.ClipsDescendants = true
-    Btn.Parent = Frame
-    Btn.Size = UDim2.new(1, 0, 0, 32)
-    Btn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    Btn.Text = "  ▶ " .. name
-    Btn.TextColor3 = Color3.new(1, 1, 1)
-    Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 11
-    Btn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 5)
-    Content.Parent = Frame
-    Content.Position = UDim2.new(0, 0, 0, 38)
-    Content.Size = UDim2.new(1, 0, 0, 0)
-    Content.BackgroundTransparency = 1
-    Layout.Parent = Content
-    Layout.Padding = UDim.new(0, 4)
-    local open = false
-    Btn.MouseButton1Click:Connect(function()
-        open = not open
-        Btn.Text = open and "  ▼ " .. name or "  ▶ " .. name
-        Btn.TextColor3 = open and Color3.fromRGB(0, 255, 255) or Color3.new(1,1,1)
-        local target = open and (Layout.AbsoluteContentSize.Y + 45) or 32
-        game:GetService("TweenService"):Create(Frame, TweenInfo.new(0.35, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, target)}):Play()
-    end)
-    return Content
-end
-
-local function AddToggle(parent, txt, callback)
-    local state = false
-    local btn = Instance.new("TextButton")
-    btn.Parent = parent
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    btn.Text = txt .. " : OFF"
-    btn.TextColor3 = Color3.new(0.6, 0.6, 0.6)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 10
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = txt .. (state and " : ON" or " : OFF")
-        btn.TextColor3 = state and Color3.fromRGB(0, 255, 255) or Color3.new(0.6, 0.6, 0.6)
-        callback(state)
-    end)
-end
-
-local function AddButton(parent, txt, callback)
-    local btn = Instance.new("TextButton")
-    btn.Parent = parent
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    btn.Text = txt
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 10
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    btn.MouseButton1Click:Connect(callback)
-end
-
--- --- GAME LOGIC ---
 local Knit = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services
 
--- Fungsi Touch Portal dengan Hitung Mundur 20 Detik
-local function touchPortalWithDelay(portalPart, buttonInstance)
+-- Stage aktif (default: Stage1)
+local selectedStage = "Stage1"
+
+-- Token pembatalan sequence aktif (naikkan untuk menghentikan sequence yang sedang jalan)
+local printerSequenceToken = 0
+local isRunningPrinterSequence = false
+local lastExecutedTaskSignature = nil
+
+local function isSequenceTokenActive(token)
+    return isRunningPrinterSequence and (token == printerSequenceToken)
+end
+
+local function abortCurrentPrinterSequence(notifyUser)
+    printerSequenceToken += 1
+    local wasRunning = isRunningPrinterSequence
+    isRunningPrinterSequence = false
+    lastExecutedTaskSignature = nil
+
+    if notifyUser then
+        Rayfield:Notify({
+            Title = "Reset Sequence",
+            Content = wasRunning and "Kerjaan sequence saat ini dihentikan, siap lanjut ke berikutnya." or "State sequence sudah di-reset.",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end
+end
+
+-- Helper: Normalisasi string untuk pencocokan nama yang fleksibel
+local function normalizeNameKey(str)
+    return tostring(str or ""):lower():gsub("[%s_%-]", "")
+end
+
+-- Daftar alias untuk antisipasi perubahan nama objek antar Stage / update game
+local WORKBENCH_ALIASES = {
+    KeyAnimationBase = {"KeyAnimationBase", "KeyAnimBase", "KeyAnimation", "KeyAnim"},
+    TimeSheetBase    = {"TimeSheetBase", "TimesheetBase", "TimeSheet", "Timesheet"},
+    VideoBase        = {"VideoBase", "Video"},
+    CelBase          = {"CelBase", "CelAnimationBase", "CelAnimBase", "CelAnimation", "Cel"},
+    ScriptBase       = {"ScriptBase", "Script"},
+}
+
+local SHELF_ALIASES = {
+    BlankPaperBase = {"BlankPaperBase", "BlankPaper", "PaperBase", "Paper"},
+    ClearPanelBase = {"ClearPanelBase", "ClearPanel", "PanelBase", "Panel"},
+}
+
+-- Helper: Mencari anak/descendant di container menggunakan nama persis, alias, lalu pencocokan keyword
+local function resolveObjectWithAliases(container, preferredName, aliasTable, allowPromptFallback)
+    if not container or not preferredName then return nil end
+
+    -- 1. Cek nama persis terlebih dahulu
+    local exact = container:FindFirstChild(preferredName)
+    if exact then
+        return exact
+    end
+
+    -- Kumpulkan kandidat alias (ditambah nama asli)
+    local candidates = {}
+    local seen = {}
+    local function addCandidate(nameStr)
+        if type(nameStr) == "string" and nameStr ~= "" and not seen[nameStr] then
+            seen[nameStr] = true
+            table.insert(candidates, nameStr)
+        end
+    end
+
+    addCandidate(preferredName)
+    if aliasTable and aliasTable[preferredName] then
+        for _, aliasName in ipairs(aliasTable[preferredName]) do
+            addCandidate(aliasName)
+        end
+    end
+
+    -- 2. Cek alias secara persis maupun dengan normalisasi nama
+    for _, cand in ipairs(candidates) do
+        local foundExact = container:FindFirstChild(cand)
+        if foundExact then
+            return foundExact
+        end
+
+        local normCand = normalizeNameKey(cand)
+        for _, child in ipairs(container:GetChildren()) do
+            if normalizeNameKey(child.Name) == normCand then
+                return child
+            end
+        end
+    end
+
+    -- 3. Pencocokan kata kunci utama (misalnya "cel" untuk CelBase / CelAnimationBase)
+    local stem = normalizeNameKey(preferredName):gsub("base$", ""):gsub("animation$", "")
+    if #stem >= 3 then
+        for _, child in ipairs(container:GetChildren()) do
+            local childNorm = normalizeNameKey(child.Name)
+            if childNorm:find(stem, 1, true) then
+                return child
+            end
+        end
+    end
+
+    -- 4. Fallback opsional: ambil anak pertama yang memiliki ProximityPrompt
+    if allowPromptFallback then
+        for _, child in ipairs(container:GetChildren()) do
+            if child:FindFirstChildWhichIsA("ProximityPrompt", true) then
+                return child
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Helper: Mendapatkan CFrame target dari Instance apa pun
+local function getTargetCFrame(obj)
+    if not obj then return nil end
+
+    if obj:IsA("BasePart") then
+        return obj.CFrame + Vector3.new(0, 4, 0)
+    elseif obj:IsA("Model") then
+        if obj.PrimaryPart then
+            return obj.PrimaryPart.CFrame + Vector3.new(0, 4, 0)
+        end
+        local part = obj:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            return part.CFrame + Vector3.new(0, 4, 0)
+        end
+        return obj:GetPivot() + Vector3.new(0, 4, 0)
+    elseif obj:IsA("Folder") then
+        local part = obj:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            return part.CFrame + Vector3.new(0, 4, 0)
+        end
+        local model = obj:FindFirstChildWhichIsA("Model", true)
+        if model then
+            return model:GetPivot() + Vector3.new(0, 4, 0)
+        end
+    end
+
+    return nil
+end
+
+-- Helper: Menjalankan fireproximityprompt pada satu ProximityPrompt
+local function fireSinglePrompt(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") then return false end
+    local ok = pcall(function()
+        prompt.HoldDuration = 0
+        prompt.MaxActivationDistance = math.max(prompt.MaxActivationDistance, 100)
+        prompt.Enabled = true
+        fireproximityprompt(prompt)
+    end)
+    return ok
+end
+
+-- Helper: Mencari SATU objek dan prompt-nya di dalam container
+local function findFirstObjectWithPrompt(container)
+    if not container then return nil, nil end
+
+    for _, child in ipairs(container:GetChildren()) do
+        local prompt = child:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt then
+            return child, prompt
+        end
+    end
+
+    local anyPrompt = container:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if anyPrompt then
+        return anyPrompt.Parent, anyPrompt
+    end
+
+    return nil, nil
+end
+
+-- Helper: Cek apakah teks prompt mengindikasikan slot sudah penuh / terisi
+local function isPromptIndicatingFull(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") then return false end
+    local combined = ((tostring(prompt.ActionText or "") .. " " .. tostring(prompt.ObjectText or ""))):lower()
+    local fullKeywords = {"full", "occupied", "taken", "has item", "already", "penuh", "terisi"}
+    for _, kw in ipairs(fullKeywords) do
+        if combined:find(kw, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Helper: Menilai kelayakan sebuah objek kandidat di dalam container (mendukung multi-objek seperti 2 Desk / 2 Box)
+local function evaluateCandidateObject(obj)
+    if not obj then return nil, nil, -999 end
+
+    local bestPrompt = nil
+    local bestScore = -999
+
+    -- Cek atribut / nilai boolean umum yang menandakan penuh/terisi jika ada
+    local attrOccupied = obj:GetAttribute("Occupied") or obj:GetAttribute("Full") or obj:GetAttribute("HasItem") or obj:GetAttribute("InUse")
+
+    for _, desc in ipairs(obj:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") then
+            local score = 0
+            if desc.Enabled then
+                score += 50
+            else
+                score -= 40
+            end
+
+            if isPromptIndicatingFull(desc) then
+                score -= 100
+            else
+                score += 20
+            end
+
+            if attrOccupied == true then
+                score -= 80
+            end
+
+            if score > bestScore then
+                bestScore = score
+                bestPrompt = desc
+            end
+        end
+    end
+
+    -- Jika objek itu sendiri punya prompt langsung
+    if obj:IsA("ProximityPrompt") then
+        local score = obj.Enabled and 50 or -40
+        if isPromptIndicatingFull(obj) then
+            score -= 100
+        else
+            score += 20
+        end
+        if score > bestScore then
+            bestScore = score
+            bestPrompt = obj
+        end
+    end
+
+    return obj, bestPrompt, bestScore
+end
+
+-- Helper: Mencari objek terbaik yang tersedia di container (prioritas yang kosong/prompt aktif, bukan yang penuh)
+local function findBestAvailableObjectWithPrompt(container)
+    if not container then return nil, nil, -999 end
+
+    local chosenObj, chosenPrompt, chosenScore = nil, nil, -999
+
+    for _, child in ipairs(container:GetChildren()) do
+        local obj, prompt, score = evaluateCandidateObject(child)
+        if prompt and score > chosenScore then
+            chosenObj = obj
+            chosenPrompt = prompt
+            chosenScore = score
+        end
+    end
+
+    if chosenObj and chosenPrompt then
+        return chosenObj, chosenPrompt, chosenScore
+    end
+
+    for _, desc in ipairs(container:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") then
+            local obj = desc.Parent
+            local _, prompt, score = evaluateCandidateObject(obj)
+            if prompt and score > chosenScore then
+                chosenObj = obj
+                chosenPrompt = prompt
+                chosenScore = score
+            end
+        end
+    end
+
+    return chosenObj, chosenPrompt, chosenScore
+end
+
+-- Helper: Mengunci 1 objek terbaik yang tersedia di container (jika semua penuh/belum siap, tunggu sampai ada yang kosong)
+local function lockOneObjectWithPrompt(container, timeout, token)
+    local maxWait = timeout or 30
+    local elapsed = 0
+    local fallbackObj, fallbackPrompt
+
+    while elapsed < maxWait do
+        if token and not isSequenceTokenActive(token) then
+            return nil, nil
+        end
+        if container and container.Parent then
+            local obj, prompt, score = findBestAvailableObjectWithPrompt(container)
+            if obj and prompt and prompt.Parent then
+                if not fallbackObj then
+                    fallbackObj, fallbackPrompt = obj, prompt
+                end
+                -- Skor >= 60 berarti prompt aktif (Enabled == true) dan tidak terindikasi penuh/terisi
+                if score >= 60 and prompt.Enabled then
+                    return obj, prompt
+                end
+            end
+        end
+        task.wait(0.2)
+        elapsed += 0.2
+    end
+
+    if token and not isSequenceTokenActive(token) then
+        return nil, nil
+    end
+
+    local finalObj, finalPrompt = findBestAvailableObjectWithPrompt(container)
+    return finalObj or fallbackObj, finalPrompt or fallbackPrompt
+end
+
+-- Helper: Menunggu prompt berikutnya pada objek yang sudah dikunci
+-- 1) Tunggu prompt sebelumnya benar-benar diproses (hilang / Enabled == false / ActionText berubah)
+-- 2) Tunggu sampai prompt berikutnya muncul / Enabled == true kembali
+local function waitForNextPromptOnLockedObject(lockedObj, previousPrompt, timeout, token)
+    if not lockedObj then return nil end
+    local maxWait = timeout or 30
+    local oldActionText = previousPrompt and previousPrompt.ActionText or ""
+
+    -- Fase 1: Tunggu prompt sebelumnya masuk masa cooldown/proses (maks 6 detik)
+    local sawReset = false
+    local phase1Elapsed = 0
+    while phase1Elapsed < 6 do
+        if token and not isSequenceTokenActive(token) then
+            return nil
+        end
+        if not previousPrompt or not previousPrompt.Parent or not previousPrompt.Enabled then
+            sawReset = true
+            break
+        end
+        if previousPrompt.ActionText ~= oldActionText then
+            sawReset = true
+            break
+        end
+        local otherPrompt = lockedObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if otherPrompt and otherPrompt ~= previousPrompt and otherPrompt.Enabled then
+            return otherPrompt
+        end
+        task.wait(0.15)
+        phase1Elapsed += 0.15
+    end
+
+    -- Jika server tidak pernah menonaktifkan prompt sebelumnya, beri jeda aman sebelum lanjut
+    if not sawReset then
+        task.wait(1)
+    end
+    if token and not isSequenceTokenActive(token) then
+        return nil
+    end
+
+    -- Fase 2: Tunggu sampai prompt berikutnya muncul & aktif kembali pada objek terkunci
+    local phase2Elapsed = 0
+    while phase2Elapsed < maxWait do
+        if token and not isSequenceTokenActive(token) then
+            return nil
+        end
+        for _, desc in ipairs(lockedObj:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") and desc.Parent and desc.Enabled then
+                return desc
+            end
+        end
+        task.wait(0.2)
+        phase2Elapsed += 0.2
+    end
+
+    if token and not isSequenceTokenActive(token) then
+        return nil
+    end
+    return lockedObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+end
+
+-- Helper: Memindahkan karakter dengan aman
+local function teleportToCFrame(targetCF)
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local currentRoot = char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not currentRoot or not targetCF then return false end
+
+    pcall(function()
+        if humanoid and humanoid.Sit then
+            humanoid.Sit = false
+            task.wait(0.05)
+        end
+        char:PivotTo(targetCF)
+        currentRoot.CFrame = targetCF
+        currentRoot.AssemblyLinearVelocity = Vector3.zero
+        currentRoot.AssemblyAngularVelocity = Vector3.zero
+    end)
+
+    return true
+end
+
+-- Mengambil folder Stations berdasarkan stage aktif (Stage1 / Stage2 / Stage3)
+local function getStationsFolder(stageName)
+    local targetStageName = stageName or selectedStage or "Stage1"
+    local stageFolder = workspace:FindFirstChild(targetStageName)
+    return stageFolder and stageFolder:FindFirstChild("Stations")
+end
+
+-- Menjalankan fireproximityprompt pada semua ProximityPrompt di dalam target
+local function triggerProximityPrompts(target)
+    if not target then return 0 end
+    local count = 0
+    for _, desc in ipairs(target:GetDescendants()) do
+        if desc:IsA("ProximityPrompt") then
+            if fireSinglePrompt(desc) then
+                count += 1
+            end
+        end
+    end
+    return count
+end
+
+-- Helper: Menjalankan prompt pada objek terkunci dengan fallback ke objek lain di container jika penuh/gagal
+local function firePromptWithContainerFallback(container, lockedObj, preferredPrompt)
+    if preferredPrompt and preferredPrompt.Parent and preferredPrompt.Enabled and not isPromptIndicatingFull(preferredPrompt) then
+        if fireSinglePrompt(preferredPrompt) then
+            return lockedObj, preferredPrompt
+        end
+    end
+
+    if lockedObj and lockedObj.Parent then
+        local anyObjPrompt = lockedObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if anyObjPrompt and fireSinglePrompt(anyObjPrompt) then
+            return lockedObj, anyObjPrompt
+        end
+    end
+
+    if container and container.Parent then
+        local altObj, altPrompt, altScore = findBestAvailableObjectWithPrompt(container)
+        if altObj and altPrompt and altScore > -50 then
+            local altCF = getTargetCFrame(altObj)
+            if altCF then teleportToCFrame(altCF) end
+            task.wait(0.35)
+            fireSinglePrompt(altPrompt)
+            return altObj, altPrompt
+        end
+    end
+
+    if preferredPrompt and preferredPrompt.Parent then
+        fireSinglePrompt(preferredPrompt)
+    elseif lockedObj then
+        triggerProximityPrompts(lockedObj)
+    end
+
+    return lockedObj, preferredPrompt
+end
+
+-- Alur Otomatis Printer (mengikuti selectedStage: Stage1 / Stage2 / Stage3)
+local function runPrinterSequence(firstWorkbenchSubName, shelfSubName)
+    local startSubName = firstWorkbenchSubName or "KeyAnimationBase"
+    local useThreePromptShelfFlow = (shelfSubName ~= nil)
+    local activeStage = selectedStage or "Stage1"
+
+    if isRunningPrinterSequence then
+        Rayfield:Notify({
+            Title = "Sedang Berjalan",
+            Content = "Ada sequence yang sedang jalan. Tekan 'Reset / Stop Sequence' dulu jika ingin ganti.",
+            Duration = 3,
+            Image = 4483362458,
+        })
+        return
+    end
+
+    local stationsFolder = getStationsFolder(activeStage)
+    if not stationsFolder then
+        Rayfield:Notify({
+            Title = "Tidak Ditemukan",
+            Content = "workspace." .. activeStage .. ".Stations belum ditemukan.",
+            Duration = 4,
+            Image = 4483362458,
+        })
+        return
+    end
+
+    printerSequenceToken += 1
+    local myToken = printerSequenceToken
+    isRunningPrinterSequence = true
+
+    task.spawn(function()
+        local ok, err = pcall(function()
+            Rayfield:Notify({
+                Title = "Minigames Printer (" .. activeStage .. ")",
+                Content = "Mulai alur otomatis (" .. startSubName .. ")...",
+                Duration = 3,
+                Image = 4483362458,
+            })
+
+            if not isSequenceTokenActive(myToken) then return end
+
+            -- 1. [Stage].Stations["01_Workbench"].[startSubName / alias] (TP -> 1s -> firepp)
+            local workbench = stationsFolder:FindFirstChild("01_Workbench")
+            local firstSub = resolveObjectWithAliases(workbench, startSubName, WORKBENCH_ALIASES, false)
+            if firstSub then
+                local cf1 = getTargetCFrame(firstSub)
+                if cf1 then teleportToCFrame(cf1) end
+                task.wait(1)
+                if not isSequenceTokenActive(myToken) then return end
+                triggerProximityPrompts(firstSub)
+            end
+
+            -- Tunggu 2 detik
+            task.wait(2)
+            if not isSequenceTokenActive(myToken) then return end
+
+            -- 2. [Stage].Stations["02_PhotoDesks"] (pilih meja yang tidak penuh / prompt aktif)
+            local photoDesks = stationsFolder:FindFirstChild("02_PhotoDesks")
+            if photoDesks then
+                local lockedPhotoObj, lockedPhotoPrompt = lockOneObjectWithPrompt(photoDesks, 30, myToken)
+                if not isSequenceTokenActive(myToken) then return end
+                if lockedPhotoObj then
+                    local cf2 = getTargetCFrame(lockedPhotoObj)
+                    if cf2 then teleportToCFrame(cf2) end
+                    task.wait(1)
+                    if not isSequenceTokenActive(myToken) then return end
+                    lockedPhotoObj, lockedPhotoPrompt = firePromptWithContainerFallback(photoDesks, lockedPhotoObj, lockedPhotoPrompt)
+
+                    -- Tunggu prompt kedua muncul di objek terkunci 02_PhotoDesks
+                    local secondPhotoPrompt = waitForNextPromptOnLockedObject(lockedPhotoObj, lockedPhotoPrompt, 30, myToken)
+                    if not isSequenceTokenActive(myToken) then return end
+
+                    if useThreePromptShelfFlow then
+                        -- Ambil [Stage].Stations["03_ItemShelf"].[shelfSubName / alias] (TP -> 1s -> firepp)
+                        local itemShelf = stationsFolder:FindFirstChild("03_ItemShelf")
+                        local shelfTarget = resolveObjectWithAliases(itemShelf, shelfSubName, SHELF_ALIASES, false)
+                        if shelfTarget then
+                            local cfShelf = getTargetCFrame(shelfTarget)
+                            if cfShelf then teleportToCFrame(cfShelf) end
+                            task.wait(1)
+                            if not isSequenceTokenActive(myToken) then return end
+                            triggerProximityPrompts(shelfTarget)
+                        end
+
+                        -- Balik ke objek 02_PhotoDesks untuk menaruh (TP -> 1s -> firepp)
+                        local cfReturn = getTargetCFrame(lockedPhotoObj)
+                        if cfReturn then teleportToCFrame(cfReturn) end
+                        task.wait(1)
+                        if not isSequenceTokenActive(myToken) then return end
+                        if secondPhotoPrompt and secondPhotoPrompt.Parent then
+                            fireSinglePrompt(secondPhotoPrompt)
+                        else
+                            triggerProximityPrompts(lockedPhotoObj)
+                        end
+
+                        -- Tunggu prompt ke-3 muncul di objek 02_PhotoDesks lalu TP -> 1s -> firepp
+                        local thirdPhotoPrompt = waitForNextPromptOnLockedObject(lockedPhotoObj, secondPhotoPrompt, 30, myToken)
+                        if not isSequenceTokenActive(myToken) then return end
+                        local cfThird = getTargetCFrame(lockedPhotoObj)
+                        if cfThird then teleportToCFrame(cfThird) end
+                        task.wait(1)
+                        if not isSequenceTokenActive(myToken) then return end
+                        if thirdPhotoPrompt and thirdPhotoPrompt.Parent then
+                            fireSinglePrompt(thirdPhotoPrompt)
+                        else
+                            triggerProximityPrompts(lockedPhotoObj)
+                        end
+                    else
+                        -- Alur normal (KeyAnimationBase / TimeSheetBase / VideoBase): 2 prompt di 02_PhotoDesks
+                        local cf2Again = getTargetCFrame(lockedPhotoObj)
+                        if cf2Again then teleportToCFrame(cf2Again) end
+                        task.wait(1)
+                        if not isSequenceTokenActive(myToken) then return end
+                        if secondPhotoPrompt and secondPhotoPrompt.Parent then
+                            fireSinglePrompt(secondPhotoPrompt)
+                        else
+                            triggerProximityPrompts(lockedPhotoObj)
+                        end
+                    end
+
+                    task.wait(0.3)
+                    if not isSequenceTokenActive(myToken) then return end
+                end
+            end
+
+            -- 3. [Stage].Stations["04_DataPCs"]: pilih objek yang tersedia -> TP -> 1s -> firepp 1 -> tunggu prompt 2 muncul -> TP -> 1s -> firepp 2
+            local dataPCs = stationsFolder:FindFirstChild("04_DataPCs")
+            if dataPCs then
+                local lockedPcObj, lockedPcPrompt = lockOneObjectWithPrompt(dataPCs, 30, myToken)
+                if not isSequenceTokenActive(myToken) then return end
+                if lockedPcObj then
+                    local cf4 = getTargetCFrame(lockedPcObj)
+                    if cf4 then teleportToCFrame(cf4) end
+                    task.wait(1)
+                    if not isSequenceTokenActive(myToken) then return end
+                    lockedPcObj, lockedPcPrompt = firePromptWithContainerFallback(dataPCs, lockedPcObj, lockedPcPrompt)
+
+                    local secondPcPrompt = waitForNextPromptOnLockedObject(lockedPcObj, lockedPcPrompt, 30, myToken)
+                    if not isSequenceTokenActive(myToken) then return end
+                    local cf4Again = getTargetCFrame(lockedPcObj)
+                    if cf4Again then teleportToCFrame(cf4Again) end
+                    task.wait(1)
+                    if not isSequenceTokenActive(myToken) then return end
+                    if secondPcPrompt and secondPcPrompt.Parent then
+                        fireSinglePrompt(secondPcPrompt)
+                    else
+                        triggerProximityPrompts(lockedPcObj)
+                    end
+                    task.wait(0.3)
+                    if not isSequenceTokenActive(myToken) then return end
+                end
+            end
+
+            -- 4. [Stage].Stations["05_CardboardStorage"]: pilih kotak yang tidak penuh/prompt aktif -> TP -> 1s -> firepp
+            local cardboardStorage = stationsFolder:FindFirstChild("05_CardboardStorage")
+            if cardboardStorage then
+                local lockedBoxObj, lockedBoxPrompt = lockOneObjectWithPrompt(cardboardStorage, 30, myToken)
+                if not isSequenceTokenActive(myToken) then return end
+                if lockedBoxObj then
+                    local cf5 = getTargetCFrame(lockedBoxObj)
+                    if cf5 then teleportToCFrame(cf5) end
+                    task.wait(1)
+                    if not isSequenceTokenActive(myToken) then return end
+                    firePromptWithContainerFallback(cardboardStorage, lockedBoxObj, lockedBoxPrompt)
+                end
+            end
+
+            if isSequenceTokenActive(myToken) then
+                Rayfield:Notify({
+                    Title = "Selesai (" .. activeStage .. ")",
+                    Content = "Alur Minigames Printer (" .. startSubName .. ") selesai!",
+                    Duration = 4,
+                    Image = 4483362458,
+                })
+            end
+        end)
+
+        if printerSequenceToken == myToken then
+            isRunningPrinterSequence = false
+        end
+
+        if not ok and printerSequenceToken == myToken then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = tostring(err),
+                Duration = 5,
+                Image = 4483362458,
+            })
+        end
+    end)
+end
+
+-- Membaca teks task aktif dari PlayerGui.ArchivePhotographyGameGui.TaskList.Frame
+local function getActiveArchiveTaskTexts()
+    local tasks = {}
+    local playerGui = Player:FindFirstChild("PlayerGui")
+    local gui = playerGui and playerGui:FindFirstChild("ArchivePhotographyGameGui")
+    local taskList = gui and gui:FindFirstChild("TaskList")
+    local frame = taskList and taskList:FindFirstChild("Frame")
+    if not frame then return tasks end
+
+    for _, desc in ipairs(frame:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Visible then
+            local rawText = tostring(desc.Text or "")
+            local cleaned = rawText:gsub("^%s+", ""):gsub("%s+$", "")
+            if cleaned ~= "" then
+                table.insert(tasks, cleaned)
+            end
+        end
+    end
+
+    return tasks
+end
+
+local function buildTaskSnapshotSignature(taskTexts)
+    if not taskTexts or #taskTexts == 0 then
+        return nil
+    end
+    return table.concat(taskTexts, " | ")
+end
+
+-- Mencocokkan teks task dengan parameter runPrinterSequence(firstWorkbenchSubName, shelfSubName)
+local function resolveSequenceFromTaskTexts(taskTexts)
+    for _, raw in ipairs(taskTexts) do
+        local s = normalizeNameKey(raw)
+
+        if s:find("keyanimation") or s:find("keyanim") then
+            return "KeyAnimationBase", nil, raw
+        elseif s:find("timesheet") then
+            return "TimeSheetBase", nil, raw
+        elseif s:find("video") then
+            return "VideoBase", nil, raw
+        elseif s:find("cel") or s:find("blankpaper") then
+            return "CelBase", "BlankPaperBase", raw
+        elseif s:find("script") or s:find("clearpanel") then
+            return "ScriptBase", "ClearPanelBase", raw
+        end
+    end
+
+    return nil, nil, nil
+end
+
+-- Loop Toggle Auto Task: tunggu task berganti dulu sebelum ambil task penggantinya
+local isAutoTaskEnabled = false
+local function setAutoTaskEnabled(enabled)
+    isAutoTaskEnabled = enabled
+    if not enabled then
+        lastExecutedTaskSignature = nil
+        return
+    end
+
+    task.spawn(function()
+        while isAutoTaskEnabled do
+            if not isRunningPrinterSequence then
+                local taskTexts = getActiveArchiveTaskTexts()
+                local currentSignature = buildTaskSnapshotSignature(taskTexts)
+
+                if currentSignature then
+                    -- Jika task masih sama dengan task terakhir yang sudah dijalankan, tunggu sampai berganti
+                    if lastExecutedTaskSignature == nil or currentSignature ~= lastExecutedTaskSignature then
+                        local subName, shelfName, matchedText = resolveSequenceFromTaskTexts(taskTexts)
+
+                        if subName then
+                            lastExecutedTaskSignature = currentSignature
+                            Rayfield:Notify({
+                                Title = "Auto Task (" .. tostring(selectedStage) .. ")",
+                                Content = "Task baru: " .. tostring(matchedText) .. " -> " .. subName,
+                                Duration = 3,
+                                Image = 4483362458,
+                            })
+                            runPrinterSequence(subName, shelfName)
+
+                            while isRunningPrinterSequence and isAutoTaskEnabled do
+                                task.wait(0.25)
+                            end
+
+                            -- Setelah sequence selesai, perbarui snapshot task agar menunggu pergantian task berikutnya
+                            local postTexts = getActiveArchiveTaskTexts()
+                            local postSignature = buildTaskSnapshotSignature(postTexts)
+                            if postSignature then
+                                lastExecutedTaskSignature = postSignature
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+-- Loop Toggle Auto Try Again
+local isAutoTryAgainEnabled = false
+local function setAutoTryAgainEnabled(enabled)
+    isAutoTryAgainEnabled = enabled
+    if not enabled then return end
+
+    task.spawn(function()
+        while isAutoTryAgainEnabled do
+            pcall(function()
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Packages")
+                    :WaitForChild("_Index")
+                    :WaitForChild("sleitnick_knit@1.7.0")
+                    :WaitForChild("knit")
+                    :WaitForChild("Services")
+                    :WaitForChild("ResultService")
+                    :WaitForChild("RF")
+                    :WaitForChild("WaitForRetry")
+                    :InvokeServer()
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+-- Fungsi Touch Portal dengan Hitung Mundur 20 Detik & Notifikasi Rayfield
+local function touchPortalWithDelay(portalPart, obbyName)
     if not Root or not portalPart then return end
     
-    local originalText = buttonInstance.Text
+    Rayfield:Notify({
+        Title = "Finish Obby",
+        Content = "Menuju " .. obbyName .. ". Harap tunggu 20 detik (Anti-Kick)...",
+        Duration = 5,
+        Image = 4483362458,
+    })
     
-    -- Hitung mundur 20 detik
     task.spawn(function()
-        for i = 30, 1, -1 do
-            buttonInstance.Text = "Tunggu " .. i .. "s..."
+        for i = 20, 1, -1 do
             task.wait(1)
         end
         
-        -- Eksekusi firetouchinterest setelah 20 detik
         pcall(function()
             firetouchinterest(Root, portalPart, 0)
             task.wait(0.1)
             firetouchinterest(Root, portalPart, 1)
         end)
         
-        buttonInstance.Text = originalText
+        Rayfield:Notify({
+            Title = "Berhasil!",
+            Content = "Portal " .. obbyName .. " berhasil disentuh!",
+            Duration = 3,
+            Image = 4483362458,
+        })
     end)
 end
 
--- 1. AUTOMATION
-local AutoCat = CreateCategory("INFINITE COINS")
+-- --- 1. TAB: INFINITE COINS ---
+local CoinTab = Window:CreateTab("Infinite Coins", 4483362458)
 
-AddToggle(AutoCat, "Inf Coins", function(v)
-    _G.AutoC = v
-    task.spawn(function()
-        while _G.AutoC do
-            pcall(function() Knit.CoinService.RF.GrantCoins:InvokeServer(math.huge) end)
-            task.wait(0.1)
-        end
-    end)
-end)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
-AddButton(AutoCat, "Touch Coins & Hop", function()
-    local TeleportService = game:GetService("TeleportService")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local RequestPickup = ReplicatedStorage
+	:WaitForChild("Packages")
+	:WaitForChild("_Index")
+	:WaitForChild("sleitnick_knit@1.7.0")
+	:WaitForChild("knit")
+	:WaitForChild("Services")
+	:WaitForChild("CoinService")
+	:WaitForChild("RE")
+	:WaitForChild("RequestPickup")
 
-    local coinsFolder = workspace:WaitForChild("Coins")
-    local coins = coinsFolder:GetChildren()
+-- Ganti targetContainer sesuai lokasi koin di game (contoh: workspace:FindFirstChild("Coins") atau workspace)
+local targetContainer = workspace:FindFirstChild("Coins") or workspace
 
-    for _, coin in ipairs(coins) do
-        if coin:IsA("BasePart") then
-            firetouchinterest(HumanoidRootPart, coin, 0)
-        end
-    end
+local running = false
+local delayPerPickup = 0 -- Jeda antar koin (sesuaikan agar tidak spam/kick)
+local loopDelay = 0    -- Jeda tiap putaran scan
 
-    task.wait(0.5)
-    if #Players:GetPlayers() <= 1 then
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-    else
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end
-end)
+-- Fungsi untuk mengekstrak ID dinamis dari objek koin
+local function getCoinId(obj)
+	-- Cek apakah namanya sudah berbentuk UUID/ID (36 karakter)
+	if #obj.Name == 36 and obj.Name:match("^%x+%-%x+%-%x+%-%x+%-%x+$") then
+		return obj.Name
+	end
 
--- 2. TELEPORTS (INSTANT)
-local TeleCat = CreateCategory("TELEPORT")
-AddButton(TeleCat, "Area Seni", function() if Root then Root.CFrame = CFrame.new(-498.19, 176.02, 223.76) end end)
-AddButton(TeleCat, "Studio Musik", function() if Root then Root.CFrame = CFrame.new(656.71, 148.01, -567.13) end end)
+	-- Cek jika ada Value object di dalamnya (misal: Id, CoinId, UUID)
+	local idValue = obj:FindFirstChildWhichIsA("StringValue")
+	if idValue and idValue.Value ~= "" then
+		return idValue.Value
+	end
 
--- 3. WORLD TELEPORT (GAME SEPERATE) [BARU]
-local WorldTeleCat = CreateCategory("WORLD TELEPORT")
-AddButton(WorldTeleCat, "Teleport ke Obby", function()
-    game:GetService("TeleportService"):Teleport(110384352144111, game.Players.LocalPlayer)
-end)
-AddButton(WorldTeleCat, "Teleport ke Maze", function()
-    game:GetService("TeleportService"):Teleport(93217228437611, game.Players.LocalPlayer)
-end)
-AddButton(WorldTeleCat, "Teleport ke Kartu", function()
-    game:GetService("TeleportService"):Teleport(91592804393438, game.Players.LocalPlayer)
-end)
+	-- Cek jika ada Attribute bernama Id atau CoinId
+	local attrId = obj:GetAttribute("Id") or obj:GetAttribute("CoinId") or obj:GetAttribute("UUID")
+	if typeof(attrId) == "string" and attrId ~= "" then
+		return attrId
+	end
 
--- 4. OBBY (FIRETOUCHINTEREST DENGAN DELAY 20 DETIK)
-local ObbyCat = CreateCategory("FINISH OBBY")
-
--- Membuat tombol secara manual agar teks bisa berubah saat hitung mundur
-local function AddObbyButton(parent, txt, portalPath)
-    local btn = Instance.new("TextButton")
-    btn.Parent = parent
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    btn.Text = txt
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 10
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    
-    btn.MouseButton1Click:Connect(function()
-        touchPortalWithDelay(portalPath, btn)
-    end)
+	return nil
 end
 
-AddObbyButton(ObbyCat, "Robot World", workspace.Areas.Robot.ToEntrance.PortalPart)
-AddObbyButton(ObbyCat, "Space World", workspace.Areas.Space.ToEntrance.PortalPart)
-AddObbyButton(ObbyCat, "Ninja World", workspace.Areas.Ninja.ToEntrance.PortalPart)
-AddObbyButton(ObbyCat, "AniOtodama World", workspace.Areas.AniOtodama.ToEntrance.PortalPart)
+task.spawn(function()
+	while true do
+		if running then
+			for _, item in ipairs(targetContainer:GetChildren()) do
+				if not running then break end
 
--- 5. SHOP & DECK
-local ShopCat = CreateCategory("SHOP CARD")
-AddToggle(ShopCat, "CARD PREMIUM", function(v)
-    _G.B5 = v
-    task.spawn(function()
-        while _G.B5 do pcall(function() Knit.TCGShopService.RF.Buy:InvokeServer(1002) end) task.wait(0.5) end
-    end)
+				local coinId = getCoinId(item)
+				if coinId then
+					pcall(function()
+						RequestPickup:FireServer(coinId)
+					end)
+					task.wait(delayPerPickup)
+				end
+			end
+			task.wait(loopDelay)
+		else
+			task.wait(0.2)
+		end
+	end
 end)
-AddToggle(ShopCat, "CARD NORMAL", function(v)
-    _G.B3 = v
-    task.spawn(function()
-        while _G.B3 do pcall(function() Knit.TCGShopService.RF.Buy:InvokeServer(1001) end) task.wait(0.5) end
-    end)
-end)
-AddToggle(ShopCat, "BUILD CARD", function(v)
-    _G.AutoBuild = v
-    task.spawn(function()
-        local args = {
-            {
-                SelectedUniqueCards = {
-                    501002,
-                    502001
-                },
-                SelectedSkillCards = {
-                    201001,
-                    202001,
-                    203001,
-                    204001,
-                    205001,
-                    206001,
-                    207001,
-                    208002,
-                    209002,
-                    210001,
-                    211001,
-                    212001
+
+CoinTab:CreateToggle({
+    Name = "Inf Coins",
+    CurrentValue = false,
+    Flag = "InfCoins",
+    Callback = function(v)
+        _G.AutoC = v
+        running = v
+    end,
+})
+
+CoinTab:CreateButton({
+    Name = "Touch Coins & Hop",
+    Callback = function()
+        local TeleportService = game:GetService("TeleportService")
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local Char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local HRP = Char:WaitForChild("HumanoidRootPart")
+
+        local coinsFolder = workspace:WaitForChild("Coins")
+        for _, coin in ipairs(coinsFolder:GetChildren()) do
+            if coin:IsA("BasePart") then
+                firetouchinterest(HRP, coin, 0)
+            end
+        end
+
+        task.wait(0.5)
+        if #Players:GetPlayers() <= 1 then
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        else
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end
+    end,
+})
+
+-- --- 2. TAB: TELEPORT ---
+local TeleTab = Window:CreateTab("Teleport", 4483362458)
+
+TeleTab:CreateButton({
+    Name = "Teleport ke Area Seni",
+    Callback = function() if Root then Root.CFrame = CFrame.new(-498.19, 176.02, 223.76) end end,
+})
+
+TeleTab:CreateButton({
+    Name = "Teleport ke Studio Musik",
+    Callback = function() if Root then Root.CFrame = CFrame.new(656.71, 148.01, -567.13) end end,
+})
+
+-- --- 3. TAB: WORLD TELEPORT ---
+local WorldTab = Window:CreateTab("World Teleport", 4483362458)
+
+WorldTab:CreateButton({
+    Name = "Teleport ke Obby",
+    Callback = function() game:GetService("TeleportService"):Teleport(110384352144111, Player) end,
+})
+
+WorldTab:CreateButton({
+    Name = "Teleport ke Maze",
+    Callback = function() game:GetService("TeleportService"):Teleport(93217228437611, Player) end,
+})
+
+WorldTab:CreateButton({
+    Name = "Teleport ke Kartu",
+    Callback = function() game:GetService("TeleportService"):Teleport(91592804393438, Player) end,
+})
+
+WorldTab:CreateButton({
+    Name = "Teleport ke Archive",
+    Callback = function() game:GetService("TeleportService"):Teleport(76790130055635, Player) end,
+})
+
+-- --- 4. TAB: FINISH OBBY ---
+local ObbyTab = Window:CreateTab("Finish Obby", 4483362458)
+
+ObbyTab:CreateButton({
+    Name = "Robot World (Delay 20s)",
+    Callback = function() touchPortalWithDelay(workspace.Areas.Robot.ToEntrance.PortalPart, "Robot World") end,
+})
+
+ObbyTab:CreateButton({
+    Name = "Space World (Delay 20s)",
+    Callback = function() touchPortalWithDelay(workspace.Areas.Space.ToEntrance.PortalPart, "Space World") end,
+})
+
+ObbyTab:CreateButton({
+    Name = "Ninja World (Delay 20s)",
+    Callback = function() touchPortalWithDelay(workspace.Areas.Ninja.ToEntrance.PortalPart, "Ninja World") end,
+})
+
+ObbyTab:CreateButton({
+    Name = "AniOtodama World (Delay 20s)",
+    Callback = function() touchPortalWithDelay(workspace.Areas.AniOtodama.ToEntrance.PortalPart, "AniOtodama World") end,
+})
+
+-- --- 5. TAB: SHOP CARD ---
+local ShopTab = Window:CreateTab("Shop Card", 4483362458)
+
+ShopTab:CreateToggle({
+    Name = "Card Premium",
+    CurrentValue = false,
+    Flag = "CardPrem",
+    Callback = function(v)
+        _G.B5 = v
+        task.spawn(function()
+            while _G.B5 do pcall(function() Knit.TCGShopService.RF.Buy:InvokeServer(1002) end) task.wait(0.5) end
+        end)
+    end,
+})
+
+ShopTab:CreateToggle({
+    Name = "Card Normal",
+    CurrentValue = false,
+    Flag = "CardNorm",
+    Callback = function(v)
+        _G.B3 = v
+        task.spawn(function()
+            while _G.B3 do pcall(function() Knit.TCGShopService.RF.Buy:InvokeServer(1001) end) task.wait(0.5) end
+        end)
+    end,
+})
+
+ShopTab:CreateToggle({
+    Name = "Build Card (Auto Deck)",
+    CurrentValue = false,
+    Flag = "BuildCard",
+    Callback = function(v)
+        _G.AutoBuild = v
+        task.spawn(function()
+            local args = {
+                {
+                    SelectedUniqueCards = {501002, 502001},
+                    SelectedSkillCards = {201001, 202001, 203001, 204001, 205001, 206001, 207001, 208002, 209002, 210001, 211001, 212001}
                 }
             }
-        }
-        while _G.AutoBuild do
-            pcall(function() Knit.TCGBuildDeckService.RF.BuildAnimeCard:InvokeServer(unpack(args)) end)
-            task.wait()
-        end
-    end)
-end)
+            while _G.AutoBuild do
+                pcall(function() Knit.TCGBuildDeckService.RF.BuildAnimeCard:InvokeServer(unpack(args)) end)
+                task.wait()
+            end
+        end)
+    end,
+})
+
+-- --- 6. TAB: MINIGAMES PRINTER ---
+local PrinterTab = Window:CreateTab("Minigames Printer", 4483362458)
+
+PrinterTab:CreateButton({
+    Name = "Reset / Stop Sequence",
+    Callback = function()
+        abortCurrentPrinterSequence(true)
+    end,
+})
+
+PrinterTab:CreateToggle({
+    Name = "Auto Task (Archive TaskList)",
+    CurrentValue = false,
+    Flag = "AutoArchiveTaskToggle",
+    Callback = function(v)
+        setAutoTaskEnabled(v)
+    end,
+})
+
+PrinterTab:CreateToggle({
+    Name = "Auto Try Again",
+    CurrentValue = false,
+    Flag = "AutoTryAgainToggle",
+    Callback = function(v)
+        setAutoTryAgainEnabled(v)
+    end,
+})
+
+PrinterTab:CreateDropdown({
+    Name = "Pilih Stage",
+    Options = {"Stage1", "Stage2", "Stage3"},
+    CurrentOption = {selectedStage},
+    MultipleOptions = false,
+    Flag = "PrinterStageDropdown",
+    Callback = function(Option)
+        local chosen = type(Option) == "table" and Option[1] or Option
+        if not chosen then return end
+        selectedStage = chosen
+        Rayfield:Notify({
+            Title = "Stage Dipilih",
+            Content = "Target aktif sekarang: workspace." .. selectedStage .. ".Stations",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
+
+PrinterTab:CreateButton({
+    Name = "Auto Sequence Printer (KeyAnimationBase)",
+    Callback = function()
+        runPrinterSequence("KeyAnimationBase")
+    end,
+})
+
+PrinterTab:CreateButton({
+    Name = "Auto Sequence Printer (TimeSheetBase)",
+    Callback = function()
+        runPrinterSequence("TimeSheetBase")
+    end,
+})
+
+PrinterTab:CreateButton({
+    Name = "Auto Sequence Printer (VideoBase)",
+    Callback = function()
+        runPrinterSequence("VideoBase")
+    end,
+})
+
+PrinterTab:CreateButton({
+    Name = "Auto Sequence Printer (CelBase)",
+    Callback = function()
+        runPrinterSequence("CelBase", "BlankPaperBase")
+    end,
+})
+
+PrinterTab:CreateButton({
+    Name = "Auto Sequence Printer (ScriptBase)",
+    Callback = function()
+        runPrinterSequence("ScriptBase", "ClearPanelBase")
+    end,
+})
 
 -- Anti-AFK
 local Vu = game:GetService("VirtualUser")
