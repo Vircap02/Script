@@ -1,7 +1,7 @@
-local players = cloneref(game:GetService("Players"))
-local userInputService = cloneref(game:GetService("UserInputService"))
-local runService = cloneref(game:GetService("RunService"))
-local tweenService = cloneref(game:GetService("TweenService"))
+local players = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 
 local localPlayer = players.LocalPlayer
@@ -10,7 +10,7 @@ local mouse = localPlayer:GetMouse()
 
 local function getParentGui()
     local ok, cg = pcall(function()
-        return cloneref(game:GetService("CoreGui"))
+        return game:GetService("CoreGui")
     end)
     if ok and cg then
         local testOk = pcall(function()
@@ -28,7 +28,9 @@ end
 local uiParent = getParentGui()
 
 if uiParent:FindFirstChild("AceSniperUI") then
-    uiParent.AceSniperUI:Destroy()
+    pcall(function()
+        uiParent.AceSniperUI:Destroy()
+    end)
 end
 
 -- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
@@ -416,92 +418,89 @@ local function extractIdFromText(txt)
     return nil
 end
 
+local function safeName(inst)
+    local ok, nm = pcall(function() return inst.Name end)
+    return ok and tostring(nm) or ""
+end
+
 local function scanContainer(container, state)
     if not container then return end
 
-    for _, attrName in ipairs(container:GetAttributes()) do
-        local _ = attrName
-    end
-    for attrName, v in pairs(container:GetAttributes()) do
-        local lattr = string.lower(tostring(attrName))
-        if string.find(lattr, "id", 1, true) then
-            local n = tonumber(v)
-            if n and #tostring(math.floor(n)) >= 6 then
-                state.id = state.id or n
-            end
-        elseif string.find(lattr, "name", 1, true) and type(v) == "string" and not isNoiseText(v) then
-            state.name = state.name or v
-        elseif string.find(lattr, "type", 1, true) and type(v) == "string" then
-            state.itemType = state.itemType or normalizeType(v)
-        end
-    end
-
-    for _, desc in ipairs(container:GetDescendants()) do
-        local lname = string.lower(desc.Name)
-        if desc:IsA("IntValue") or desc:IsA("NumberValue") or desc:IsA("StringValue") then
-            if string.find(lname, "id", 1, true) then
-                local n = tonumber(desc.Value)
+    pcall(function()
+        for attrName, v in pairs(container:GetAttributes()) do
+            local lattr = string.lower(tostring(attrName))
+            if string.find(lattr, "id", 1, true) then
+                local n = tonumber(v)
                 if n and #tostring(math.floor(n)) >= 6 then
                     state.id = state.id or n
                 end
-            elseif string.find(lname, "name", 1, true) and not isNoiseText(tostring(desc.Value)) then
-                state.name = state.name or tostring(desc.Value)
-            elseif string.find(lname, "type", 1, true) then
-                state.itemType = state.itemType or normalizeType(tostring(desc.Value))
-            end
-        elseif desc:IsA("TextLabel") or desc:IsA("TextButton") then
-            local trimmed = string.gsub(desc.Text, "^%s*(.-)%s*$", "%1")
-            if #trimmed > 0 then
-                if string.find(trimmed, "|", 1, true) or string.find(string.lower(trimmed), "accessory", 1, true) then
-                    local norm = normalizeType(trimmed)
-                    if norm then
-                        state.itemType = state.itemType or norm
-                    end
-                elseif not isNoiseText(trimmed) then
-                    if not state.name and not string.match(trimmed, "^[%d%.,]+$") then
-                        state.name = trimmed
-                    end
-                end
-                local idCand = extractIdFromText(trimmed)
-                if idCand then
-                    state.id = state.id or idCand
-                end
-            end
-        elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
-            local imgId = string.match(tostring(desc.Image), "(%d%d%d%d%d%d+)")
-            if imgId and not state.id then
-                state.fallbackId = state.fallbackId or tonumber(imgId)
+            elseif string.find(lattr, "name", 1, true) and type(v) == "string" and not isNoiseText(v) then
+                state.name = state.name or v
+            elseif string.find(lattr, "type", 1, true) and type(v) == "string" then
+                state.itemType = state.itemType or normalizeType(v)
             end
         end
-    end
-end
-
-local function getAccessibleGuiRoots()
-    local roots = { playerGui }
-    local ok, cg = pcall(function()
-        return cloneref(game:GetService("CoreGui"))
     end)
-    if ok and cg and cg ~= uiParent then
-        local canRead = pcall(function()
-            local _ = cg:GetChildren()
+
+    local okDesc, descList = pcall(function()
+        return container:GetDescendants()
+    end)
+    if not okDesc or not descList then return end
+
+    for _, desc in ipairs(descList) do
+        pcall(function()
+            local lname = string.lower(desc.Name)
+            if desc:IsA("IntValue") or desc:IsA("NumberValue") or desc:IsA("StringValue") then
+                if string.find(lname, "id", 1, true) then
+                    local n = tonumber(desc.Value)
+                    if n and #tostring(math.floor(n)) >= 6 then
+                        state.id = state.id or n
+                    end
+                elseif string.find(lname, "name", 1, true) and not isNoiseText(tostring(desc.Value)) then
+                    state.name = state.name or tostring(desc.Value)
+                elseif string.find(lname, "type", 1, true) then
+                    state.itemType = state.itemType or normalizeType(tostring(desc.Value))
+                end
+            elseif desc:IsA("TextLabel") or desc:IsA("TextButton") then
+                local trimmed = string.gsub(desc.Text, "^%s*(.-)%s*$", "%1")
+                if #trimmed > 0 then
+                    if string.find(trimmed, "|", 1, true) or string.find(string.lower(trimmed), "accessory", 1, true) then
+                        local norm = normalizeType(trimmed)
+                        if norm then
+                            state.itemType = state.itemType or norm
+                        end
+                    elseif not isNoiseText(trimmed) then
+                        if not state.name and not string.match(trimmed, "^[%d%.,]+$") then
+                            state.name = trimmed
+                        end
+                    end
+                    local idCand = extractIdFromText(trimmed)
+                    if idCand then
+                        state.id = state.id or idCand
+                    end
+                end
+            elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+                local imgId = string.match(tostring(desc.Image), "(%d%d%d%d%d%d+)")
+                if imgId and not state.id then
+                    state.fallbackId = state.fallbackId or tonumber(imgId)
+                end
+            end
         end)
-        if canRead then
-            table.insert(roots, cg)
-        end
     end
-    return roots
 end
 
 local function isHitOwnGui(posX, posY)
-    for _, root in ipairs(getAccessibleGuiRoots()) do
-        local ok, objs = pcall(function()
-            return root:GetGuiObjectsAtPosition(posX, posY)
-        end)
-        if ok and objs then
-            for _, gObj in ipairs(objs) do
-                if gObj:IsDescendantOf(gui) then
-                    return true
-                end
+    local ok, objs = pcall(function()
+        return playerGui:GetGuiObjectsAtPosition(posX, posY)
+    end)
+    if ok and objs then
+        for _, gObj in ipairs(objs) do
+            local isDesc = false
+            pcall(function()
+                isDesc = gObj:IsDescendantOf(gui)
+            end)
+            if isDesc then
+                return true
             end
         end
     end
@@ -512,49 +511,63 @@ local function detectAtPosition(posX, posY)
     local state = { id = nil, name = nil, itemType = nil, fallbackId = nil, debugHit = nil }
 
     local topUiObj = nil
-    for _, root in ipairs(getAccessibleGuiRoots()) do
-        local okGui, guiList = pcall(function()
-            return root:GetGuiObjectsAtPosition(posX, posY)
-        end)
-        if okGui and guiList and #guiList > 0 then
-            for _, gObj in ipairs(guiList) do
+    local okGui, guiList = pcall(function()
+        return playerGui:GetGuiObjectsAtPosition(posX, posY)
+    end)
+    if okGui and guiList and #guiList > 0 then
+        for _, gObj in ipairs(guiList) do
+            local valid = false
+            pcall(function()
                 if not gObj:IsDescendantOf(gui) and gObj.Visible then
-                    topUiObj = gObj
-                    state.debugHit = gObj.Name
-                    break
+                    valid = true
                 end
+            end)
+            if valid then
+                topUiObj = gObj
+                state.debugHit = safeName(gObj)
+                break
             end
         end
-        if topUiObj then break end
     end
 
     if topUiObj then
         local curr = topUiObj
         for _ = 1, 9 do
-            if not curr or curr:IsA("ScreenGui") or curr:IsA("PlayerGui") or curr:IsA("CoreGui") then break end
+            if not curr or curr == playerGui then break end
+            local isScreen = false
+            pcall(function() isScreen = curr:IsA("ScreenGui") end)
+            if isScreen then break end
             scanContainer(curr, state)
             if state.id and state.name and state.itemType then
                 break
             end
-            curr = curr.Parent
+            local okP, par = pcall(function() return curr.Parent end)
+            if not okP then break end
+            curr = par
         end
 
         if not (state.id and state.name) then
-            local screenRoot = topUiObj:FindFirstAncestorOfClass("ScreenGui")
+            local screenRoot = nil
+            pcall(function() screenRoot = topUiObj:FindFirstAncestorOfClass("ScreenGui") end)
             if screenRoot then
-                for _, d in ipairs(screenRoot:GetDescendants()) do
-                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 120 and d.AbsoluteSize.Y > 120 then
-                        local hasShopKeyword = false
-                        for _, sub in ipairs(d:GetDescendants()) do
-                            if (sub:IsA("TextLabel") or sub:IsA("TextButton")) then
-                                local st = string.lower(sub.Text)
-                                if st == "buy" or st == "locked" or string.find(st, "pts", 1, true) or string.find(st, "accessory", 1, true) then
-                                    hasShopKeyword = true
-                                    break
+                local okD, desc = pcall(function() return screenRoot:GetDescendants() end)
+                if okD and desc then
+                    for _, d in ipairs(desc) do
+                        local matched = false
+                        pcall(function()
+                            if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 120 and d.AbsoluteSize.Y > 120 then
+                                for _, sub in ipairs(d:GetDescendants()) do
+                                    if sub:IsA("TextLabel") or sub:IsA("TextButton") then
+                                        local st = string.lower(sub.Text)
+                                        if st == "buy" or st == "locked" or string.find(st, "pts", 1, true) or string.find(st, "accessory", 1, true) then
+                                            matched = true
+                                            break
+                                        end
+                                    end
                                 end
                             end
-                        end
-                        if hasShopKeyword then
+                        end)
+                        if matched then
                             scanContainer(d, state)
                             break
                         end
@@ -565,20 +578,23 @@ local function detectAtPosition(posX, posY)
     end
 
     if not (state.id and state.name and state.itemType) then
-        local target3D = mouse.Target
+        local target3D = nil
+        pcall(function() target3D = mouse.Target end)
         local cam = workspace.CurrentCamera
         if cam then
-            local ray = cam:ViewportPointToRay(posX, posY)
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-            if localPlayer.Character then
-                rayParams.FilterDescendantsInstances = { localPlayer.Character }
-            end
-            local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
-            if res and res.Instance then
+            local okRay, res = pcall(function()
+                local ray = cam:ViewportPointToRay(posX, posY)
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                if localPlayer.Character then
+                    rayParams.FilterDescendantsInstances = { localPlayer.Character }
+                end
+                return workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+            end)
+            if okRay and res and res.Instance then
                 target3D = res.Instance
                 if not state.debugHit then
-                    state.debugHit = res.Instance.Name
+                    state.debugHit = safeName(res.Instance)
                 end
             end
         end
@@ -588,17 +604,22 @@ local function detectAtPosition(posX, posY)
             for _ = 1, 7 do
                 if not curr or curr == workspace then break end
                 scanContainer(curr, state)
-                local digits = string.match(curr.Name, "(%d%d%d%d%d%d+)")
-                if digits and not state.id then
-                    state.id = tonumber(digits)
-                end
-                if not state.itemType and curr:IsA("Accoutrement") and curr.AccessoryType ~= Enum.AccessoryType.None then
-                    state.itemType = curr.AccessoryType.Name
-                end
-                if not state.name and not curr:IsA("BasePart") and not string.match(curr.Name, "^%d+$") and not isNoiseText(curr.Name) then
-                    state.name = curr.Name
-                end
-                curr = curr.Parent
+                pcall(function()
+                    local cname = curr.Name
+                    local digits = string.match(cname, "(%d%d%d%d%d%d+)")
+                    if digits and not state.id then
+                        state.id = tonumber(digits)
+                    end
+                    if not state.itemType and curr:IsA("Accoutrement") and curr.AccessoryType ~= Enum.AccessoryType.None then
+                        state.itemType = curr.AccessoryType.Name
+                    end
+                    if not state.name and not curr:IsA("BasePart") and not string.match(cname, "^%d+$") and not isNoiseText(cname) then
+                        state.name = cname
+                    end
+                end)
+                local okP, par = pcall(function() return curr.Parent end)
+                if not okP then break end
+                curr = par
             end
         end
     end
@@ -660,54 +681,53 @@ local function simulateVirtualMouseClick()
         end
     end)
 
-    for _, root in ipairs(getAccessibleGuiRoots()) do
-        local ok, objs = pcall(function()
-            return root:GetGuiObjectsAtPosition(cx, cy)
-        end)
-        if ok and objs then
-            for _, gObj in ipairs(objs) do
-                if not gObj:IsDescendantOf(gui) and gObj.Visible then
-                    if gObj:IsA("GuiButton") then
-                        pcall(function()
-                            for _, sigName in ipairs({ "MouseButton1Down", "MouseButton1Click", "Activated" }) do
-                                local sig = gObj[sigName]
-                                if sig and typeof(sig) == "RBXScriptSignal" and firesignal then
-                                    firesignal(sig)
-                                end
-                            end
-                        end)
-                        break
+    local ok, objs = pcall(function()
+        return playerGui:GetGuiObjectsAtPosition(cx, cy)
+    end)
+    if ok and objs then
+        for _, gObj in ipairs(objs) do
+            pcall(function()
+                if not gObj:IsDescendantOf(gui) and gObj.Visible and gObj:IsA("GuiButton") then
+                    for _, sigName in ipairs({ "MouseButton1Down", "MouseButton1Click", "Activated" }) do
+                        local sig = gObj[sigName]
+                        if sig and typeof(sig) == "RBXScriptSignal" and firesignal then
+                            firesignal(sig)
+                        end
                     end
                 end
-            end
+            end)
         end
     end
 
     local cam = workspace.CurrentCamera
     if cam then
-        local ray = cam:ViewportPointToRay(cx, cy)
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        if localPlayer.Character then
-            rayParams.FilterDescendantsInstances = { localPlayer.Character }
-        end
-        local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
-        if res and res.Instance then
-            for _, d in ipairs(res.Instance:GetDescendants()) do
-                if d:IsA("ClickDetector") and fireclickdetector then
-                    pcall(function() fireclickdetector(d) end)
-                elseif d:IsA("ProximityPrompt") and fireproximityprompt then
-                    pcall(function() fireproximityprompt(d) end)
-                end
+        local okRay, res = pcall(function()
+            local ray = cam:ViewportPointToRay(cx, cy)
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            if localPlayer.Character then
+                rayParams.FilterDescendantsInstances = { localPlayer.Character }
             end
-            local parentModel = res.Instance:FindFirstAncestorOfClass("Model")
-            if parentModel then
-                for _, d in ipairs(parentModel:GetDescendants()) do
+            return workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+        end)
+        if okRay and res and res.Instance then
+            pcall(function()
+                for _, d in ipairs(res.Instance:GetDescendants()) do
                     if d:IsA("ClickDetector") and fireclickdetector then
                         pcall(function() fireclickdetector(d) end)
+                    elseif d:IsA("ProximityPrompt") and fireproximityprompt then
+                        pcall(function() fireproximityprompt(d) end)
                     end
                 end
-            end
+                local parentModel = res.Instance:FindFirstAncestorOfClass("Model")
+                if parentModel then
+                    for _, d in ipairs(parentModel:GetDescendants()) do
+                        if d:IsA("ClickDetector") and fireclickdetector then
+                            pcall(function() fireclickdetector(d) end)
+                        end
+                    end
+                end
+            end)
         end
     end
 
@@ -973,7 +993,8 @@ do
         if not activeDragObj then return end
         if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
             local d = i.Position - dragStart
-            local vp = workspace.CurrentCamera.ViewportSize
+            local cam = workspace.CurrentCamera
+            local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
             local gs = activeDragObj.AbsoluteSize
             
             activeDragObj.Position = UDim2.new(
