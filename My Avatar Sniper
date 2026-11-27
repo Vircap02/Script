@@ -1,0 +1,736 @@
+local coreGui = cloneref(game:GetService("CoreGui"))
+local userInputService = cloneref(game:GetService("UserInputService"))
+local runService = cloneref(game:GetService("RunService"))
+local tweenService = cloneref(game:GetService("TweenService"))
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local players = cloneref(game:GetService("Players"))
+
+local localPlayer = players.LocalPlayer
+local mouse = localPlayer:GetMouse()
+
+if coreGui:FindFirstChild("AceSniperUI") then
+    coreGui.AceSniperUI:Destroy()
+end
+
+-- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
+local COL_BG = Color3.fromRGB(15, 12, 22)
+local COL_BOX = Color3.fromRGB(25, 19, 36)
+local MIN_NORMAL = Color3.fromRGB(45, 25, 15)
+local MIN_HOVER = Color3.fromRGB(70, 35, 18)
+local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
+local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
+local BTN_START = Color3.fromRGB(210, 95, 0)
+local BTN_STOP = Color3.fromRGB(160, 25, 25)
+local BTN_DETECT_ON = Color3.fromRGB(35, 135, 85)
+local BTN_DETECT_OFF = Color3.fromRGB(55, 30, 85)
+
+local STROKE_CS = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 140, 0)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(220, 100, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 15, 60)),
+})
+
+local allGrads = {}
+
+local function animStroke(parent, thick)
+    local s = Instance.new("UIStroke")
+    s.Thickness = thick or 1
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    
+    local g = Instance.new("UIGradient")
+    g.Color = STROKE_CS
+    g.Rotation = 45
+    g.Parent = s
+    
+    table.insert(allGrads, g)
+    return s
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AceSniperUI"
+gui.ResetOnSpawn = false
+gui.Parent = coreGui
+
+local FULL_W, FULL_H = 290, 236
+local MINI_W, MINI_H = 42, 42
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.BackgroundColor3 = COL_BG
+main.BackgroundTransparency = 0.1
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+animStroke(main, 1.5)
+
+-- Logo Gambar di sebelah kiri Judul Utama
+local logoImg = Instance.new("ImageLabel")
+logoImg.Size = UDim2.new(0, 24, 0, 24)
+logoImg.Position = UDim2.new(0, 10, 0, 9)
+logoImg.BackgroundTransparency = 1
+logoImg.Image = "rbxassetid://134667732794034"
+logoImg.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -96, 0, 16)
+title.Position = UDim2.new(0, 40, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "MY AVATAR"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 11.5
+title.TextColor3 = Color3.fromRGB(255, 140, 0)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = main
+
+local tGrad = Instance.new("UIGradient")
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 170, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 50)),
+})
+tGrad.Parent = title
+
+local desc = Instance.new("TextLabel")
+desc.Size = UDim2.new(1, -96, 0, 10)
+desc.Position = UDim2.new(0, 40, 0, 22)
+desc.BackgroundTransparency = 1
+desc.Text = "Made By Virgoboy"
+desc.Font = Enum.Font.GothamMedium
+desc.TextSize = 8.5
+desc.TextColor3 = Color3.fromRGB(180, 130, 220)
+desc.TextXAlignment = Enum.TextXAlignment.Left
+desc.Parent = main
+
+-- Tombol Close (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 22, 0, 22)
+closeBtn.Position = UDim2.new(1, -30, 0, 8)
+closeBtn.BackgroundColor3 = CLOSE_NORMAL
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 11
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = main
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+animStroke(closeBtn, 1)
+
+local closeScale = Instance.new("UIScale")
+closeScale.Scale = 1
+closeScale.Parent = closeBtn
+
+-- Tombol Minimize (-)
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 22, 0, 22)
+minBtn.Position = UDim2.new(1, -56, 0, 8)
+minBtn.BackgroundColor3 = MIN_NORMAL
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 200, 100)
+minBtn.Font = Enum.Font.GothamBlack
+minBtn.TextSize = 13
+minBtn.BorderSizePixel = 0
+minBtn.AutoButtonColor = false
+minBtn.Parent = main
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 5)
+animStroke(minBtn, 1)
+
+local minScale = Instance.new("UIScale")
+minScale.Scale = 1
+minScale.Parent = minBtn
+
+-- Garis Pemisah Header
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, -20, 0, 1)
+divider.Position = UDim2.new(0, 10, 0, 39)
+divider.BackgroundColor3 = Color3.fromRGB(70, 35, 95)
+divider.BorderSizePixel = 0
+divider.Parent = main
+
+-- Helper Pembuat Input Box
+local function createInput(placeholder, defaultText, yPos)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(1, -20, 0, 27)
+    box.Position = UDim2.new(0, 10, 0, yPos)
+    box.BackgroundColor3 = COL_BOX
+    box.PlaceholderText = placeholder
+    box.PlaceholderColor3 = Color3.fromRGB(130, 105, 155)
+    box.Text = defaultText
+    box.TextColor3 = Color3.fromRGB(255, 225, 180)
+    box.Font = Enum.Font.GothamMedium
+    box.TextSize = 11
+    box.ClearTextOnFocus = false
+    box.BorderSizePixel = 0
+    box.Parent = main
+    
+    local pad = Instance.new("UIPadding")
+    pad.PaddingLeft = UDim.new(0, 8)
+    pad.PaddingRight = UDim.new(0, 8)
+    pad.Parent = box
+    
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    animStroke(box, 1)
+    return box
+end
+
+-- Kolom Input Manual / Auto Detect
+local idInput = createInput("Asset ID (Contoh: 70930483548956)", "70930483548956", 47)
+local nameInput = createInput("Nama Item (Contoh: Green Lollipop )", "Green Lollipop ", 79)
+local typeInput = createInput("Tipe Item (Contoh: FaceAccessory)", "FaceAccessory", 111)
+
+-- Tombol Auto Detect Saat Klik Item
+local autoDetectEnabled = false
+local detectBtn = Instance.new("TextButton")
+detectBtn.Size = UDim2.new(1, -20, 0, 26)
+detectBtn.Position = UDim2.new(0, 10, 0, 144)
+detectBtn.BackgroundColor3 = BTN_DETECT_OFF
+detectBtn.Text = "AUTO DETECT KLIK: OFF"
+detectBtn.TextColor3 = Color3.fromRGB(235, 215, 255)
+detectBtn.Font = Enum.Font.GothamBold
+detectBtn.TextSize = 10.5
+detectBtn.BorderSizePixel = 0
+detectBtn.AutoButtonColor = false
+detectBtn.Parent = main
+Instance.new("UICorner", detectBtn).CornerRadius = UDim.new(0, 6)
+animStroke(detectBtn, 1)
+
+-- Tombol Single Snipe (1x Fire)
+local snipeOnceBtn = Instance.new("TextButton")
+snipeOnceBtn.Size = UDim2.new(0.48, -12, 0, 28)
+snipeOnceBtn.Position = UDim2.new(0, 10, 0, 176)
+snipeOnceBtn.BackgroundColor3 = Color3.fromRGB(55, 25, 80)
+snipeOnceBtn.Text = "SNIPE (1X)"
+snipeOnceBtn.TextColor3 = Color3.fromRGB(255, 200, 120)
+snipeOnceBtn.Font = Enum.Font.GothamBold
+snipeOnceBtn.TextSize = 11
+snipeOnceBtn.BorderSizePixel = 0
+snipeOnceBtn.AutoButtonColor = false
+snipeOnceBtn.Parent = main
+Instance.new("UICorner", snipeOnceBtn).CornerRadius = UDim.new(0, 6)
+animStroke(snipeOnceBtn, 1)
+
+-- Tombol Auto Snipe (Loop)
+local isSniping = false
+local autoSnipeBtn = Instance.new("TextButton")
+autoSnipeBtn.Size = UDim2.new(0.52, -12, 0, 28)
+autoSnipeBtn.Position = UDim2.new(0.48, 2, 0, 176)
+autoSnipeBtn.BackgroundColor3 = BTN_START
+autoSnipeBtn.Text = "AUTO SNIPE: OFF"
+autoSnipeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoSnipeBtn.Font = Enum.Font.GothamBlack
+autoSnipeBtn.TextSize = 11
+autoSnipeBtn.BorderSizePixel = 0
+autoSnipeBtn.AutoButtonColor = false
+autoSnipeBtn.Parent = main
+Instance.new("UICorner", autoSnipeBtn).CornerRadius = UDim.new(0, 6)
+animStroke(autoSnipeBtn, 1)
+
+-- Status Label
+local statusLbl = Instance.new("TextLabel")
+statusLbl.Size = UDim2.new(1, -20, 0, 16)
+statusLbl.Position = UDim2.new(0, 10, 0, 211)
+statusLbl.BackgroundTransparency = 1
+statusLbl.Text = "Status: Siap digunakan"
+statusLbl.Font = Enum.Font.Gotham
+statusLbl.TextSize = 9.5
+statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
+statusLbl.TextXAlignment = Enum.TextXAlignment.Center
+statusLbl.TextTruncate = Enum.TextTruncate.AtEnd
+statusLbl.Parent = main
+
+-- Normalisasi Tipe Accessory dari teks UI (misal "Accessories | Hat" atau "Hat")
+local TYPE_MAP = {
+    face = "FaceAccessory",
+    faceaccessory = "FaceAccessory",
+    hair = "HairAccessory",
+    hairaccessory = "HairAccessory",
+    hat = "HatAccessory",
+    hataccessory = "HatAccessory",
+    back = "BackAccessory",
+    backaccessory = "BackAccessory",
+    front = "FrontAccessory",
+    frontaccessory = "FrontAccessory",
+    shoulder = "ShoulderAccessory",
+    shoulderaccessory = "ShoulderAccessory",
+    waist = "WaistAccessory",
+    waistaccessory = "WaistAccessory",
+    neck = "NeckAccessory",
+    neckaccessory = "NeckAccessory",
+}
+
+local function normalizeType(raw)
+    if type(raw) ~= "string" then return nil end
+    local clean = string.gsub(raw, "^%s*(.-)%s*$", "%1")
+    -- Ambil bagian setelah '|' bila formatnya "Accessories | Hat"
+    local afterPipe = string.match(clean, "|%s*([^|]+)$")
+    if afterPipe then
+        clean = string.gsub(afterPipe, "^%s*(.-)%s*$", "%1")
+    end
+    local lower = string.lower(clean)
+    if TYPE_MAP[lower] then
+        return TYPE_MAP[lower]
+    end
+    for key, mapped in pairs(TYPE_MAP) do
+        if string.find(lower, key, 1, true) then
+            return mapped
+        end
+    end
+    return #clean > 0 and clean or nil
+end
+
+local function isNoiseText(txt)
+    if type(txt) ~= "string" then return true end
+    local t = string.gsub(txt, "^%s*(.-)%s*$", "%1")
+    if #t == 0 then return true end
+    local lt = string.lower(t)
+    -- Abaikan label UI umum, harga/poin, stok, dan timer
+    if lt == "locked" or lt == "buy" or lt == "buy points" or lt == "outfits"
+        or lt == "featured" or lt == "all" or lt == "new" or lt == "upcoming"
+        or lt == "out of season" or lt == "back" or string.find(lt, "no stoc", 1, true)
+        or string.find(lt, "pts", 1, true) or string.find(lt, "/10k", 1, true)
+        or string.find(lt, "%d+h") or string.find(lt, "%d+m") or string.find(lt, "%d+s")
+        or string.match(t, "^[%d%.,]+$") then
+        return true
+    end
+    return false
+end
+
+local function extractIdFromText(txt)
+    if type(txt) ~= "string" then return nil end
+    -- Hindari teks yang mengandung "pts", "k/", atau format waktu/jam
+    local lt = string.lower(txt)
+    if string.find(lt, "pts", 1, true) or string.find(lt, "k/", 1, true) or string.find(lt, "minutes", 1, true) then
+        return nil
+    end
+    for digits in string.gmatch(txt, "(%d+)") do
+        local num = tonumber(digits)
+        -- Asset ID UGC umumnya panjang (>= 6 digit)
+        if num and #digits >= 6 then
+            return num
+        end
+    end
+    return nil
+end
+
+-- Scan container (Card/Frame/Modal) untuk mencari ID, Nama, dan Tipe
+local function scanContainer(container, state)
+    if not container then return end
+
+    -- Cek attribute pada container
+    for _, attrName in ipairs({ "AssetId", "ItemId", "ProductId", "UGCId", "Id" }) do
+        local v = container:GetAttribute(attrName)
+        local n = tonumber(v)
+        if n and #tostring(math.floor(n)) >= 6 then
+            state.id = state.id or n
+        end
+    end
+    if not state.name then
+        local aName = container:GetAttribute("ItemName") or container:GetAttribute("AssetName") or container:GetAttribute("DisplayName")
+        if type(aName) == "string" and not isNoiseText(aName) then
+            state.name = aName
+        end
+    end
+    if not state.itemType then
+        local aType = container:GetAttribute("AccessoryType") or container:GetAttribute("AssetType") or container:GetAttribute("ItemType") or container:GetAttribute("Type")
+        if type(aType) == "string" then
+            state.itemType = normalizeType(aType)
+        end
+    end
+
+    -- Cek descendant di dalam container
+    for _, desc in ipairs(container:GetDescendants()) do
+        local lname = string.lower(desc.Name)
+        if desc:IsA("IntValue") or desc:IsA("NumberValue") or desc:IsA("StringValue") then
+            if lname == "assetid" or lname == "itemid" or lname == "ugcid" or lname == "id" then
+                local n = tonumber(desc.Value)
+                if n and #tostring(math.floor(n)) >= 6 then
+                    state.id = state.id or n
+                end
+            elseif (lname == "itemname" or lname == "assetname" or lname == "displayname") and not isNoiseText(tostring(desc.Value)) then
+                state.name = state.name or tostring(desc.Value)
+            elseif lname == "accessorytype" or lname == "assettype" or lname == "itemtype" or lname == "type" then
+                state.itemType = state.itemType or normalizeType(tostring(desc.Value))
+            end
+        elseif desc:IsA("TextLabel") or desc:IsA("TextButton") then
+            local rawTxt = desc.Text
+            local trimmed = string.gsub(rawTxt, "^%s*(.-)%s*$", "%1")
+            if #trimmed > 0 then
+                -- Deteksi tipe seperti "Accessories | Hat"
+                if string.find(trimmed, "|", 1, true) or string.find(string.lower(trimmed), "accessory", 1, true) then
+                    local norm = normalizeType(trimmed)
+                    if norm then
+                        state.itemType = state.itemType or norm
+                    end
+                elseif not isNoiseText(trimmed) then
+                    -- Nama item biasanya berada di label yang bukan angka/tombol aksi
+                    if not state.name and not string.match(trimmed, "^[%d%.,]+$") then
+                        state.name = trimmed
+                    end
+                end
+                local idCand = extractIdFromText(trimmed)
+                if idCand then
+                    state.id = state.id or idCand
+                end
+            end
+        elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
+            local imgId = string.match(tostring(desc.Image), "(%d%d%d%d%d%d+)")
+            if imgId and not state.id then
+                -- Simpan sebagai kandidat ID cadangan jika belum ada ID langsung
+                state.fallbackId = state.fallbackId or tonumber(imgId)
+            end
+        end
+    end
+end
+
+local function detectAtPosition(posX, posY)
+    local state = { id = nil, name = nil, itemType = nil, fallbackId = nil }
+
+    -- 1. Cek UI elements pada posisi klik
+    local okGui, guiList = pcall(function()
+        return localPlayer.PlayerGui:GetGuiObjectsAtPosition(posX, posY)
+    end)
+
+    if okGui and guiList and #guiList > 0 then
+        local topObj = guiList[1]
+        local curr = topObj
+        for _ = 1, 6 do
+            if not curr or curr:IsA("ScreenGui") or curr:IsA("PlayerGui") then break end
+            scanContainer(curr, state)
+            if state.id and state.name and state.itemType then
+                break
+            end
+            curr = curr.Parent
+        end
+
+        -- Jika klik membuka popup/modal di dalam ScreenGui yang sama, scan juga frame yang baru/sedang terlihat
+        if not (state.id and state.name) then
+            local screenRoot = topObj:FindFirstAncestorOfClass("ScreenGui")
+            if screenRoot then
+                for _, d in ipairs(screenRoot:GetDescendants()) do
+                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 150 and d.AbsoluteSize.Y > 150 then
+                        local hasBuyOrLocked = false
+                        for _, sub in ipairs(d:GetDescendants()) do
+                            if (sub:IsA("TextLabel") or sub:IsA("TextButton")) then
+                                local st = string.lower(sub.Text)
+                                if st == "buy" or st == "locked" then
+                                    hasBuyOrLocked = true
+                                    break
+                                end
+                            end
+                        end
+                        if hasBuyOrLocked then
+                            scanContainer(d, state)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- 2. Fallback cek 3D Workspace bila tidak di UI atau belum lengkap
+    if not (state.id and state.name and state.itemType) and mouse.Target then
+        local curr = mouse.Target
+        for _ = 1, 6 do
+            if not curr or curr == workspace then break end
+            scanContainer(curr, state)
+            local digits = string.match(curr.Name, "(%d%d%d%d%d%d+)")
+            if digits and not state.id then
+                state.id = tonumber(digits)
+            end
+            if not state.itemType and curr:IsA("Accoutrement") and curr.AccessoryType ~= Enum.AccessoryType.None then
+                state.itemType = curr.AccessoryType.Name
+            end
+            if not state.name and not curr:IsA("BasePart") and not string.match(curr.Name, "^%d+$") and not isNoiseText(curr.Name) then
+                state.name = curr.Name
+            end
+            curr = curr.Parent
+        end
+    end
+
+    if not state.id and state.fallbackId then
+        state.id = state.fallbackId
+    end
+
+    if state.id or state.name or state.itemType then
+        return state
+    end
+    return nil
+end
+
+-- Event Klik untuk Auto Detect (baik di UI maupun World)
+userInputService.InputBegan:Connect(function(input, _gameProcessed)
+    if not autoDetectEnabled then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local p = input.Position
+        -- Jangan deteksi klik pada GUI sniper sendiri
+        local snipeHit = false
+        for _, gObj in ipairs(coreGui:GetGuiObjectsAtPosition(p.X, p.Y)) do
+            if gObj:IsDescendantOf(gui) then
+                snipeHit = true
+                break
+            end
+        end
+        if snipeHit then return end
+
+        -- Beri sedikit jeda agar popup detail item sempat muncul jika baru diklik
+        task.delay(0.08, function()
+            if not autoDetectEnabled then return end
+            local data = detectAtPosition(p.X, p.Y)
+            if data then
+                if data.id then
+                    idInput.Text = tostring(data.id)
+                end
+                if data.name then
+                    nameInput.Text = data.name
+                end
+                if data.itemType then
+                    typeInput.Text = data.itemType
+                end
+                statusLbl.Text = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+                statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
+            else
+                statusLbl.Text = "Belum ada data item terbaca pada klik ini"
+                statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+            end
+        end)
+    end
+end)
+
+detectBtn.MouseButton1Click:Connect(function()
+    autoDetectEnabled = not autoDetectEnabled
+    if autoDetectEnabled then
+        detectBtn.Text = "AUTO DETECT KLIK: ON"
+        detectBtn.BackgroundColor3 = BTN_DETECT_ON
+        statusLbl.Text = "Klik item di shop/popup untuk auto-fill"
+        statusLbl.TextColor3 = Color3.fromRGB(120, 255, 180)
+    else
+        detectBtn.Text = "AUTO DETECT KLIK: OFF"
+        detectBtn.BackgroundColor3 = BTN_DETECT_OFF
+        statusLbl.Text = "Status: Auto Detect dimatikan"
+        statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
+    end
+end)
+
+-- Fungsi Eksekusi Remote Purchase
+local function fireSnipe()
+    local assetId = tonumber(idInput.Text)
+    local itemName = nameInput.Text
+    local itemType = typeInput.Text
+
+    if not assetId then
+        statusLbl.Text = "Error: ID harus berupa angka!"
+        statusLbl.TextColor3 = Color3.fromRGB(255, 90, 90)
+        return false
+    end
+
+    local args = {
+        {
+            {
+                assetId,
+                "Asset",
+                itemName,
+                itemType
+            }
+        }
+    }
+
+    local success = pcall(function()
+        replicatedStorage:WaitForChild("Honeypot"):WaitForChild("Internal"):WaitForChild("RemoteStorage"):WaitForChild("PromptPurchase - RemoteEvent"):FireServer(unpack(args))
+    end)
+
+    if success then
+        statusLbl.Text = "Terkirim: " .. itemName .. " (" .. tostring(assetId) .. ")"
+        statusLbl.TextColor3 = Color3.fromRGB(120, 255, 140)
+    else
+        statusLbl.Text = "Gagal menemukan RemoteEvent!"
+        statusLbl.TextColor3 = Color3.fromRGB(255, 90, 90)
+    end
+    return success
+end
+
+-- Event Klik Single Snipe
+snipeOnceBtn.MouseButton1Click:Connect(function()
+    fireSnipe()
+end)
+
+-- Event Klik Auto Snipe
+autoSnipeBtn.MouseButton1Click:Connect(function()
+    isSniping = not isSniping
+    if isSniping then
+        autoSnipeBtn.Text = "AUTO SNIPE: ON"
+        autoSnipeBtn.BackgroundColor3 = BTN_STOP
+        task.spawn(function()
+            while isSniping and gui.Parent do
+                local ok = fireSnipe()
+                if not ok then
+                    isSniping = false
+                    autoSnipeBtn.Text = "AUTO SNIPE: OFF"
+                    autoSnipeBtn.BackgroundColor3 = BTN_START
+                    break
+                end
+                task.wait(0.1)
+            end
+        end)
+    else
+        autoSnipeBtn.Text = "AUTO SNIPE: OFF"
+        autoSnipeBtn.BackgroundColor3 = BTN_START
+        statusLbl.Text = "Status: Auto Snipe dihentikan"
+        statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+    end
+end)
+
+-- Pop-up ikon kecil menggunakan gambar kustom saat minimize
+local floatingIcon = Instance.new("ImageButton")
+floatingIcon.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+floatingIcon.Position = main.Position
+floatingIcon.BackgroundColor3 = COL_BG
+floatingIcon.BackgroundTransparency = 0.15
+floatingIcon.Image = "rbxassetid://134667732794034"
+floatingIcon.Visible = false
+floatingIcon.AutoButtonColor = false
+floatingIcon.BorderSizePixel = 0
+floatingIcon.Parent = gui
+
+Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
+animStroke(floatingIcon, 1.5)
+
+-- Interaksi Tombol Minimize
+minBtn.MouseEnter:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
+end)
+
+minBtn.MouseLeave:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_NORMAL}):Play()
+end)
+
+minBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(minBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(20, 10, 5)}):Play()
+    tweenService:Create(minScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+    task.delay(0.07, function()
+        tweenService:Create(minBtn, TweenInfo.new(0.18), {BackgroundColor3 = MIN_NORMAL}):Play()
+        tweenService:Create(minScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+-- Interaksi Tombol Close
+closeBtn.MouseEnter:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_NORMAL}):Play()
+end)
+
+closeBtn.MouseButton1Down:Connect(function()
+    tweenService:Create(closeBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(30, 5, 5)}):Play()
+    tweenService:Create(closeScale, TweenInfo.new(0.07, Enum.EasingStyle.Linear), {Scale = 0.93}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    isSniping = false
+    autoDetectEnabled = false
+    local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    })
+    tweenClose:Play()
+    tweenClose.Completed:Connect(function()
+        gui:Destroy()
+    end)
+end)
+
+-- Fungsi Toggle Minimize / Restore
+minBtn.MouseButton1Click:Connect(function()
+    minimized = true
+    floatingIcon.Position = main.Position
+    
+    local tweenOut = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, MINI_W, 0, MINI_H),
+        BackgroundTransparency = 1
+    })
+    
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        if minimized then
+            main.Visible = false
+            floatingIcon.Visible = true
+        end
+    end)
+end)
+
+floatingIcon.MouseButton1Click:Connect(function()
+    minimized = false
+    main.Position = floatingIcon.Position
+    main.Visible = true
+    floatingIcon.Visible = false
+    
+    main.Size = UDim2.new(0, MINI_W, 0, MINI_H)
+    main.BackgroundTransparency = 1
+    
+    local tweenIn = tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Size = UDim2.new(0, FULL_W, 0, FULL_H),
+        BackgroundTransparency = 0.1
+    })
+    tweenIn:Play()
+end)
+
+-- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
+do
+    local dragging, dragStart, startPos = false, nil, nil
+    
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                dragging = true
+                dragStart = i.Position
+                startPos = obj.Position
+            end
+        end)
+    end
+    
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not dragging then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local targetObj = minimized and floatingIcon or main
+            local gs = targetObj.AbsoluteSize
+            
+            targetObj.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+            )
+        end
+    end)
+    
+    userInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+runService.RenderStepped:Connect(function()
+    local off = Vector2.new(math.sin(tick() * 2.8), 0)
+    for _, g in ipairs(allGrads) do
+        g.Offset = off
+    end
+end)
