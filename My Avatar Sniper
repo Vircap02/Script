@@ -220,7 +220,7 @@ local detectBtn = Instance.new("TextButton")
 detectBtn.Size = UDim2.new(1, -20, 0, 26)
 detectBtn.Position = UDim2.new(0, 10, 0, 144)
 detectBtn.BackgroundColor3 = BTN_DETECT_OFF
-detectBtn.Text = "AUTO DETECT TAP: OFF"
+detectBtn.Text = "AUTO DETECT MOUSE: OFF"
 detectBtn.TextColor3 = Color3.fromRGB(235, 215, 255)
 detectBtn.Font = Enum.Font.GothamBold
 detectBtn.TextSize = 10.5
@@ -544,9 +544,32 @@ local function detectAtPosition(posX, posY)
     return nil
 end
 
-local function handleTapOrClick(pos)
+-- Simulasi klik mouse (menyatukan Touch/Tap ke alur MouseButton1 & memicu GuiButton jika disentuh di HP)
+local function simulateMouseClick(pos, isFromTouch)
     if not autoDetectEnabled then return end
     if isHitOwnGui(pos.X, pos.Y) then return end
+
+    if isFromTouch then
+        for _, root in ipairs(getAccessibleGuiRoots()) do
+            local ok, objs = pcall(function()
+                return root:GetGuiObjectsAtPosition(pos.X, pos.Y)
+            end)
+            if ok and objs then
+                for _, gObj in ipairs(objs) do
+                    if not gObj:IsDescendantOf(gui) and gObj.Visible then
+                        if gObj:IsA("GuiButton") then
+                            pcall(function()
+                                gObj.MouseButton1Down:Fire(pos.X, pos.Y)
+                                gObj.MouseButton1Click:Fire()
+                                gObj.Activated:Fire()
+                            end)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     task.delay(0.1, function()
         if not autoDetectEnabled then return end
@@ -561,41 +584,43 @@ local function handleTapOrClick(pos)
             if data.itemType then
                 typeInput.Text = data.itemType
             end
-            local infoText = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+            local infoText = "MouseSim Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
             statusLbl.Text = infoText
             statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
             print("[AceSniperUI]", infoText)
         else
-            statusLbl.Text = "Belum ada data item terbaca pada tap ini"
+            statusLbl.Text = "MouseSim: Belum ada data item terbaca"
             statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
-            print("[AceSniperUI] Belum ada data item terbaca pada tap ini")
+            print("[AceSniperUI] MouseSim: Belum ada data item terbaca")
         end
     end)
 end
 
 userInputService.InputBegan:Connect(function(input, _gameProcessed)
     if not autoDetectEnabled then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        handleTapOrClick(input.Position)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        simulateMouseClick(input.Position, false)
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        simulateMouseClick(input.Position, true)
     end
 end)
 
 userInputService.TouchTap:Connect(function(touchPositions, _gameProcessed)
     if not autoDetectEnabled then return end
     if touchPositions and #touchPositions > 0 then
-        handleTapOrClick(touchPositions[1])
+        simulateMouseClick(touchPositions[1], true)
     end
 end)
 
 detectBtn.MouseButton1Click:Connect(function()
     autoDetectEnabled = not autoDetectEnabled
     if autoDetectEnabled then
-        detectBtn.Text = "AUTO DETECT TAP: ON"
+        detectBtn.Text = "AUTO DETECT MOUSE: ON"
         detectBtn.BackgroundColor3 = BTN_DETECT_ON
-        statusLbl.Text = "Tap item di shop/popup untuk auto-fill"
+        statusLbl.Text = "Simulasi klik mouse aktif (tap/klik item)"
         statusLbl.TextColor3 = Color3.fromRGB(120, 255, 180)
     else
-        detectBtn.Text = "AUTO DETECT TAP: OFF"
+        detectBtn.Text = "AUTO DETECT MOUSE: OFF"
         detectBtn.BackgroundColor3 = BTN_DETECT_OFF
         statusLbl.Text = "Status: Auto Detect dimatikan"
         statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
