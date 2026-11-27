@@ -3,6 +3,7 @@ local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local replicatedStorage = game:GetService("ReplicatedStorage")
+local guiService = cloneref(game:GetService("GuiService"))
 
 local localPlayer = players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -40,8 +41,10 @@ local CLOSE_NORMAL = Color3.fromRGB(45, 15, 15)
 local CLOSE_HOVER = Color3.fromRGB(80, 20, 20)
 local BTN_START = Color3.fromRGB(210, 95, 0)
 local BTN_STOP = Color3.fromRGB(160, 25, 25)
-local BTN_MOUSE_ON = Color3.fromRGB(35, 135, 85)
-local BTN_MOUSE_OFF = Color3.fromRGB(55, 30, 85)
+local BTN_DETECT_ON = Color3.fromRGB(35, 135, 85)
+local BTN_DETECT_OFF = Color3.fromRGB(55, 30, 85)
+local BTN_VMOUSE_ON = Color3.fromRGB(120, 55, 210)
+local BTN_VMOUSE_OFF = Color3.fromRGB(42, 28, 65)
 
 local STROKE_CS = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 15, 60)),
@@ -78,12 +81,12 @@ gui.DisplayOrder = 999999
 gui.IgnoreGuiInset = true
 gui.Parent = uiParent
 
-local FULL_W, FULL_H = 290, 236
+local FULL_W, FULL_H = 290, 266
 local MINI_W, MINI_H = 44, 44
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
-main.Position = UDim2.new(0.5, -FULL_W // 2, 0.35, -FULL_H // 2)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.3, -FULL_H // 2)
 main.BackgroundColor3 = COL_BG
 main.BackgroundTransparency = 0.1
 main.BorderSizePixel = 0
@@ -91,9 +94,8 @@ main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
 
-local isMobile = userInputService.TouchEnabled and not userInputService.KeyboardEnabled
 local mainScale = Instance.new("UIScale")
-mainScale.Scale = isMobile and 1.12 or 1
+mainScale.Scale = userInputService.TouchEnabled and not userInputService.KeyboardEnabled and 1.12 or 1
 mainScale.Parent = main
 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
@@ -215,40 +217,56 @@ local idInput = createInput("Asset ID (Contoh: 70930483548956)", "70930483548956
 local nameInput = createInput("Nama Item (Contoh: Green Lollipop )", "Green Lollipop ", 79)
 local typeInput = createInput("Tipe Item (Contoh: FaceAccessory)", "FaceAccessory", 111)
 
--- Baris Simulasi Mouse: Toggle Cursor + Tombol Trigger Click di Posisi Cursor
-local mouseSimEnabled = false
-local mouseToggleBtn = Instance.new("TextButton")
-mouseToggleBtn.Size = UDim2.new(0.62, -12, 0, 26)
-mouseToggleBtn.Position = UDim2.new(0, 10, 0, 144)
-mouseToggleBtn.BackgroundColor3 = BTN_MOUSE_OFF
-mouseToggleBtn.Text = "CURSOR MOUSE: OFF"
-mouseToggleBtn.TextColor3 = Color3.fromRGB(235, 215, 255)
-mouseToggleBtn.Font = Enum.Font.GothamBold
-mouseToggleBtn.TextSize = 10
-mouseToggleBtn.BorderSizePixel = 0
-mouseToggleBtn.AutoButtonColor = false
-mouseToggleBtn.Parent = main
-Instance.new("UICorner", mouseToggleBtn).CornerRadius = UDim.new(0, 6)
-animStroke(mouseToggleBtn, 1)
+-- Tombol Auto Detect Saat Klik/Tap Item
+local autoDetectEnabled = false
+local detectBtn = Instance.new("TextButton")
+detectBtn.Size = UDim2.new(1, -20, 0, 25)
+detectBtn.Position = UDim2.new(0, 10, 0, 144)
+detectBtn.BackgroundColor3 = BTN_DETECT_OFF
+detectBtn.Text = "AUTO DETECT TAP: OFF"
+detectBtn.TextColor3 = Color3.fromRGB(235, 215, 255)
+detectBtn.Font = Enum.Font.GothamBold
+detectBtn.TextSize = 10.5
+detectBtn.BorderSizePixel = 0
+detectBtn.AutoButtonColor = false
+detectBtn.Parent = main
+Instance.new("UICorner", detectBtn).CornerRadius = UDim.new(0, 6)
+animStroke(detectBtn, 1)
 
-local triggerClickBtn = Instance.new("TextButton")
-triggerClickBtn.Size = UDim2.new(0.38, -12, 0, 26)
-triggerClickBtn.Position = UDim2.new(0.62, 2, 0, 144)
-triggerClickBtn.BackgroundColor3 = Color3.fromRGB(85, 40, 15)
-triggerClickBtn.Text = "CLICK POS"
-triggerClickBtn.TextColor3 = Color3.fromRGB(255, 210, 130)
-triggerClickBtn.Font = Enum.Font.GothamBlack
-triggerClickBtn.TextSize = 10
-triggerClickBtn.BorderSizePixel = 0
-triggerClickBtn.AutoButtonColor = false
-triggerClickBtn.Parent = main
-Instance.new("UICorner", triggerClickBtn).CornerRadius = UDim.new(0, 6)
-animStroke(triggerClickBtn, 1)
+-- Tombol Virtual Mouse Toggle & Trigger Click
+local virtualMouseEnabled = false
+local vMouseBtn = Instance.new("TextButton")
+vMouseBtn.Size = UDim2.new(0.54, -12, 0, 25)
+vMouseBtn.Position = UDim2.new(0, 10, 0, 174)
+vMouseBtn.BackgroundColor3 = BTN_VMOUSE_OFF
+vMouseBtn.Text = "VIRTUAL MOUSE: OFF"
+vMouseBtn.TextColor3 = Color3.fromRGB(220, 200, 255)
+vMouseBtn.Font = Enum.Font.GothamBold
+vMouseBtn.TextSize = 10
+vMouseBtn.BorderSizePixel = 0
+vMouseBtn.AutoButtonColor = false
+vMouseBtn.Parent = main
+Instance.new("UICorner", vMouseBtn).CornerRadius = UDim.new(0, 6)
+animStroke(vMouseBtn, 1)
+
+local vClickBtn = Instance.new("TextButton")
+vClickBtn.Size = UDim2.new(0.46, -12, 0, 25)
+vClickBtn.Position = UDim2.new(0.54, 2, 0, 174)
+vClickBtn.BackgroundColor3 = Color3.fromRGB(75, 35, 110)
+vClickBtn.Text = "CLICK MOUSE"
+vClickBtn.TextColor3 = Color3.fromRGB(255, 220, 140)
+vClickBtn.Font = Enum.Font.GothamBlack
+vClickBtn.TextSize = 10
+vClickBtn.BorderSizePixel = 0
+vClickBtn.AutoButtonColor = false
+vClickBtn.Parent = main
+Instance.new("UICorner", vClickBtn).CornerRadius = UDim.new(0, 6)
+animStroke(vClickBtn, 1)
 
 -- Tombol Single Snipe (1x Fire)
 local snipeOnceBtn = Instance.new("TextButton")
 snipeOnceBtn.Size = UDim2.new(0.48, -12, 0, 28)
-snipeOnceBtn.Position = UDim2.new(0, 10, 0, 176)
+snipeOnceBtn.Position = UDim2.new(0, 10, 0, 205)
 snipeOnceBtn.BackgroundColor3 = Color3.fromRGB(55, 25, 80)
 snipeOnceBtn.Text = "SNIPE (1X)"
 snipeOnceBtn.TextColor3 = Color3.fromRGB(255, 200, 120)
@@ -264,7 +282,7 @@ animStroke(snipeOnceBtn, 1)
 local isSniping = false
 local autoSnipeBtn = Instance.new("TextButton")
 autoSnipeBtn.Size = UDim2.new(0.52, -12, 0, 28)
-autoSnipeBtn.Position = UDim2.new(0.48, 2, 0, 176)
+autoSnipeBtn.Position = UDim2.new(0.48, 2, 0, 205)
 autoSnipeBtn.BackgroundColor3 = BTN_START
 autoSnipeBtn.Text = "AUTO SNIPE: OFF"
 autoSnipeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -279,7 +297,7 @@ animStroke(autoSnipeBtn, 1)
 -- Status Label
 local statusLbl = Instance.new("TextLabel")
 statusLbl.Size = UDim2.new(1, -20, 0, 16)
-statusLbl.Position = UDim2.new(0, 10, 0, 211)
+statusLbl.Position = UDim2.new(0, 10, 0, 240)
 statusLbl.BackgroundTransparency = 1
 statusLbl.Text = "Status: Siap digunakan"
 statusLbl.Font = Enum.Font.Gotham
@@ -289,42 +307,40 @@ statusLbl.TextXAlignment = Enum.TextXAlignment.Center
 statusLbl.TextTruncate = Enum.TextTruncate.AtEnd
 statusLbl.Parent = main
 
--- Kursor Mouse Virtual di Layar
-local vpInit = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-local cursorPos = Vector2.new(vpInit.X * 0.5, vpInit.Y * 0.5)
-
+-- Kursor Virtual di Layar (bisa di-drag ke posisi mana saja)
 local cursorFrame = Instance.new("Frame")
-cursorFrame.Name = "VirtualMouseCursor"
-cursorFrame.Size = UDim2.new(0, 32, 0, 32)
-cursorFrame.Position = UDim2.new(0, cursorPos.X - 16, 0, cursorPos.Y - 16)
+cursorFrame.Size = UDim2.new(0, 28, 0, 28)
+cursorFrame.Position = UDim2.new(0.55, 0, 0.45, 0)
 cursorFrame.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-cursorFrame.BackgroundTransparency = 0.25
+cursorFrame.BackgroundTransparency = 0.2
 cursorFrame.BorderSizePixel = 0
 cursorFrame.Visible = false
-cursorFrame.Active = true
 cursorFrame.ZIndex = 50
+cursorFrame.Active = true
 cursorFrame.Parent = gui
-
 Instance.new("UICorner", cursorFrame).CornerRadius = UDim.new(1, 0)
 animStroke(cursorFrame, 2)
 
 local cursorDot = Instance.new("Frame")
-cursorDot.Size = UDim2.new(0, 8, 0, 8)
-cursorDot.Position = UDim2.new(0.5, -4, 0.5, -4)
+cursorDot.Size = UDim2.new(0, 6, 0, 6)
+cursorDot.Position = UDim2.new(0.5, -3, 0.5, -3)
 cursorDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 cursorDot.BorderSizePixel = 0
-cursorDot.ZIndex = 51
 cursorDot.Parent = cursorFrame
 Instance.new("UICorner", cursorDot).CornerRadius = UDim.new(1, 0)
 
-local function setCursorPosition(x, y)
-    local cam = workspace.CurrentCamera
-    local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-    local clampedX = math.clamp(x, 0, vp.X)
-    local clampedY = math.clamp(y, 0, vp.Y)
-    cursorPos = Vector2.new(clampedX, clampedY)
-    cursorFrame.Position = UDim2.new(0, clampedX - 16, 0, clampedY - 16)
-end
+local cursorTag = Instance.new("TextLabel")
+cursorTag.Size = UDim2.new(0, 56, 0, 14)
+cursorTag.Position = UDim2.new(0.5, -28, 1, 2)
+cursorTag.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
+cursorTag.BackgroundTransparency = 0.25
+cursorTag.Text = "MOUSE"
+cursorTag.TextColor3 = Color3.fromRGB(255, 190, 90)
+cursorTag.Font = Enum.Font.GothamBlack
+cursorTag.TextSize = 8.5
+cursorTag.BorderSizePixel = 0
+cursorTag.Parent = cursorFrame
+Instance.new("UICorner", cursorTag).CornerRadius = UDim.new(0, 4)
 
 -- Normalisasi Tipe Accessory dari teks UI
 local TYPE_MAP = {
@@ -477,9 +493,24 @@ local function getAccessibleGuiRoots()
     return roots
 end
 
+local function isHitOwnGui(posX, posY)
+    for _, root in ipairs(getAccessibleGuiRoots()) do
+        local ok, objs = pcall(function()
+            return root:GetGuiObjectsAtPosition(posX, posY)
+        end)
+        if ok and objs then
+            for _, gObj in ipairs(objs) do
+                if gObj:IsDescendantOf(gui) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function detectAtPosition(posX, posY)
     local state = { id = nil, name = nil, itemType = nil, fallbackId = nil }
-    local clickedButton = nil
 
     local topUiObj = nil
     for _, root in ipairs(getAccessibleGuiRoots()) do
@@ -488,13 +519,9 @@ local function detectAtPosition(posX, posY)
         end)
         if okGui and guiList and #guiList > 0 then
             for _, gObj in ipairs(guiList) do
-                if not gObj:IsDescendantOf(gui) and gObj ~= cursorFrame and gObj.Visible then
-                    if not topUiObj then
-                        topUiObj = gObj
-                    end
-                    if not clickedButton and (gObj:IsA("TextButton") or gObj:IsA("ImageButton")) and gObj.Active then
-                        clickedButton = gObj
-                    end
+                if not gObj:IsDescendantOf(gui) and gObj.Visible then
+                    topUiObj = gObj
+                    break
                 end
             end
         end
@@ -577,86 +604,174 @@ local function detectAtPosition(posX, posY)
         state.id = state.fallbackId
     end
 
-    return state, clickedButton
+    if state.id or state.name or state.itemType then
+        return state
+    end
+    return nil
 end
 
--- Simulasi klik mouse pada posisi cursorPos saat ini
-local function simulateMouseClickAtCursor(triggerGuiButtons)
-    local x, y = cursorPos.X, cursorPos.Y
+local function applyDetectedData(data)
+    if data then
+        if data.id then
+            idInput.Text = tostring(data.id)
+        end
+        if data.name then
+            nameInput.Text = data.name
+        end
+        if data.itemType then
+            typeInput.Text = data.itemType
+        end
+        local infoText = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+        statusLbl.Text = infoText
+        statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
+        print("[AceSniperUI]", infoText)
+    else
+        statusLbl.Text = "Belum ada data item terbaca pada posisi ini"
+        statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+    end
+end
 
-    -- Efek visual klik pada kursor
-    cursorFrame.BackgroundColor3 = Color3.fromRGB(80, 255, 150)
-    tweenService:Create(cursorFrame, TweenInfo.new(0.12), {
-        Size = UDim2.new(0, 24, 0, 24),
-        Position = UDim2.new(0, x - 12, 0, y - 12)
-    }):Play()
+local function handleTapOrClick(pos)
+    if not autoDetectEnabled then return end
+    if isHitOwnGui(pos.X, pos.Y) then return end
+
+    task.delay(0.1, function()
+        if not autoDetectEnabled then return end
+        applyDetectedData(detectAtPosition(pos.X, pos.Y))
+    end)
+end
+
+-- Simulasi klik mouse pada posisi tengah kursor virtual
+local function simulateVirtualMouseClick()
+    local absPos = cursorFrame.AbsolutePosition
+    local absSize = cursorFrame.AbsoluteSize
+    local cx = absPos.X + (absSize.X * 0.5)
+    local cy = absPos.Y + (absSize.Y * 0.5)
+
+    -- Animasi tekan pada kursor virtual
+    tweenService:Create(cursorFrame, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(110, 255, 160)}):Play()
     task.delay(0.12, function()
-        if cursorFrame then
-            cursorFrame.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-            tweenService:Create(cursorFrame, TweenInfo.new(0.14), {
-                Size = UDim2.new(0, 32, 0, 32),
-                Position = UDim2.new(0, cursorPos.X - 16, 0, cursorPos.Y - 16)
-            }):Play()
+        if cursorFrame.Parent then
+            tweenService:Create(cursorFrame, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(255, 140, 0)}):Play()
         end
     end)
 
-    -- Coba fire signal tombol GUI jika ada tombol di bawah kursor
-    local data, btn = detectAtPosition(x, y)
-    if triggerGuiButtons and btn then
-        pcall(function()
-            if firesignal then
-                firesignal(btn.MouseButton1Click)
-            end
+    -- Trigger sinyal GuiButton jika kursor berada di atas tombol/objek UI
+    for _, root in ipairs(getAccessibleGuiRoots()) do
+        local ok, objs = pcall(function()
+            return root:GetGuiObjectsAtPosition(cx, cy)
         end)
+        if ok and objs then
+            for _, gObj in ipairs(objs) do
+                if not gObj:IsDescendantOf(gui) and gObj.Visible then
+                    if gObj:IsA("GuiButton") then
+                        pcall(function()
+                            for _, sigName in ipairs({ "MouseButton1Down", "MouseButton1Click", "Activated" }) do
+                                local sig = gObj[sigName]
+                                if sig and typeof(sig) == "RBXScriptSignal" and firesignal then
+                                    firesignal(sig)
+                                end
+                            end
+                        end)
+                        break
+                    end
+                end
+            end
+        end
     end
 
-    task.delay(0.08, function()
-        local latestData = detectAtPosition(cursorPos.X, cursorPos.Y) or data
-        if latestData and (latestData.id or latestData.name or latestData.itemType) then
-            if latestData.id then
-                idInput.Text = tostring(latestData.id)
-            end
-            if latestData.name then
-                nameInput.Text = latestData.name
-            end
-            if latestData.itemType then
-                typeInput.Text = latestData.itemType
-            end
-            local infoText = "Mouse (" .. math.floor(cursorPos.X) .. "," .. math.floor(cursorPos.Y) .. "): " .. (latestData.name or "?") .. " | " .. tostring(latestData.id or "?")
-            statusLbl.Text = infoText
-            statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
-        else
-            statusLbl.Text = "Mouse (" .. math.floor(cursorPos.X) .. "," .. math.floor(cursorPos.Y) .. ") diklik - tidak ada data item"
-            statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+    -- Trigger ClickDetector / ProximityPrompt 3D jika kursor mengarah ke objek di workspace
+    local cam = workspace.CurrentCamera
+    if cam then
+        local ray = cam:ViewportPointToRay(cx, cy)
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        if localPlayer.Character then
+            rayParams.FilterDescendantsInstances = { localPlayer.Character }
         end
-    end)
+        local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+        if res and res.Instance then
+            for _, d in ipairs(res.Instance:GetDescendants()) do
+                if d:IsA("ClickDetector") and fireclickdetector then
+                    pcall(function() fireclickdetector(d) end)
+                elseif d:IsA("ProximityPrompt") and fireproximityprompt then
+                    pcall(function() fireproximityprompt(d) end)
+                end
+            end
+            local parentModel = res.Instance:FindFirstAncestorOfClass("Model")
+            if parentModel then
+                for _, d in ipairs(parentModel:GetDescendants()) do
+                    if d:IsA("ClickDetector") and fireclickdetector then
+                        pcall(function() fireclickdetector(d) end)
+                    end
+                end
+            end
+        end
+    end
+
+    if autoDetectEnabled then
+        task.delay(0.1, function()
+            applyDetectedData(detectAtPosition(cx, cy))
+        end)
+    else
+        statusLbl.Text = string.format("Virtual Click @ (%d, %d)", math.floor(cx), math.floor(cy))
+        statusLbl.TextColor3 = Color3.fromRGB(190, 150, 255)
+    end
 end
 
--- Toggle Cursor Mouse di layar
-mouseToggleBtn.MouseButton1Click:Connect(function()
-    mouseSimEnabled = not mouseSimEnabled
-    cursorFrame.Visible = mouseSimEnabled
-    if mouseSimEnabled then
-        mouseToggleBtn.Text = "CURSOR MOUSE: ON"
-        mouseToggleBtn.BackgroundColor3 = BTN_MOUSE_ON
-        statusLbl.Text = "Geser cursor ke target lalu tekan CLICK POS"
-        statusLbl.TextColor3 = Color3.fromRGB(120, 255, 180)
+vMouseBtn.MouseButton1Click:Connect(function()
+    virtualMouseEnabled = not virtualMouseEnabled
+    cursorFrame.Visible = virtualMouseEnabled
+    if virtualMouseEnabled then
+        vMouseBtn.Text = "VIRTUAL MOUSE: ON"
+        vMouseBtn.BackgroundColor3 = BTN_VMOUSE_ON
+        statusLbl.Text = "Geser kursor di layar lalu tekan CLICK MOUSE"
+        statusLbl.TextColor3 = Color3.fromRGB(205, 165, 255)
     else
-        mouseToggleBtn.Text = "CURSOR MOUSE: OFF"
-        mouseToggleBtn.BackgroundColor3 = BTN_MOUSE_OFF
-        statusLbl.Text = "Status: Cursor Mouse disembunyikan"
+        vMouseBtn.Text = "VIRTUAL MOUSE: OFF"
+        vMouseBtn.BackgroundColor3 = BTN_VMOUSE_OFF
+        statusLbl.Text = "Status: Virtual Mouse disembunyikan"
         statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
     end
 end)
 
-triggerClickBtn.MouseButton1Click:Connect(function()
-    if not mouseSimEnabled then
-        mouseSimEnabled = true
+vClickBtn.MouseButton1Click:Connect(function()
+    if not virtualMouseEnabled then
+        virtualMouseEnabled = true
         cursorFrame.Visible = true
-        mouseToggleBtn.Text = "CURSOR MOUSE: ON"
-        mouseToggleBtn.BackgroundColor3 = BTN_MOUSE_ON
+        vMouseBtn.Text = "VIRTUAL MOUSE: ON"
+        vMouseBtn.BackgroundColor3 = BTN_VMOUSE_ON
     end
-    simulateMouseClickAtCursor(true)
+    simulateVirtualMouseClick()
+end)
+
+userInputService.InputBegan:Connect(function(input, _gameProcessed)
+    if not autoDetectEnabled then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        handleTapOrClick(input.Position)
+    end
+end)
+
+userInputService.TouchTap:Connect(function(touchPositions, _gameProcessed)
+    if not autoDetectEnabled then return end
+    if touchPositions and #touchPositions > 0 then
+        handleTapOrClick(touchPositions[1])
+    end
+end)
+
+detectBtn.MouseButton1Click:Connect(function()
+    autoDetectEnabled = not autoDetectEnabled
+    if autoDetectEnabled then
+        detectBtn.Text = "AUTO DETECT TAP: ON"
+        detectBtn.BackgroundColor3 = BTN_DETECT_ON
+        statusLbl.Text = "Tap item di shop/popup untuk auto-fill"
+        statusLbl.TextColor3 = Color3.fromRGB(120, 255, 180)
+    else
+        detectBtn.Text = "AUTO DETECT TAP: OFF"
+        detectBtn.BackgroundColor3 = BTN_DETECT_OFF
+        statusLbl.Text = "Status: Auto Detect dimatikan"
+        statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
+    end
 end)
 
 -- Fungsi Eksekusi Remote Purchase
@@ -692,6 +807,7 @@ local function fireSnipe()
     else
         statusLbl.Text = "Gagal: " .. tostring(err)
         statusLbl.TextColor3 = Color3.fromRGB(255, 90, 90)
+        warn("[AceSniperUI] FireServer gagal:", err)
     end
     return success
 end
@@ -776,7 +892,7 @@ end)
 
 closeBtn.MouseButton1Click:Connect(function()
     isSniping = false
-    mouseSimEnabled = false
+    autoDetectEnabled = false
     local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1
@@ -821,65 +937,45 @@ floatingIcon.MouseButton1Click:Connect(function()
     tweenIn:Play()
 end)
 
--- Sistem Dragging untuk Panel Utama, Pop-up Ikon, dan Virtual Mouse Cursor
+-- Sistem Dragging untuk Panel Utama, Ikon Mini, dan Kursor Virtual
 do
-    local dragTarget = nil
-    local dragStart = nil
-    local startPos = nil
-    local cursorDragOffset = Vector2.zero
-
-    local function beginPanelDrag(obj, input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            local abs = obj.AbsolutePosition
-            obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
-            dragTarget = obj
-            dragStart = input.Position
-            startPos = obj.Position
-        end
-    end
-
-    main.InputBegan:Connect(function(i)
-        beginPanelDrag(main, i)
-    end)
-
-    floatingIcon.InputBegan:Connect(function(i)
-        beginPanelDrag(floatingIcon, i)
-    end)
-
-    cursorFrame.InputBegan:Connect(function(i)
-        if not mouseSimEnabled then return end
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragTarget = cursorFrame
-            cursorDragOffset = cursorPos - Vector2.new(i.Position.X, i.Position.Y)
-        end
-    end)
-
-    userInputService.InputChanged:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseMovement and mouseSimEnabled and dragTarget ~= cursorFrame then
-            setCursorPosition(i.Position.X, i.Position.Y)
-        end
-
-        if not dragTarget then return end
-        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-            if dragTarget == cursorFrame then
-                setCursorPosition(i.Position.X + cursorDragOffset.X, i.Position.Y + cursorDragOffset.Y)
-            else
-                local d = i.Position - dragStart
-                local vp = workspace.CurrentCamera.ViewportSize
-                local gs = dragTarget.AbsoluteSize
-                dragTarget.Position = UDim2.new(
-                    0,
-                    math.clamp(startPos.X.Offset + d.X, 0, math.max(0, vp.X - gs.X)),
-                    0,
-                    math.clamp(startPos.Y.Offset + d.Y, 0, math.max(0, vp.Y - gs.Y))
-                )
+    local activeDragObj, dragStart, startPos = nil, nil, nil
+    
+    local function applyDrag(obj)
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                local abs = obj.AbsolutePosition
+                obj.Position = UDim2.new(0, abs.X, 0, abs.Y)
+                activeDragObj = obj
+                dragStart = i.Position
+                startPos = obj.Position
             end
+        end)
+    end
+    
+    applyDrag(main)
+    applyDrag(floatingIcon)
+    applyDrag(cursorFrame)
+    
+    userInputService.InputChanged:Connect(function(i)
+        if not activeDragObj then return end
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            local d = i.Position - dragStart
+            local vp = workspace.CurrentCamera.ViewportSize
+            local gs = activeDragObj.AbsoluteSize
+            
+            activeDragObj.Position = UDim2.new(
+                0,
+                math.clamp(startPos.X.Offset + d.X, 0, math.max(0, vp.X - gs.X)),
+                0,
+                math.clamp(startPos.Y.Offset + d.Y, 0, math.max(0, vp.Y - gs.Y))
+            )
         end
     end)
-
+    
     userInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragTarget = nil
+            activeDragObj = nil
         end
     end)
 end
