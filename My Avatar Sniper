@@ -419,37 +419,34 @@ end
 local function scanContainer(container, state)
     if not container then return end
 
-    for _, attrName in ipairs({ "AssetId", "ItemId", "ProductId", "UGCId", "Id" }) do
-        local v = container:GetAttribute(attrName)
-        local n = tonumber(v)
-        if n and #tostring(math.floor(n)) >= 6 then
-            state.id = state.id or n
-        end
+    for _, attrName in ipairs(container:GetAttributes()) do
+        local _ = attrName
     end
-    if not state.name then
-        local aName = container:GetAttribute("ItemName") or container:GetAttribute("AssetName") or container:GetAttribute("DisplayName")
-        if type(aName) == "string" and not isNoiseText(aName) then
-            state.name = aName
-        end
-    end
-    if not state.itemType then
-        local aType = container:GetAttribute("AccessoryType") or container:GetAttribute("AssetType") or container:GetAttribute("ItemType") or container:GetAttribute("Type")
-        if type(aType) == "string" then
-            state.itemType = normalizeType(aType)
+    for attrName, v in pairs(container:GetAttributes()) do
+        local lattr = string.lower(tostring(attrName))
+        if string.find(lattr, "id", 1, true) then
+            local n = tonumber(v)
+            if n and #tostring(math.floor(n)) >= 6 then
+                state.id = state.id or n
+            end
+        elseif string.find(lattr, "name", 1, true) and type(v) == "string" and not isNoiseText(v) then
+            state.name = state.name or v
+        elseif string.find(lattr, "type", 1, true) and type(v) == "string" then
+            state.itemType = state.itemType or normalizeType(v)
         end
     end
 
     for _, desc in ipairs(container:GetDescendants()) do
         local lname = string.lower(desc.Name)
         if desc:IsA("IntValue") or desc:IsA("NumberValue") or desc:IsA("StringValue") then
-            if lname == "assetid" or lname == "itemid" or lname == "ugcid" or lname == "id" then
+            if string.find(lname, "id", 1, true) then
                 local n = tonumber(desc.Value)
                 if n and #tostring(math.floor(n)) >= 6 then
                     state.id = state.id or n
                 end
-            elseif (lname == "itemname" or lname == "assetname" or lname == "displayname") and not isNoiseText(tostring(desc.Value)) then
+            elseif string.find(lname, "name", 1, true) and not isNoiseText(tostring(desc.Value)) then
                 state.name = state.name or tostring(desc.Value)
-            elseif lname == "accessorytype" or lname == "assettype" or lname == "itemtype" or lname == "type" then
+            elseif string.find(lname, "type", 1, true) then
                 state.itemType = state.itemType or normalizeType(tostring(desc.Value))
             end
         elseif desc:IsA("TextLabel") or desc:IsA("TextButton") then
@@ -512,7 +509,7 @@ local function isHitOwnGui(posX, posY)
 end
 
 local function detectAtPosition(posX, posY)
-    local state = { id = nil, name = nil, itemType = nil, fallbackId = nil }
+    local state = { id = nil, name = nil, itemType = nil, fallbackId = nil, debugHit = nil }
 
     local topUiObj = nil
     for _, root in ipairs(getAccessibleGuiRoots()) do
@@ -523,6 +520,7 @@ local function detectAtPosition(posX, posY)
             for _, gObj in ipairs(guiList) do
                 if not gObj:IsDescendantOf(gui) and gObj.Visible then
                     topUiObj = gObj
+                    state.debugHit = gObj.Name
                     break
                 end
             end
@@ -532,7 +530,7 @@ local function detectAtPosition(posX, posY)
 
     if topUiObj then
         local curr = topUiObj
-        for _ = 1, 7 do
+        for _ = 1, 9 do
             if not curr or curr:IsA("ScreenGui") or curr:IsA("PlayerGui") or curr:IsA("CoreGui") then break end
             scanContainer(curr, state)
             if state.id and state.name and state.itemType then
@@ -545,18 +543,18 @@ local function detectAtPosition(posX, posY)
             local screenRoot = topUiObj:FindFirstAncestorOfClass("ScreenGui")
             if screenRoot then
                 for _, d in ipairs(screenRoot:GetDescendants()) do
-                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 140 and d.AbsoluteSize.Y > 140 then
-                        local hasBuyOrLocked = false
+                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 120 and d.AbsoluteSize.Y > 120 then
+                        local hasShopKeyword = false
                         for _, sub in ipairs(d:GetDescendants()) do
                             if (sub:IsA("TextLabel") or sub:IsA("TextButton")) then
                                 local st = string.lower(sub.Text)
-                                if st == "buy" or st == "locked" then
-                                    hasBuyOrLocked = true
+                                if st == "buy" or st == "locked" or string.find(st, "pts", 1, true) or string.find(st, "accessory", 1, true) then
+                                    hasShopKeyword = true
                                     break
                                 end
                             end
                         end
-                        if hasBuyOrLocked then
+                        if hasShopKeyword then
                             scanContainer(d, state)
                             break
                         end
@@ -579,12 +577,15 @@ local function detectAtPosition(posX, posY)
             local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
             if res and res.Instance then
                 target3D = res.Instance
+                if not state.debugHit then
+                    state.debugHit = res.Instance.Name
+                end
             end
         end
 
         if target3D then
             local curr = target3D
-            for _ = 1, 6 do
+            for _ = 1, 7 do
                 if not curr or curr == workspace then break end
                 scanContainer(curr, state)
                 local digits = string.match(curr.Name, "(%d%d%d%d%d%d+)")
@@ -609,10 +610,10 @@ local function detectAtPosition(posX, posY)
     if state.id or state.name or state.itemType then
         return state
     end
-    return nil
+    return nil, state.debugHit
 end
 
-local function applyDetectedData(data)
+local function applyDetectedData(data, debugHit)
     if data then
         if data.id then
             idInput.Text = tostring(data.id)
@@ -628,8 +629,10 @@ local function applyDetectedData(data)
         statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
         print("[AceSniperUI]", infoText)
     else
-        statusLbl.Text = "Belum ada data item terbaca pada posisi ini"
+        local hitLabel = debugHit and (" [" .. tostring(debugHit) .. "]") or ""
+        statusLbl.Text = "Belum ada data item terbaca" .. hitLabel
         statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+        print("[AceSniperUI] Belum ada data item terbaca pada posisi ini" .. hitLabel)
     end
 end
 
@@ -639,7 +642,8 @@ local function handleTapOrClick(pos)
 
     task.delay(0.1, function()
         if not autoDetectEnabled then return end
-        applyDetectedData(detectAtPosition(pos.X, pos.Y))
+        local data, hitName = detectAtPosition(pos.X, pos.Y)
+        applyDetectedData(data, hitName)
     end)
 end
 
@@ -709,7 +713,8 @@ local function simulateVirtualMouseClick()
 
     if autoDetectEnabled then
         task.delay(0.1, function()
-            applyDetectedData(detectAtPosition(cx, cy))
+            local data, hitName = detectAtPosition(cx, cy)
+            applyDetectedData(data, hitName)
         end)
     else
         statusLbl.Text = string.format("Virtual Click @ (%d, %d)", math.floor(cx), math.floor(cy))
