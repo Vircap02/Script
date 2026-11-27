@@ -3,7 +3,6 @@ local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local guiService = cloneref(game:GetService("GuiService"))
 
 local localPlayer = players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -309,36 +308,39 @@ statusLbl.Parent = main
 
 -- Kursor Virtual di Layar (bisa di-drag ke posisi mana saja)
 local cursorFrame = Instance.new("Frame")
-cursorFrame.Size = UDim2.new(0, 28, 0, 28)
-cursorFrame.Position = UDim2.new(0.55, 0, 0.45, 0)
+cursorFrame.Name = "VirtualMouseCursor"
+cursorFrame.Size = UDim2.new(0, 32, 0, 32)
+cursorFrame.Position = UDim2.new(0.5, -16, 0.5, -16)
 cursorFrame.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-cursorFrame.BackgroundTransparency = 0.2
+cursorFrame.BackgroundTransparency = 0.1
 cursorFrame.BorderSizePixel = 0
 cursorFrame.Visible = false
-cursorFrame.ZIndex = 50
+cursorFrame.ZIndex = 999
 cursorFrame.Active = true
 cursorFrame.Parent = gui
 Instance.new("UICorner", cursorFrame).CornerRadius = UDim.new(1, 0)
 animStroke(cursorFrame, 2)
 
 local cursorDot = Instance.new("Frame")
-cursorDot.Size = UDim2.new(0, 6, 0, 6)
-cursorDot.Position = UDim2.new(0.5, -3, 0.5, -3)
+cursorDot.Size = UDim2.new(0, 8, 0, 8)
+cursorDot.Position = UDim2.new(0.5, -4, 0.5, -4)
 cursorDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 cursorDot.BorderSizePixel = 0
+cursorDot.ZIndex = 1000
 cursorDot.Parent = cursorFrame
 Instance.new("UICorner", cursorDot).CornerRadius = UDim.new(1, 0)
 
 local cursorTag = Instance.new("TextLabel")
-cursorTag.Size = UDim2.new(0, 56, 0, 14)
-cursorTag.Position = UDim2.new(0.5, -28, 1, 2)
+cursorTag.Size = UDim2.new(0, 60, 0, 16)
+cursorTag.Position = UDim2.new(0.5, -30, 1, 3)
 cursorTag.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
-cursorTag.BackgroundTransparency = 0.25
+cursorTag.BackgroundTransparency = 0.15
 cursorTag.Text = "MOUSE"
-cursorTag.TextColor3 = Color3.fromRGB(255, 190, 90)
+cursorTag.TextColor3 = Color3.fromRGB(255, 210, 110)
 cursorTag.Font = Enum.Font.GothamBlack
-cursorTag.TextSize = 8.5
+cursorTag.TextSize = 9
 cursorTag.BorderSizePixel = 0
+cursorTag.ZIndex = 1000
 cursorTag.Parent = cursorFrame
 Instance.new("UICorner", cursorTag).CornerRadius = UDim.new(0, 4)
 
@@ -641,14 +643,12 @@ local function handleTapOrClick(pos)
     end)
 end
 
--- Simulasi klik mouse pada posisi tengah kursor virtual
 local function simulateVirtualMouseClick()
     local absPos = cursorFrame.AbsolutePosition
     local absSize = cursorFrame.AbsoluteSize
     local cx = absPos.X + (absSize.X * 0.5)
     local cy = absPos.Y + (absSize.Y * 0.5)
 
-    -- Animasi tekan pada kursor virtual
     tweenService:Create(cursorFrame, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(110, 255, 160)}):Play()
     task.delay(0.12, function()
         if cursorFrame.Parent then
@@ -656,7 +656,6 @@ local function simulateVirtualMouseClick()
         end
     end)
 
-    -- Trigger sinyal GuiButton jika kursor berada di atas tombol/objek UI
     for _, root in ipairs(getAccessibleGuiRoots()) do
         local ok, objs = pcall(function()
             return root:GetGuiObjectsAtPosition(cx, cy)
@@ -680,7 +679,6 @@ local function simulateVirtualMouseClick()
         end
     end
 
-    -- Trigger ClickDetector / ProximityPrompt 3D jika kursor mengarah ke objek di workspace
     local cam = workspace.CurrentCamera
     if cam then
         local ray = cam:ViewportPointToRay(cx, cy)
@@ -721,13 +719,18 @@ end
 
 vMouseBtn.MouseButton1Click:Connect(function()
     virtualMouseEnabled = not virtualMouseEnabled
-    cursorFrame.Visible = virtualMouseEnabled
     if virtualMouseEnabled then
+        local cam = workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+        cursorFrame.Position = UDim2.new(0, math.floor(vp.X * 0.5 - 16), 0, math.floor(vp.Y * 0.5 - 16))
+        cursorFrame.Visible = true
         vMouseBtn.Text = "VIRTUAL MOUSE: ON"
         vMouseBtn.BackgroundColor3 = BTN_VMOUSE_ON
-        statusLbl.Text = "Geser kursor di layar lalu tekan CLICK MOUSE"
+        statusLbl.Text = "Kursor muncul di tengah layar. Geser & tekan CLICK MOUSE"
         statusLbl.TextColor3 = Color3.fromRGB(205, 165, 255)
+        print("[AceSniperUI] Virtual Mouse ON @", cursorFrame.AbsolutePosition)
     else
+        cursorFrame.Visible = false
         vMouseBtn.Text = "VIRTUAL MOUSE: OFF"
         vMouseBtn.BackgroundColor3 = BTN_VMOUSE_OFF
         statusLbl.Text = "Status: Virtual Mouse disembunyikan"
@@ -738,6 +741,9 @@ end)
 vClickBtn.MouseButton1Click:Connect(function()
     if not virtualMouseEnabled then
         virtualMouseEnabled = true
+        local cam = workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+        cursorFrame.Position = UDim2.new(0, math.floor(vp.X * 0.5 - 16), 0, math.floor(vp.Y * 0.5 - 16))
         cursorFrame.Visible = true
         vMouseBtn.Text = "VIRTUAL MOUSE: ON"
         vMouseBtn.BackgroundColor3 = BTN_VMOUSE_ON
@@ -893,6 +899,7 @@ end)
 closeBtn.MouseButton1Click:Connect(function()
     isSniping = false
     autoDetectEnabled = false
+    virtualMouseEnabled = false
     local tweenClose = tweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1
