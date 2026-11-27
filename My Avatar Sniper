@@ -1,15 +1,34 @@
-local coreGui = cloneref(game:GetService("CoreGui"))
+local players = cloneref(game:GetService("Players"))
 local userInputService = cloneref(game:GetService("UserInputService"))
 local runService = cloneref(game:GetService("RunService"))
 local tweenService = cloneref(game:GetService("TweenService"))
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local players = cloneref(game:GetService("Players"))
 
 local localPlayer = players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
 local mouse = localPlayer:GetMouse()
 
-if coreGui:FindFirstChild("AceSniperUI") then
-    coreGui.AceSniperUI:Destroy()
+local function getParentGui()
+    local ok, cg = pcall(function()
+        return cloneref(game:GetService("CoreGui"))
+    end)
+    if ok and cg then
+        local testOk = pcall(function()
+            local f = Instance.new("Folder")
+            f.Parent = cg
+            f:Destroy()
+        end)
+        if testOk then
+            return cg
+        end
+    end
+    return playerGui
+end
+
+local uiParent = getParentGui()
+
+if uiParent:FindFirstChild("AceSniperUI") then
+    uiParent.AceSniperUI:Destroy()
 end
 
 -- Warna Tema Halloween (Hitam Malam, Oranye Labu, Ungu Mistis)
@@ -54,20 +73,28 @@ end
 local gui = Instance.new("ScreenGui")
 gui.Name = "AceSniperUI"
 gui.ResetOnSpawn = false
-gui.Parent = coreGui
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 999999
+gui.IgnoreGuiInset = true
+gui.Parent = uiParent
 
 local FULL_W, FULL_H = 290, 236
-local MINI_W, MINI_H = 42, 42
+local MINI_W, MINI_H = 44, 44
 
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, FULL_W, 0, FULL_H)
-main.Position = UDim2.new(0.5, -FULL_W // 2, 0.4, -FULL_H // 2)
+main.Position = UDim2.new(0.5, -FULL_W // 2, 0.35, -FULL_H // 2)
 main.BackgroundColor3 = COL_BG
 main.BackgroundTransparency = 0.1
 main.BorderSizePixel = 0
 main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
+
+-- Auto scale agar nyaman disentuh di layar HP
+local mainScale = Instance.new("UIScale")
+mainScale.Scale = userInputService.TouchEnabled and not userInputService.KeyboardEnabled and 1.12 or 1
+mainScale.Parent = main
 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
 animStroke(main, 1.5)
@@ -84,7 +111,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -96, 0, 16)
 title.Position = UDim2.new(0, 40, 0, 8)
 title.BackgroundTransparency = 1
-title.Text = "MY AVATAR"
+title.Text = "VIRGOBOY UGC SNIPER"
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 11.5
 title.TextColor3 = Color3.fromRGB(255, 140, 0)
@@ -188,13 +215,13 @@ local idInput = createInput("Asset ID (Contoh: 70930483548956)", "70930483548956
 local nameInput = createInput("Nama Item (Contoh: Green Lollipop )", "Green Lollipop ", 79)
 local typeInput = createInput("Tipe Item (Contoh: FaceAccessory)", "FaceAccessory", 111)
 
--- Tombol Auto Detect Saat Klik Item
+-- Tombol Auto Detect Saat Klik/Tap Item
 local autoDetectEnabled = false
 local detectBtn = Instance.new("TextButton")
 detectBtn.Size = UDim2.new(1, -20, 0, 26)
 detectBtn.Position = UDim2.new(0, 10, 0, 144)
 detectBtn.BackgroundColor3 = BTN_DETECT_OFF
-detectBtn.Text = "AUTO DETECT KLIK: OFF"
+detectBtn.Text = "AUTO DETECT TAP: OFF"
 detectBtn.TextColor3 = Color3.fromRGB(235, 215, 255)
 detectBtn.Font = Enum.Font.GothamBold
 detectBtn.TextSize = 10.5
@@ -248,7 +275,7 @@ statusLbl.TextXAlignment = Enum.TextXAlignment.Center
 statusLbl.TextTruncate = Enum.TextTruncate.AtEnd
 statusLbl.Parent = main
 
--- Normalisasi Tipe Accessory dari teks UI (misal "Accessories | Hat" atau "Hat")
+-- Normalisasi Tipe Accessory dari teks UI
 local TYPE_MAP = {
     face = "FaceAccessory",
     faceaccessory = "FaceAccessory",
@@ -271,7 +298,6 @@ local TYPE_MAP = {
 local function normalizeType(raw)
     if type(raw) ~= "string" then return nil end
     local clean = string.gsub(raw, "^%s*(.-)%s*$", "%1")
-    -- Ambil bagian setelah '|' bila formatnya "Accessories | Hat"
     local afterPipe = string.match(clean, "|%s*([^|]+)$")
     if afterPipe then
         clean = string.gsub(afterPipe, "^%s*(.-)%s*$", "%1")
@@ -293,7 +319,6 @@ local function isNoiseText(txt)
     local t = string.gsub(txt, "^%s*(.-)%s*$", "%1")
     if #t == 0 then return true end
     local lt = string.lower(t)
-    -- Abaikan label UI umum, harga/poin, stok, dan timer
     if lt == "locked" or lt == "buy" or lt == "buy points" or lt == "outfits"
         or lt == "featured" or lt == "all" or lt == "new" or lt == "upcoming"
         or lt == "out of season" or lt == "back" or string.find(lt, "no stoc", 1, true)
@@ -307,14 +332,12 @@ end
 
 local function extractIdFromText(txt)
     if type(txt) ~= "string" then return nil end
-    -- Hindari teks yang mengandung "pts", "k/", atau format waktu/jam
     local lt = string.lower(txt)
     if string.find(lt, "pts", 1, true) or string.find(lt, "k/", 1, true) or string.find(lt, "minutes", 1, true) then
         return nil
     end
     for digits in string.gmatch(txt, "(%d+)") do
         local num = tonumber(digits)
-        -- Asset ID UGC umumnya panjang (>= 6 digit)
         if num and #digits >= 6 then
             return num
         end
@@ -322,11 +345,9 @@ local function extractIdFromText(txt)
     return nil
 end
 
--- Scan container (Card/Frame/Modal) untuk mencari ID, Nama, dan Tipe
 local function scanContainer(container, state)
     if not container then return end
 
-    -- Cek attribute pada container
     for _, attrName in ipairs({ "AssetId", "ItemId", "ProductId", "UGCId", "Id" }) do
         local v = container:GetAttribute(attrName)
         local n = tonumber(v)
@@ -347,7 +368,6 @@ local function scanContainer(container, state)
         end
     end
 
-    -- Cek descendant di dalam container
     for _, desc in ipairs(container:GetDescendants()) do
         local lname = string.lower(desc.Name)
         if desc:IsA("IntValue") or desc:IsA("NumberValue") or desc:IsA("StringValue") then
@@ -362,17 +382,14 @@ local function scanContainer(container, state)
                 state.itemType = state.itemType or normalizeType(tostring(desc.Value))
             end
         elseif desc:IsA("TextLabel") or desc:IsA("TextButton") then
-            local rawTxt = desc.Text
-            local trimmed = string.gsub(rawTxt, "^%s*(.-)%s*$", "%1")
+            local trimmed = string.gsub(desc.Text, "^%s*(.-)%s*$", "%1")
             if #trimmed > 0 then
-                -- Deteksi tipe seperti "Accessories | Hat"
                 if string.find(trimmed, "|", 1, true) or string.find(string.lower(trimmed), "accessory", 1, true) then
                     local norm = normalizeType(trimmed)
                     if norm then
                         state.itemType = state.itemType or norm
                     end
                 elseif not isNoiseText(trimmed) then
-                    -- Nama item biasanya berada di label yang bukan angka/tombol aksi
                     if not state.name and not string.match(trimmed, "^[%d%.,]+$") then
                         state.name = trimmed
                     end
@@ -385,7 +402,6 @@ local function scanContainer(container, state)
         elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
             local imgId = string.match(tostring(desc.Image), "(%d%d%d%d%d%d+)")
             if imgId and not state.id then
-                -- Simpan sebagai kandidat ID cadangan jika belum ada ID langsung
                 state.fallbackId = state.fallbackId or tonumber(imgId)
             end
         end
@@ -395,9 +411,8 @@ end
 local function detectAtPosition(posX, posY)
     local state = { id = nil, name = nil, itemType = nil, fallbackId = nil }
 
-    -- 1. Cek UI elements pada posisi klik
     local okGui, guiList = pcall(function()
-        return localPlayer.PlayerGui:GetGuiObjectsAtPosition(posX, posY)
+        return playerGui:GetGuiObjectsAtPosition(posX, posY)
     end)
 
     if okGui and guiList and #guiList > 0 then
@@ -412,12 +427,11 @@ local function detectAtPosition(posX, posY)
             curr = curr.Parent
         end
 
-        -- Jika klik membuka popup/modal di dalam ScreenGui yang sama, scan juga frame yang baru/sedang terlihat
         if not (state.id and state.name) then
             local screenRoot = topObj:FindFirstAncestorOfClass("ScreenGui")
             if screenRoot then
                 for _, d in ipairs(screenRoot:GetDescendants()) do
-                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 150 and d.AbsoluteSize.Y > 150 then
+                    if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 140 and d.AbsoluteSize.Y > 140 then
                         local hasBuyOrLocked = false
                         for _, sub in ipairs(d:GetDescendants()) do
                             if (sub:IsA("TextLabel") or sub:IsA("TextButton")) then
@@ -438,9 +452,26 @@ local function detectAtPosition(posX, posY)
         end
     end
 
-    -- 2. Fallback cek 3D Workspace bila tidak di UI atau belum lengkap
-    if not (state.id and state.name and state.itemType) and mouse.Target then
-        local curr = mouse.Target
+    -- Raycast / mouse.Target fallback untuk objek 3D di HP maupun PC
+    local target3D = mouse.Target
+    if not target3D then
+        local cam = workspace.CurrentCamera
+        if cam then
+            local ray = cam:ViewportPointToRay(posX, posY)
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            if localPlayer.Character then
+                rayParams.FilterDescendantsInstances = { localPlayer.Character }
+            end
+            local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+            if res and res.Instance then
+                target3D = res.Instance
+            end
+        end
+    end
+
+    if not (state.id and state.name and state.itemType) and target3D then
+        local curr = target3D
         for _ = 1, 6 do
             if not curr or curr == workspace then break end
             scanContainer(curr, state)
@@ -468,54 +499,71 @@ local function detectAtPosition(posX, posY)
     return nil
 end
 
--- Event Klik untuk Auto Detect (baik di UI maupun World)
+local function isHitOwnGui(posX, posY)
+    for _, container in ipairs({ gui, playerGui }) do
+        local ok, objs = pcall(function()
+            return container:GetGuiObjectsAtPosition(posX, posY)
+        end)
+        if ok and objs then
+            for _, gObj in ipairs(objs) do
+                if gObj:IsDescendantOf(gui) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function handleTapOrClick(pos)
+    if not autoDetectEnabled then return end
+    if isHitOwnGui(pos.X, pos.Y) then return end
+
+    task.delay(0.1, function()
+        if not autoDetectEnabled then return end
+        local data = detectAtPosition(pos.X, pos.Y)
+        if data then
+            if data.id then
+                idInput.Text = tostring(data.id)
+            end
+            if data.name then
+                nameInput.Text = data.name
+            end
+            if data.itemType then
+                typeInput.Text = data.itemType
+            end
+            statusLbl.Text = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+            statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
+        else
+            statusLbl.Text = "Belum ada data item terbaca pada tap ini"
+            statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+        end
+    end)
+end
+
 userInputService.InputBegan:Connect(function(input, _gameProcessed)
     if not autoDetectEnabled then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local p = input.Position
-        -- Jangan deteksi klik pada GUI sniper sendiri
-        local snipeHit = false
-        for _, gObj in ipairs(coreGui:GetGuiObjectsAtPosition(p.X, p.Y)) do
-            if gObj:IsDescendantOf(gui) then
-                snipeHit = true
-                break
-            end
-        end
-        if snipeHit then return end
+        handleTapOrClick(input.Position)
+    end
+end)
 
-        -- Beri sedikit jeda agar popup detail item sempat muncul jika baru diklik
-        task.delay(0.08, function()
-            if not autoDetectEnabled then return end
-            local data = detectAtPosition(p.X, p.Y)
-            if data then
-                if data.id then
-                    idInput.Text = tostring(data.id)
-                end
-                if data.name then
-                    nameInput.Text = data.name
-                end
-                if data.itemType then
-                    typeInput.Text = data.itemType
-                end
-                statusLbl.Text = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
-                statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
-            else
-                statusLbl.Text = "Belum ada data item terbaca pada klik ini"
-                statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
-            end
-        end)
+userInputService.TouchTap:Connect(function(touchPositions, _gameProcessed)
+    if not autoDetectEnabled then return end
+    if touchPositions and #touchPositions > 0 then
+        handleTapOrClick(touchPositions[1])
     end
 end)
 
 detectBtn.MouseButton1Click:Connect(function()
     autoDetectEnabled = not autoDetectEnabled
     if autoDetectEnabled then
-        detectBtn.Text = "AUTO DETECT KLIK: ON"
+        detectBtn.Text = "AUTO DETECT TAP: ON"
         detectBtn.BackgroundColor3 = BTN_DETECT_ON
-        statusLbl.Text = "Klik item di shop/popup untuk auto-fill"
+        statusLbl.Text = "Tap item di shop/popup untuk auto-fill"
         statusLbl.TextColor3 = Color3.fromRGB(120, 255, 180)
     else
-        detectBtn.Text = "AUTO DETECT KLIK: OFF"
+        detectBtn.Text = "AUTO DETECT TAP: OFF"
         detectBtn.BackgroundColor3 = BTN_DETECT_OFF
         statusLbl.Text = "Status: Auto Detect dimatikan"
         statusLbl.TextColor3 = Color3.fromRGB(180, 150, 210)
@@ -559,12 +607,10 @@ local function fireSnipe()
     return success
 end
 
--- Event Klik Single Snipe
 snipeOnceBtn.MouseButton1Click:Connect(function()
     fireSnipe()
 end)
 
--- Event Klik Auto Snipe
 autoSnipeBtn.MouseButton1Click:Connect(function()
     isSniping = not isSniping
     if isSniping then
@@ -602,10 +648,13 @@ floatingIcon.AutoButtonColor = false
 floatingIcon.BorderSizePixel = 0
 floatingIcon.Parent = gui
 
+local miniScale = Instance.new("UIScale")
+miniScale.Scale = mainScale.Scale
+miniScale.Parent = floatingIcon
+
 Instance.new("UICorner", floatingIcon).CornerRadius = UDim.new(0, 10)
 animStroke(floatingIcon, 1.5)
 
--- Interaksi Tombol Minimize
 minBtn.MouseEnter:Connect(function()
     tweenService:Create(minBtn, TweenInfo.new(0.15), {BackgroundColor3 = MIN_HOVER}):Play()
 end)
@@ -623,7 +672,6 @@ minBtn.MouseButton1Down:Connect(function()
     end)
 end)
 
--- Interaksi Tombol Close
 closeBtn.MouseEnter:Connect(function()
     tweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = CLOSE_HOVER}):Play()
 end)
@@ -650,7 +698,6 @@ closeBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Fungsi Toggle Minimize / Restore
 minBtn.MouseButton1Click:Connect(function()
     minimized = true
     floatingIcon.Position = main.Position
@@ -685,7 +732,7 @@ floatingIcon.MouseButton1Click:Connect(function()
     tweenIn:Play()
 end)
 
--- Sistem Dragging untuk Panel Utama & Pop-up Ikon Kecil
+-- Sistem Dragging untuk HP & PC
 do
     local dragging, dragStart, startPos = false, nil, nil
     
@@ -714,9 +761,9 @@ do
             
             targetObj.Position = UDim2.new(
                 0,
-                math.clamp(startPos.X.Offset + d.X, 0, vp.X - gs.X),
+                math.clamp(startPos.X.Offset + d.X, 0, math.max(0, vp.X - gs.X)),
                 0,
-                math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - gs.Y)
+                math.clamp(startPos.Y.Offset + d.Y, 0, math.max(0, vp.Y - gs.Y))
             )
         end
     end)
