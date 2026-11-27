@@ -561,11 +561,14 @@ local function handleTapOrClick(pos)
             if data.itemType then
                 typeInput.Text = data.itemType
             end
-            statusLbl.Text = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+            local infoText = "Detected: " .. (data.name or "?") .. " | " .. (data.itemType or "?") .. " | " .. tostring(data.id or "?")
+            statusLbl.Text = infoText
             statusLbl.TextColor3 = Color3.fromRGB(110, 255, 175)
+            print("[AceSniperUI]", infoText)
         else
             statusLbl.Text = "Belum ada data item terbaca pada tap ini"
             statusLbl.TextColor3 = Color3.fromRGB(255, 190, 100)
+            print("[AceSniperUI] Belum ada data item terbaca pada tap ini")
         end
     end)
 end
@@ -622,7 +625,7 @@ local function fireSnipe()
         }
     }
 
-    local success = pcall(function()
+    local success, err = pcall(function()
         replicatedStorage:WaitForChild("Honeypot"):WaitForChild("Internal"):WaitForChild("RemoteStorage"):WaitForChild("PromptPurchase - RemoteEvent"):FireServer(unpack(args))
     end)
 
@@ -630,8 +633,9 @@ local function fireSnipe()
         statusLbl.Text = "Terkirim: " .. itemName .. " (" .. tostring(assetId) .. ")"
         statusLbl.TextColor3 = Color3.fromRGB(120, 255, 140)
     else
-        statusLbl.Text = "Gagal menemukan RemoteEvent!"
+        statusLbl.Text = "Gagal: " .. tostring(err)
         statusLbl.TextColor3 = Color3.fromRGB(255, 90, 90)
+        warn("[AceSniperUI] FireServer gagal:", err)
     end
     return success
 end
