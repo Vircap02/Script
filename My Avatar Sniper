@@ -91,7 +91,6 @@ main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
 
--- Auto scale agar nyaman disentuh di layar HP
 local mainScale = Instance.new("UIScale")
 mainScale.Scale = userInputService.TouchEnabled and not userInputService.KeyboardEnabled and 1.12 or 1
 mainScale.Parent = main
@@ -321,7 +320,9 @@ local function isNoiseText(txt)
     local lt = string.lower(t)
     if lt == "locked" or lt == "buy" or lt == "buy points" or lt == "outfits"
         or lt == "featured" or lt == "all" or lt == "new" or lt == "upcoming"
-        or lt == "out of season" or lt == "back" or string.find(lt, "no stoc", 1, true)
+        or lt == "out of season" or lt == "back" or lt == "map" or lt == "workspace"
+        or lt == "terrain" or lt == "part" or lt == "meshpart" or lt == "model"
+        or string.find(lt, "no stoc", 1, true)
         or string.find(lt, "pts", 1, true) or string.find(lt, "/10k", 1, true)
         or string.find(lt, "%d+h") or string.find(lt, "%d+m") or string.find(lt, "%d+s")
         or string.match(t, "^[%d%.,]+$") then
@@ -408,18 +409,61 @@ local function scanContainer(container, state)
     end
 end
 
+local function getAccessibleGuiRoots()
+    local roots = { playerGui }
+    local ok, cg = pcall(function()
+        return cloneref(game:GetService("CoreGui"))
+    end)
+    if ok and cg and cg ~= uiParent then
+        local canRead = pcall(function()
+            local _ = cg:GetChildren()
+        end)
+        if canRead then
+            table.insert(roots, cg)
+        end
+    end
+    return roots
+end
+
+local function isHitOwnGui(posX, posY)
+    for _, root in ipairs(getAccessibleGuiRoots()) do
+        local ok, objs = pcall(function()
+            return root:GetGuiObjectsAtPosition(posX, posY)
+        end)
+        if ok and objs then
+            for _, gObj in ipairs(objs) do
+                if gObj:IsDescendantOf(gui) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 local function detectAtPosition(posX, posY)
     local state = { id = nil, name = nil, itemType = nil, fallbackId = nil }
 
-    local okGui, guiList = pcall(function()
-        return playerGui:GetGuiObjectsAtPosition(posX, posY)
-    end)
+    local topUiObj = nil
+    for _, root in ipairs(getAccessibleGuiRoots()) do
+        local okGui, guiList = pcall(function()
+            return root:GetGuiObjectsAtPosition(posX, posY)
+        end)
+        if okGui and guiList and #guiList > 0 then
+            for _, gObj in ipairs(guiList) do
+                if not gObj:IsDescendantOf(gui) and gObj.Visible then
+                    topUiObj = gObj
+                    break
+                end
+            end
+        end
+        if topUiObj then break end
+    end
 
-    if okGui and guiList and #guiList > 0 then
-        local topObj = guiList[1]
-        local curr = topObj
-        for _ = 1, 6 do
-            if not curr or curr:IsA("ScreenGui") or curr:IsA("PlayerGui") then break end
+    if topUiObj then
+        local curr = topUiObj
+        for _ = 1, 7 do
+            if not curr or curr:IsA("ScreenGui") or curr:IsA("PlayerGui") or curr:IsA("CoreGui") then break end
             scanContainer(curr, state)
             if state.id and state.name and state.itemType then
                 break
@@ -428,7 +472,7 @@ local function detectAtPosition(posX, posY)
         end
 
         if not (state.id and state.name) then
-            local screenRoot = topObj:FindFirstAncestorOfClass("ScreenGui")
+            local screenRoot = topUiObj:FindFirstAncestorOfClass("ScreenGui")
             if screenRoot then
                 for _, d in ipairs(screenRoot:GetDescendants()) do
                     if (d:IsA("Frame") or d:IsA("ImageLabel")) and d.Visible and d.AbsoluteSize.X > 140 and d.AbsoluteSize.Y > 140 then
@@ -452,40 +496,41 @@ local function detectAtPosition(posX, posY)
         end
     end
 
-    -- Raycast / mouse.Target fallback untuk objek 3D di HP maupun PC
-    local target3D = mouse.Target
-    if not target3D then
-        local cam = workspace.CurrentCamera
-        if cam then
-            local ray = cam:ViewportPointToRay(posX, posY)
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-            if localPlayer.Character then
-                rayParams.FilterDescendantsInstances = { localPlayer.Character }
-            end
-            local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
-            if res and res.Instance then
-                target3D = res.Instance
+    if not (state.id and state.name and state.itemType) then
+        local target3D = mouse.Target
+        if not target3D then
+            local cam = workspace.CurrentCamera
+            if cam then
+                local ray = cam:ViewportPointToRay(posX, posY)
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                if localPlayer.Character then
+                    rayParams.FilterDescendantsInstances = { localPlayer.Character }
+                end
+                local res = workspace:Raycast(ray.Origin, ray.Direction * 500, rayParams)
+                if res and res.Instance then
+                    target3D = res.Instance
+                end
             end
         end
-    end
 
-    if not (state.id and state.name and state.itemType) and target3D then
-        local curr = target3D
-        for _ = 1, 6 do
-            if not curr or curr == workspace then break end
-            scanContainer(curr, state)
-            local digits = string.match(curr.Name, "(%d%d%d%d%d%d+)")
-            if digits and not state.id then
-                state.id = tonumber(digits)
+        if target3D then
+            local curr = target3D
+            for _ = 1, 6 do
+                if not curr or curr == workspace then break end
+                scanContainer(curr, state)
+                local digits = string.match(curr.Name, "(%d%d%d%d%d%d+)")
+                if digits and not state.id then
+                    state.id = tonumber(digits)
+                end
+                if not state.itemType and curr:IsA("Accoutrement") and curr.AccessoryType ~= Enum.AccessoryType.None then
+                    state.itemType = curr.AccessoryType.Name
+                end
+                if not state.name and not curr:IsA("BasePart") and not string.match(curr.Name, "^%d+$") and not isNoiseText(curr.Name) then
+                    state.name = curr.Name
+                end
+                curr = curr.Parent
             end
-            if not state.itemType and curr:IsA("Accoutrement") and curr.AccessoryType ~= Enum.AccessoryType.None then
-                state.itemType = curr.AccessoryType.Name
-            end
-            if not state.name and not curr:IsA("BasePart") and not string.match(curr.Name, "^%d+$") and not isNoiseText(curr.Name) then
-                state.name = curr.Name
-            end
-            curr = curr.Parent
         end
     end
 
@@ -497,22 +542,6 @@ local function detectAtPosition(posX, posY)
         return state
     end
     return nil
-end
-
-local function isHitOwnGui(posX, posY)
-    for _, container in ipairs({ gui, playerGui }) do
-        local ok, objs = pcall(function()
-            return container:GetGuiObjectsAtPosition(posX, posY)
-        end)
-        if ok and objs then
-            for _, gObj in ipairs(objs) do
-                if gObj:IsDescendantOf(gui) then
-                    return true
-                end
-            end
-        end
-    end
-    return false
 end
 
 local function handleTapOrClick(pos)
