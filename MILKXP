@@ -18,8 +18,10 @@ end)
 
 -- State Variables
 local autoFarmActive = false
-local autoClaimActive = false
+local autoClaimActive = true
+local autoCollectLegSecretActive = false
 local farmConnection = nil
+local legSecretConnection = nil
 
 local PREFIRE_MS = 250
 local PREFIRE_SEC = PREFIRE_MS / 1000
@@ -208,7 +210,7 @@ contentFrame.BackgroundTransparency = 1
 contentFrame.BorderSizePixel = 0
 contentFrame.ScrollBarThickness = 3
 contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 140, 0)
-contentFrame.CanvasSize = UDim2.new(0, 0, 0, 360)
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 395)
 contentFrame.Parent = main
 
 -- Display Timer (PinkHeader + Server Countdown -250ms)
@@ -311,7 +313,7 @@ slotMetaLabel.Font = Enum.Font.Code
 slotMetaLabel.TextXAlignment = Enum.TextXAlignment.Left
 slotMetaLabel.Parent = slotCard
 
--- 2. Tombol Toggle Auto Farm Item
+-- 2. Tombol Toggle Auto Farm Item (Seperti Biasa)
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0.9, 0, 0, 26)
 toggleBtn.Position = UDim2.new(0.05, 0, 0, 154)
@@ -324,15 +326,28 @@ toggleBtn.Parent = contentFrame
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 5)
 animStroke(toggleBtn, 1)
 
+-- 2b. Tombol Toggle Auto Collect Legendary / Secret (Terpisah)
+local legSecretBtn = Instance.new("TextButton")
+legSecretBtn.Size = UDim2.new(0.9, 0, 0, 26)
+legSecretBtn.Position = UDim2.new(0.05, 0, 0, 185)
+legSecretBtn.BackgroundColor3 = Color3.fromRGB(55, 30, 75)
+legSecretBtn.TextColor3 = Color3.fromRGB(255, 215, 100)
+legSecretBtn.TextSize = 10.5
+legSecretBtn.Font = Enum.Font.GothamBold
+legSecretBtn.Text = "Auto Collect Leg/Secret: OFF"
+legSecretBtn.Parent = contentFrame
+Instance.new("UICorner", legSecretBtn).CornerRadius = UDim.new(0, 5)
+animStroke(legSecretBtn, 1)
+
 -- 3. Tombol Toggle Auto Claim (-250ms Pre-Fire)
 local claimBtn = Instance.new("TextButton")
 claimBtn.Size = UDim2.new(0.9, 0, 0, 26)
-claimBtn.Position = UDim2.new(0.05, 0, 0, 185)
-claimBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+claimBtn.Position = UDim2.new(0.05, 0, 0, 216)
+claimBtn.BackgroundColor3 = Color3.fromRGB(35, 160, 75)
 claimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 claimBtn.TextSize = 11
 claimBtn.Font = Enum.Font.GothamBold
-claimBtn.Text = "AUTO CLAIM : OFF "
+claimBtn.Text = "AUTO CLAIM : ON "
 claimBtn.Parent = contentFrame
 Instance.new("UICorner", claimBtn).CornerRadius = UDim.new(0, 5)
 animStroke(claimBtn, 1)
@@ -340,7 +355,7 @@ animStroke(claimBtn, 1)
 -- 4. Tombol All Server
 local allServerBtn = Instance.new("TextButton")
 allServerBtn.Size = UDim2.new(0.9, 0, 0, 26)
-allServerBtn.Position = UDim2.new(0.05, 0, 0, 216)
+allServerBtn.Position = UDim2.new(0.05, 0, 0, 247)
 allServerBtn.BackgroundColor3 = Color3.fromRGB(45, 30, 70)
 allServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 allServerBtn.TextSize = 11
@@ -353,7 +368,7 @@ animStroke(allServerBtn, 1)
 -- 5. Tombol Re-Scan UI & Manual Fire
 local rescanBtn = Instance.new("TextButton")
 rescanBtn.Size = UDim2.new(0.435, 0, 0, 26)
-rescanBtn.Position = UDim2.new(0.05, 0, 0, 247)
+rescanBtn.Position = UDim2.new(0.05, 0, 0, 278)
 rescanBtn.BackgroundColor3 = Color3.fromRGB(35, 30, 50)
 rescanBtn.TextColor3 = Color3.fromRGB(255, 210, 110)
 rescanBtn.TextSize = 10
@@ -365,7 +380,7 @@ animStroke(rescanBtn, 1)
 
 local manualFireBtn = Instance.new("TextButton")
 manualFireBtn.Size = UDim2.new(0.435, 0, 0, 26)
-manualFireBtn.Position = UDim2.new(0.515, 0, 0, 247)
+manualFireBtn.Position = UDim2.new(0.515, 0, 0, 278)
 manualFireBtn.BackgroundColor3 = Color3.fromRGB(35, 65, 95)
 manualFireBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 manualFireBtn.TextSize = 10
@@ -378,13 +393,13 @@ animStroke(manualFireBtn, 1)
 -- Label Status
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(0.9, 0, 0, 22)
-statusLabel.Position = UDim2.new(0.05, 0, 0, 278)
+statusLabel.Position = UDim2.new(0.05, 0, 0, 309)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(180, 150, 220)
 statusLabel.TextSize = 9.5
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextWrapped = true
-statusLabel.Text = "Status: Idle"
+statusLabel.Text = "Status: Pre-Fire -250ms Armed"
 statusLabel.Parent = contentFrame
 
 -- Helper Meta Info
@@ -409,6 +424,86 @@ local function fireClaimRemote(reasonTag)
 		end
 	end
 	return ok
+end
+
+-- Helper Deteksi Rarity Legendary / Secret
+local TARGET_RARITIES = { "legendary", "secret" }
+
+local function matchesTargetRarity(val)
+	if typeof(val) ~= "string" then return false end
+	local low = val:lower()
+	for _, r in ipairs(TARGET_RARITIES) do
+		if low:find(r, 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+local function isLegendaryOrSecret(spawnObj, itemObj)
+	local targets = { itemObj, spawnObj }
+
+	for _, root in ipairs(targets) do
+		if root then
+			if matchesTargetRarity(root.Name) then
+				return true
+			end
+
+			for attrName, attrVal in pairs(root:GetAttributes()) do
+				if matchesTargetRarity(tostring(attrName)) or matchesTargetRarity(tostring(attrVal)) then
+					return true
+				end
+			end
+
+			for _, desc in ipairs(root:GetDescendants()) do
+				if matchesTargetRarity(desc.Name) then
+					return true
+				end
+
+				for attrName, attrVal in pairs(desc:GetAttributes()) do
+					if matchesTargetRarity(tostring(attrName)) or matchesTargetRarity(tostring(attrVal)) then
+						return true
+					end
+				end
+
+				if desc:IsA("StringValue") and matchesTargetRarity(desc.Value) then
+					return true
+				elseif desc:IsA("ObjectValue") and desc.Value and matchesTargetRarity(desc.Value.Name) then
+					return true
+				elseif (desc:IsA("TextLabel") or desc:IsA("TextButton")) and matchesTargetRarity(desc.Text) then
+					return true
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+-- Helper Ambil & Collect Item
+local function collectSpawnItem(spawnObj, item, statusMsg)
+	local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+
+	if targetPart and targetPart:IsA("BasePart") then
+		humanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+
+		local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true) or spawnObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+		if prompt then
+			fireproximityprompt(prompt)
+
+			pcall(function()
+				ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("OpenBox"):FireServer()
+			end)
+
+			statusLabel.Text = statusMsg or "Status: Fired Item & OpenBox"
+			task.wait(0.3)
+		else
+			statusLabel.Text = "Status: Teleported (No Prompt)"
+		end
+		return true
+	end
+
+	return false
 end
 
 -- ===== SLOT UI INDICATOR PARSER (READ-ONLY) =====
@@ -679,7 +774,7 @@ RunService.RenderStepped:Connect(function()
 
 		timerDisplay.Text = ("SRV: %s | UI: %s"):format(serverCountdown, uiTimerText)
 
-		-- 2. Logika Pre-Fire  Single-Hit per Jam Server
+		-- 2. Logika Pre-Fire Single-Hit per Jam Server
 		if autoClaimActive and not firedForThisHour and remaining <= PREFIRE_SEC and remaining > 0 then
 			firedForThisHour = true
 			local dateTable = os.date("!*t", serverNow)
@@ -688,7 +783,7 @@ RunService.RenderStepped:Connect(function()
 	end)
 end)
 
--- Fungsi Logika Auto Farm Item & OpenBox
+-- Fungsi Logika Auto Farm Item & OpenBox (Seperti Biasa)
 local function startAutoFarm()
 	if farmConnection then
 		farmConnection:Disconnect()
@@ -711,33 +806,54 @@ local function startAutoFarm()
 
 				if item then
 					foundValidItem = true
-					local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
-
-					if targetPart and targetPart:IsA("BasePart") then
-						humanoidRootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-
-						local prompt = item:FindFirstChildWhichIsA("ProximityPrompt", true) or spawnObj:FindFirstChildWhichIsA("ProximityPrompt", true)
-						if prompt then
-							fireproximityprompt(prompt)
-
-							pcall(function()
-								ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("OpenBox"):FireServer()
-							end)
-
-							statusLabel.Text = "Status: Fired Item & OpenBox"
-							task.wait(0.3)
-						else
-							statusLabel.Text = "Status: Teleported (No Prompt)"
-						end
+					if collectSpawnItem(spawnObj, item, "Status: Fired Item & OpenBox") then
 						break
 					end
 				end
 			end
 
-			if not foundValidItem then
+			if not foundValidItem and not autoCollectLegSecretActive then
 				statusLabel.Text = "Status: Mencari Item..."
 			end
-		else
+		elseif not autoCollectLegSecretActive then
+			statusLabel.Text = "Status: ItemSpawns tidak ditemukan!"
+		end
+	end)
+end
+
+-- Fungsi Logika Auto Collect Legendary / Secret (Terpisah)
+local function startAutoCollectLegSecret()
+	if legSecretConnection then
+		legSecretConnection:Disconnect()
+		legSecretConnection = nil
+	end
+
+	legSecretConnection = RunService.RenderStepped:Connect(function()
+		if not autoCollectLegSecretActive then return end
+
+		character = player.Character
+		if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+		humanoidRootPart = character.HumanoidRootPart
+
+		local itemSpawns = Workspace:FindFirstChild("ItemSpawns")
+		if itemSpawns then
+			local foundTarget = false
+
+			for _, spawnObj in ipairs(itemSpawns:GetChildren()) do
+				local item = spawnObj:FindFirstChild("Item")
+
+				if item and isLegendaryOrSecret(spawnObj, item) then
+					foundTarget = true
+					if collectSpawnItem(spawnObj, item, "Status: Auto Collected Leg/Secret!") then
+						break
+					end
+				end
+			end
+
+			if not foundTarget and not autoFarmActive then
+				statusLabel.Text = "Status: Mencari Leg/Secret..."
+			end
+		elseif not autoFarmActive then
 			statusLabel.Text = "Status: ItemSpawns tidak ditemukan!"
 		end
 	end)
@@ -753,11 +869,32 @@ toggleBtn.MouseButton1Click:Connect(function()
 	else
 		toggleBtn.Text = "Auto Farm: OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
-		statusLabel.Text = "Status: Farm Stopped"
 		if farmConnection then
 			farmConnection:Disconnect()
 			farmConnection = nil
 		end
+		statusLabel.Text = autoCollectLegSecretActive and "Status: Auto Farm OFF (Leg/Secret ON)" or "Status: Farm Stopped"
+	end
+end)
+
+-- Event Tombol Toggle Auto Collect Legendary / Secret
+legSecretBtn.MouseButton1Click:Connect(function()
+	autoCollectLegSecretActive = not autoCollectLegSecretActive
+	if autoCollectLegSecretActive then
+		legSecretBtn.Text = "Auto Collect Leg/Secret: ON"
+		legSecretBtn.BackgroundColor3 = Color3.fromRGB(130, 55, 15)
+		legSecretBtn.TextColor3 = Color3.fromRGB(255, 240, 150)
+		statusLabel.Text = "Status: Auto Collect Leg/Secret ON"
+		startAutoCollectLegSecret()
+	else
+		legSecretBtn.Text = "Auto Collect Leg/Secret: OFF"
+		legSecretBtn.BackgroundColor3 = Color3.fromRGB(55, 30, 75)
+		legSecretBtn.TextColor3 = Color3.fromRGB(255, 215, 100)
+		if legSecretConnection then
+			legSecretConnection:Disconnect()
+			legSecretConnection = nil
+		end
+		statusLabel.Text = autoFarmActive and "Status: Leg/Secret OFF (Auto Farm ON)" or "Status: Auto Collect Leg/Secret OFF"
 	end
 end)
 
@@ -833,9 +970,14 @@ end)
 closeBtn.MouseButton1Click:Connect(function()
 	autoFarmActive = false
 	autoClaimActive = false
+	autoCollectLegSecretActive = false
 	if farmConnection then
 		farmConnection:Disconnect()
 		farmConnection = nil
+	end
+	if legSecretConnection then
+		legSecretConnection:Disconnect()
+		legSecretConnection = nil
 	end
 	clearSlotConnections()
 
