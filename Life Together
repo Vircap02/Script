@@ -1,0 +1,1195 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+local TP_OFFSET_POS = Vector3.new(0, 1.2, 0) -- Posisi dekat item tanpa mewarisi rotasi aneh
+local COLLECT_TIMEOUT = 3.2 -- Batas tunggu maksimal per item agar respon server sempat masuk
+local PROP_COOLDOWN = 3.05 -- Selaras dengan min_seconds_between_props = 3 di StepsInfo
+local AUTO_TRIGGER_PROMPTS = true
+local AUTO_BEGIN_HUNT = true
+
+-- Filter anti bawah tanah / void
+local MIN_VALID_Y = -50
+local MAX_VALID_Y = 5000
+local VOID_RAY_DEPTH = 120
+local REQUIRE_GROUND_BELOW = true
+
+-- Warna ESP Highlight & Label Stud
+local ESP_ACTIVE_COLOR = Color3.fromRGB(46, 213, 115)
+local ESP_INACTIVE_COLOR = Color3.fromRGB(255, 71, 87)
+local ESP_MAX_DISTANCE = 5000
+
+-- Daftar 14 UGC & temanya dari StepsInfo
+local UGC_THEMES = {
+	{ label = "SEMUA TEMA", short = "ALL", theme_id = nil, asset_id = nil },
+	{ label = "1. Serpent Crown", short = "SerpentCrown", theme_id = "WitchsDen", asset_id = 130087221030285 },
+	{ label = "2. Ball Gown", short = "BallGown", theme_id = "RoyalBall", asset_id = 96793727247832 },
+	{ label = "3. Wedding Dress", short = "WeddingDress", theme_id = "WeddingDay", asset_id = 106054271119575 },
+	{ label = "4. Hair Bow", short = "HairBow", theme_id = "GettingReady", asset_id = 75468706381534 },
+	{ label = "5. Music Box Bag", short = "MusicBoxBag", theme_id = "SweetTreats", asset_id = 110900695698939 },
+	{ label = "6. Lilypad Umbrella", short = "LilypadUmbrella", theme_id = "FrogPond", asset_id = 74504920233602 },
+	{ label = "7. Priscilla Crown", short = "PriscillaCrown", theme_id = "RoyalStudy", asset_id = 127060895430320 },
+	{ label = "8. Prince Outfit", short = "PrinceOutfit", theme_id = "PrincesQuest", asset_id = 77798754962080 },
+	{ label = "9. Masquerade Mask", short = "MasqueradeMask", theme_id = "TrollTrouble", asset_id = 98100765725470 },
+	{ label = "10. Popup Book Hat", short = "PopupBookHat", theme_id = "Storybook", asset_id = 128597450187646 },
+	{ label = "11. Priscilla Hair", short = "PriscillaHair", theme_id = "StepsistersScheme", asset_id = 104449552074745 },
+	{ label = "12. Cinderella Outfit", short = "CinderellaOutfit", theme_id = "Midnight", asset_id = 108453490161242 },
+	{ label = "13. Godmother Hat", short = "GodmotherHat", theme_id = "Spellcasting", asset_id = 83118915965755 },
+	{ label = "14. Godmother Dress", short = "GodmotherDress", theme_id = "PumpkinMagic", asset_id = 131061062783595 },
+}
+
+-- Fallback JSON data jika atribut Workspace belum terbaca
+local FALLBACK_HUNT_JSON = [[{"themes":{"RoyalBall":{"total":12,"props":{"1":"StepsScavengerCandle","3":"StepsScavengerEnvelope","2":"StepsScavengerCandle","5":"StepsScavengerEnvelope","4":"StepsScavengerEnvelope","7":"StepsScavengerFan","6":"StepsScavengerFan","9":"StepsScavengerIceSculpture","8":"StepsScavengerFan","12":"StepsScavengerMediumCake","11":"StepsScavengerMediumCake","10":"StepsScavengerIceSculpture"},"prop_types":{"StepsScavengerIceSculpture":{"total":2,"display_name":"Ice Sculpture"},"StepsScavengerEnvelope":{"total":3,"display_name":"Envelope"},"StepsScavengerFan":{"total":3,"display_name":"Fan"},"StepsScavengerMediumCake":{"total":2,"display_name":"Medium Cake"},"StepsScavengerCandle":{"total":2,"display_name":"Candle"}}},"PumpkinMagic":{"total":12,"props":{"1":"StepsScavengerFairyGodmotherHat","3":"StepsScavengerFairyGodmotherHat","2":"StepsScavengerFairyGodmotherHat","5":"StepsScavengerPumpkin","4":"StepsScavengerPumpkin","7":"StepsScavengerSlipper","6":"StepsScavengerPumpkin","9":"StepsScavengerSlipper","8":"StepsScavengerSlipper","12":"StepsScavengerWand","11":"StepsScavengerWand","10":"StepsScavengerWand"},"prop_types":{"StepsScavengerFairyGodmotherHat":{"total":3,"display_name":"Fairy Godmother Hat"},"StepsScavengerWand":{"total":3,"display_name":"Wand"},"StepsScavengerPumpkin":{"total":3,"display_name":"Pumpkin"},"StepsScavengerSlipper":{"total":3,"display_name":"Slipper"}}},"Midnight":{"total":12,"props":{"1":"StepsScavengerCandle","3":"StepsScavengerCandle","2":"StepsScavengerCandle","5":"StepsScavengerPumpkin","4":"StepsScavengerCandle","7":"StepsScavengerPumpkin","6":"StepsScavengerPumpkin","9":"StepsScavengerSlipper","8":"StepsScavengerPumpkin","12":"StepsScavengerSlipper","11":"StepsScavengerSlipper","10":"StepsScavengerSlipper"},"prop_types":{"StepsScavengerSlipper":{"total":4,"display_name":"Slipper"},"StepsScavengerCandle":{"total":4,"display_name":"Candle"},"StepsScavengerPumpkin":{"total":4,"display_name":"Pumpkin"}}},"Storybook":{"total":12,"props":{"1":"StepsScavengerBook","3":"StepsScavengerBook","2":"StepsScavengerBook","5":"StepsScavengerBookStand","4":"StepsScavengerBook","7":"StepsScavengerBookStand","6":"StepsScavengerBookStand","9":"StepsScavengerCandle","8":"StepsScavengerBookStand","12":"StepsScavengerCandle","11":"StepsScavengerCandle","10":"StepsScavengerCandle"},"prop_types":{"StepsScavengerBookStand":{"total":4,"display_name":"Book Stand"},"StepsScavengerCandle":{"total":4,"display_name":"Candle"},"StepsScavengerBook":{"total":4,"display_name":"Book"}}},"Spellcasting":{"total":12,"props":{"1":"StepsScavengerButterfly","3":"StepsScavengerButterfly","2":"StepsScavengerButterfly","5":"StepsScavengerFairyGodmotherHat","4":"StepsScavengerButterfly","7":"StepsScavengerFairyGodmotherHat","6":"StepsScavengerFairyGodmotherHat","9":"StepsScavengerWand","8":"StepsScavengerFairyGodmotherHat","12":"StepsScavengerWand","11":"StepsScavengerWand","10":"StepsScavengerWand"},"prop_types":{"StepsScavengerFairyGodmotherHat":{"total":4,"display_name":"Fairy Godmother Hat"},"StepsScavengerButterfly":{"total":4,"display_name":"Butterfly"},"StepsScavengerWand":{"total":4,"display_name":"Wand"}}},"PrincesQuest":{"total":12,"props":{"1":"StepsScavengerEnvelope","3":"StepsScavengerEnvelope","2":"StepsScavengerEnvelope","5":"StepsScavengerGlobe","4":"StepsScavengerGlobe","7":"StepsScavengerMallet","6":"StepsScavengerGlobe","9":"StepsScavengerMallet","8":"StepsScavengerMallet","12":"StepsScavengerTrollHammer","11":"StepsScavengerTrollHammer","10":"StepsScavengerTrollHammer"},"prop_types":{"StepsScavengerTrollHammer":{"total":3,"display_name":"Troll Hammer"},"StepsScavengerGlobe":{"total":3,"display_name":"Globe"},"StepsScavengerEnvelope":{"total":3,"display_name":"Envelope"},"StepsScavengerMallet":{"total":3,"display_name":"Mallet"}}},"SweetTreats":{"total":12,"props":{"1":"StepsScavengerLargeCake","3":"StepsScavengerLargeCake","2":"StepsScavengerLargeCake","5":"StepsScavengerMediumCake","4":"StepsScavengerLargeCake","7":"StepsScavengerMediumCake","6":"StepsScavengerMediumCake","9":"StepsScavengerSmallCake","8":"StepsScavengerMediumCake","12":"StepsScavengerSmallCake","11":"StepsScavengerSmallCake","10":"StepsScavengerSmallCake"},"prop_types":{"StepsScavengerMediumCake":{"total":4,"display_name":"Medium Cake"},"StepsScavengerSmallCake":{"total":4,"display_name":"Small Cake"},"StepsScavengerLargeCake":{"total":4,"display_name":"Large Cake"}}},"TrollTrouble":{"total":12,"props":{"1":"StepsScavengerBroom","3":"StepsScavengerBroom","2":"StepsScavengerBroom","5":"StepsScavengerMallet","4":"StepsScavengerBroom","7":"StepsScavengerMallet","6":"StepsScavengerMallet","9":"StepsScavengerTrollHammer","8":"StepsScavengerMallet","12":"StepsScavengerTrollHammer","11":"StepsScavengerTrollHammer","10":"StepsScavengerTrollHammer"},"prop_types":{"StepsScavengerBroom":{"total":4,"display_name":"Broom"},"StepsScavengerMallet":{"total":4,"display_name":"Mallet"},"StepsScavengerTrollHammer":{"total":4,"display_name":"Troll Hammer"}}},"StepsistersScheme":{"total":12,"props":{"1":"StepsScavengerEnvelope","3":"StepsScavengerEnvelope","2":"StepsScavengerEnvelope","5":"StepsScavengerFan","4":"StepsScavengerFan","7":"StepsScavengerHairPin","6":"StepsScavengerFan","9":"StepsScavengerHairPin","8":"StepsScavengerHairPin","12":"StepsScavengerSlipper","11":"StepsScavengerSlipper","10":"StepsScavengerSlipper"},"prop_types":{"StepsScavengerHairPin":{"total":3,"display_name":"Hair Pin"},"StepsScavengerFan":{"total":3,"display_name":"Fan"},"StepsScavengerEnvelope":{"total":3,"display_name":"Envelope"},"StepsScavengerSlipper":{"total":3,"display_name":"Slipper"}}},"WeddingDay":{"total":12,"props":{"1":"StepsScavengerEnvelope","3":"StepsScavengerEnvelope","2":"StepsScavengerEnvelope","5":"StepsScavengerHairPin","4":"StepsScavengerHairPin","7":"StepsScavengerPlant","6":"StepsScavengerHairPin","9":"StepsScavengerPlant","8":"StepsScavengerPlant","12":"StepsScavengerSmallCake","11":"StepsScavengerSmallCake","10":"StepsScavengerSmallCake"},"prop_types":{"StepsScavengerHairPin":{"total":3,"display_name":"Hair Pin"},"StepsScavengerPlant":{"total":3,"display_name":"Plant"},"StepsScavengerEnvelope":{"total":3,"display_name":"Envelope"},"StepsScavengerSmallCake":{"total":3,"display_name":"Small Cake"}}},"RoyalStudy":{"total":12,"props":{"1":"StepsScavengerBook","3":"StepsScavengerBook","2":"StepsScavengerBook","5":"StepsScavengerBookStand","4":"StepsScavengerBookStand","7":"StepsScavengerGlobe","6":"StepsScavengerBookStand","9":"StepsScavengerGlobe","8":"StepsScavengerGlobe","12":"StepsScavengerTelescope","11":"StepsScavengerTelescope","10":"StepsScavengerTelescope"},"prop_types":{"StepsScavengerBookStand":{"total":3,"display_name":"Book Stand"},"StepsScavengerTelescope":{"total":3,"display_name":"Telescope"},"StepsScavengerBook":{"total":3,"display_name":"Book"},"StepsScavengerGlobe":{"total":3,"display_name":"Globe"}}},"GettingReady":{"total":12,"props":{"1":"StepsScavengerFan","3":"StepsScavengerFan","2":"StepsScavengerFan","5":"StepsScavengerHairPin","4":"StepsScavengerFan","7":"StepsScavengerHairPin","6":"StepsScavengerHairPin","9":"StepsScavengerSlipper","8":"StepsScavengerHairPin","12":"StepsScavengerSlipper","11":"StepsScavengerSlipper","10":"StepsScavengerSlipper"},"prop_types":{"StepsScavengerFan":{"total":4,"display_name":"Fan"},"StepsScavengerHairPin":{"total":4,"display_name":"Hair Pin"},"StepsScavengerSlipper":{"total":4,"display_name":"Slipper"}}},"FrogPond":{"total":12,"props":{"1":"StepsScavengerButterfly","3":"StepsScavengerButterfly","2":"StepsScavengerButterfly","5":"StepsScavengerFrogPlush","4":"StepsScavengerButterfly","7":"StepsScavengerFrogPlush","6":"StepsScavengerFrogPlush","9":"StepsScavengerPlant","8":"StepsScavengerFrogPlush","12":"StepsScavengerPlant","11":"StepsScavengerPlant","10":"StepsScavengerPlant"},"prop_types":{"StepsScavengerPlant":{"total":4,"display_name":"Plant"},"StepsScavengerFrogPlush":{"total":4,"display_name":"Frog Plush"},"StepsScavengerButterfly":{"total":4,"display_name":"Butterfly"}}},"WitchsDen":{"total":12,"props":{"1":"StepsScavengerBook","3":"StepsScavengerBroom","2":"StepsScavengerBook","5":"StepsScavengerBroom","4":"StepsScavengerBroom","7":"StepsScavengerCandle","6":"StepsScavengerCandle","9":"StepsScavengerCauldron","8":"StepsScavengerCauldron","12":"StepsScavengerFortuneBall","11":"StepsScavengerFortuneBall","10":"StepsScavengerCauldron"},"prop_types":{"StepsScavengerBroom":{"total":3,"display_name":"Broom"},"StepsScavengerCandle":{"total":2,"display_name":"Candle"},"StepsScavengerBook":{"total":2,"display_name":"Book"},"StepsScavengerCauldron":{"total":3,"display_name":"Cauldron"},"StepsScavengerFortuneBall":{"total":2,"display_name":"Fortune Ball"}}}}}]]
+
+local ALL_SCAVENGER_PARTS = {
+	"StepsScavengerFortuneBall",
+	"StepsScavengerBroom",
+	"StepsScavengerCauldron",
+	"StepsScavengerCandle",
+	"StepsScavengerIceSculpture",
+	"StepsScavengerEnvelope",
+	"StepsScavengerHairPin",
+	"StepsScavengerSmallCake",
+	"StepsScavengerMediumCake",
+	"StepsScavengerLargeCake",
+	"StepsScavengerFan",
+	"StepsScavengerSlipper",
+	"StepsScavengerPlant",
+	"StepsScavengerButterfly",
+	"StepsScavengerFrogPlush",
+	"StepsScavengerBook",
+	"StepsScavengerBookStand",
+	"StepsScavengerGlobe",
+	"StepsScavengerMallet",
+	"StepsScavengerTelescope",
+	"StepsScavengerTrollHammer",
+	"StepsScavengerPumpkin",
+	"StepsScavengerFairyGodmotherHat",
+	"StepsScavengerWand",
+}
+
+local ALL_SCAVENGER_SET = {}
+for _, name in ipairs(ALL_SCAVENGER_PARTS) do
+	ALL_SCAVENGER_SET[name] = true
+end
+
+local cachedHuntData = nil
+local lastCollectTick = 0
+
+local function getHuntData()
+	local attr = Workspace:GetAttribute("StepsScavengerHuntData")
+	if typeof(attr) == "string" and attr ~= "" then
+		local ok, decoded = pcall(HttpService.JSONDecode, HttpService, attr)
+		if ok and typeof(decoded) == "table" and typeof(decoded.themes) == "table" then
+			cachedHuntData = decoded
+			return decoded
+		end
+	end
+	if not cachedHuntData then
+		local ok, decoded = pcall(HttpService.JSONDecode, HttpService, FALLBACK_HUNT_JSON)
+		if ok and typeof(decoded) == "table" then
+			cachedHuntData = decoded
+		end
+	end
+	return cachedHuntData
+end
+
+local function safeRequire(pathFn)
+	local ok, mod = pcall(pathFn)
+	if ok and typeof(mod) == "table" then
+		return mod
+	end
+	return nil
+end
+
+local function getQuestClient()
+	return safeRequire(function()
+		return require(ReplicatedStorage.Modules.Game.BrandIntegrations.Steps.StepsQuestClient)
+	end)
+end
+
+local function getCoreData()
+	return safeRequire(function()
+		return require(ReplicatedStorage.Modules.Core.Data)
+	end)
+end
+
+local function getCollectedCountForUgc(assetId)
+	if not assetId then
+		return 0
+	end
+	local questClient = getQuestClient()
+	if questClient and typeof(questClient.get_found_count) == "function" then
+		local ok, count = pcall(questClient.get_found_count, assetId)
+		if ok and typeof(count) == "number" then
+			return count
+		end
+	end
+
+	local dataMod = getCoreData()
+	local hunts = dataMod and dataMod.steps_activation and dataMod.steps_activation.scavenger_hunts
+	local hunt = hunts and hunts[tostring(assetId)]
+	if hunt and typeof(hunt.collected_ids) == "table" then
+		local n = 0
+		for k, v in pairs(hunt.collected_ids) do
+			if v == true then
+				n += 1
+			end
+		end
+		return n
+	end
+	return 0
+end
+
+local function getCollectedSetForUgc(assetId)
+	local collected = {}
+	if not assetId then
+		return collected
+	end
+	local dataMod = getCoreData()
+	if dataMod and typeof(dataMod.steps_activation) == "table" then
+		local hunts = dataMod.steps_activation.scavenger_hunts
+		local hunt = hunts and hunts[tostring(assetId)]
+		if hunt and typeof(hunt.collected_ids) == "table" then
+			for k, v in pairs(hunt.collected_ids) do
+				if v == true then
+					collected[tostring(k)] = true
+				end
+			end
+		end
+	end
+	return collected
+end
+
+local function ensureHuntBegun(ugcEntry)
+	if not AUTO_BEGIN_HUNT or not ugcEntry or not ugcEntry.asset_id then
+		return
+	end
+	local questClient = getQuestClient()
+	if questClient and typeof(questClient.is_hunt_begun) == "function" and typeof(questClient.begin_hunt) == "function" then
+		local okBegun, begun = pcall(questClient.is_hunt_begun, ugcEntry.asset_id)
+		if okBegun and not begun then
+			pcall(questClient.begin_hunt, ugcEntry.asset_id, "scavenger_tp")
+		end
+	end
+end
+
+local function getThemeFilter(ugcEntry)
+	if not ugcEntry or not ugcEntry.theme_id then
+		return ALL_SCAVENGER_PARTS, ALL_SCAVENGER_SET, nil
+	end
+
+	local huntData = getHuntData()
+	local themeObj = huntData and huntData.themes and huntData.themes[ugcEntry.theme_id]
+	if not themeObj then
+		return ALL_SCAVENGER_PARTS, ALL_SCAVENGER_SET, nil
+	end
+
+	local collectedIds = getCollectedSetForUgc(ugcEntry.asset_id)
+	local remainingByType = {}
+	local allowedSet = {}
+	local orderedParts = {}
+
+	if typeof(themeObj.props) == "table" then
+		for propId, propName in pairs(themeObj.props) do
+			if typeof(propName) == "string" and ALL_SCAVENGER_SET[propName] then
+				allowedSet[propName] = true
+				if not collectedIds[tostring(propId)] then
+					remainingByType[propName] = (remainingByType[propName] or 0) + 1
+				end
+			end
+		end
+	elseif typeof(themeObj.prop_types) == "table" then
+		for propName, info in pairs(themeObj.prop_types) do
+			if typeof(propName) == "string" and ALL_SCAVENGER_SET[propName] then
+				allowedSet[propName] = true
+				remainingByType[propName] = (typeof(info) == "table" and tonumber(info.total)) or 1
+			end
+		end
+	end
+
+	for _, name in ipairs(ALL_SCAVENGER_PARTS) do
+		if allowedSet[name] then
+			table.insert(orderedParts, name)
+		end
+	end
+
+	return orderedParts, allowedSet, remainingByType
+end
+
+local Minimized = false
+local EspEnabled = false
+local SelectedUgcIndex = 1 -- 1 = SEMUA TEMA, 2..15 = UGC 1..14
+local ActiveMode = nil -- nil | "SINGLE" | "ALL"
+local ActivePartName = nil
+local ActiveIndex = nil
+local LoopToken = 0
+local espEntries = {}
+local espConn = nil
+local attachedParent = nil
+
+local function getActiveUgc()
+	return UGC_THEMES[SelectedUgcIndex] or UGC_THEMES[1]
+end
+
+local function getActivePartsList()
+	local parts, setMap, remMap = getThemeFilter(getActiveUgc())
+	return parts, setMap, remMap
+end
+
+local function getRootPart()
+	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local hrp = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 10)
+	if hrp and hrp.Parent then
+		return hrp
+	end
+	return nil
+end
+
+local function getPivotCFrame(obj)
+	if not obj or not obj.Parent or not obj:IsDescendantOf(Workspace) then
+		return nil
+	end
+
+	for _, desc in ipairs(obj:GetDescendants()) do
+		if desc:IsA("ProximityPrompt") and desc.Enabled then
+			local parent = desc.Parent
+			if parent and parent:IsA("BasePart") then
+				return parent.CFrame
+			elseif parent and parent:IsA("Attachment") then
+				return parent.WorldCFrame
+			end
+		end
+	end
+
+	if obj:IsA("BasePart") then
+		return obj.CFrame
+	elseif obj:IsA("Attachment") then
+		return obj.WorldCFrame
+	elseif obj:IsA("Model") then
+		local ok, cf = pcall(function()
+			return obj:GetPivot()
+		end)
+		if ok and typeof(cf) == "CFrame" then
+			return cf
+		end
+		if obj.PrimaryPart then
+			return obj.PrimaryPart.CFrame
+		end
+		local part = obj:FindFirstChildWhichIsA("BasePart", true)
+		if part then
+			return part.CFrame
+		end
+	else
+		local part = obj:FindFirstChildWhichIsA("BasePart", true)
+		if part then
+			return part.CFrame
+		end
+	end
+
+	return nil
+end
+
+local function hasGroundBelow(position, ignoreObj)
+	if not REQUIRE_GROUND_BELOW then
+		return true
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	local filterList = { ignoreObj }
+	if LocalPlayer.Character then
+		table.insert(filterList, LocalPlayer.Character)
+	end
+	params.FilterDescendantsInstances = filterList
+
+	local result = Workspace:Raycast(position + Vector3.new(0, 2, 0), Vector3.new(0, -(VOID_RAY_DEPTH + 2), 0), params)
+	return result ~= nil and result.Position.Y >= MIN_VALID_Y
+end
+
+local function isItemActiveInMap(obj)
+	if not obj or not obj.Parent or not obj:IsDescendantOf(Workspace) then
+		return false
+	end
+
+	local cf = getPivotCFrame(obj)
+	if not cf then
+		return false
+	end
+
+	if cf.Position.Y < MIN_VALID_Y or cf.Position.Y > MAX_VALID_Y then
+		return false
+	end
+
+	if not hasGroundBelow(cf.Position, obj) then
+		return false
+	end
+
+	local hasPrompt = false
+	for _, desc in ipairs(obj:GetDescendants()) do
+		if desc:IsA("ProximityPrompt") then
+			hasPrompt = true
+			if desc.Enabled then
+				return true
+			end
+		elseif desc:IsA("ClickDetector") then
+			if desc.MaxActivationDistance > 0 then
+				return true
+			end
+		end
+	end
+
+	if hasPrompt then
+		return false
+	end
+
+	if obj:IsA("BasePart") then
+		return obj.Transparency < 0.95 and obj.Size.Magnitude > 0.05
+	end
+
+	for _, desc in ipairs(obj:GetDescendants()) do
+		if desc:IsA("BasePart") and desc.Transparency < 0.95 and desc.Size.Magnitude > 0.05 then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function getEspAdornee(obj)
+	if obj:IsA("Model") or obj:IsA("BasePart") then
+		return obj
+	end
+	return obj:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function getEspParent()
+	if attachedParent and attachedParent.Parent then
+		return attachedParent
+	end
+	local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if pg then
+		return pg
+	end
+	return Workspace
+end
+
+local function destroyEspEntry(entry)
+	if not entry then
+		return
+	end
+	if entry.highlight and entry.highlight.Parent then
+		pcall(function()
+			entry.highlight:Destroy()
+		end)
+	end
+	if entry.billboard and entry.billboard.Parent then
+		pcall(function()
+			entry.billboard:Destroy()
+		end)
+	end
+end
+
+local function clearEsp()
+	if espConn then
+		espConn:Disconnect()
+		espConn = nil
+	end
+	for obj, entry in pairs(espEntries) do
+		destroyEspEntry(entry)
+		espEntries[obj] = nil
+	end
+end
+
+local function createBillboardForAdornee(adornee, parent)
+	local ok, bb, lbl = pcall(function()
+		local b = Instance.new("BillboardGui")
+		b.Name = "ScavengerEspTag"
+		b.AlwaysOnTop = true
+		b.MaxDistance = ESP_MAX_DISTANCE
+		b.Size = UDim2.new(0, 110, 0, 24)
+		b.StudsOffset = Vector3.new(0, 2.2, 0)
+		b.Adornee = adornee
+		b.Parent = parent
+
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.new(1, 0, 1, 0)
+		t.BackgroundTransparency = 0.35
+		t.BackgroundColor3 = Color3.fromRGB(10, 15, 28)
+		t.TextColor3 = Color3.fromRGB(255, 255, 255)
+		t.TextStrokeTransparency = 0.25
+		t.TextSize = 9
+		t.Font = Enum.Font.GothamBold
+		t.TextWrapped = true
+		t.Parent = b
+
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 4)
+		c.Parent = t
+
+		return b, t
+	end)
+	if ok and bb and lbl then
+		return bb, lbl
+	end
+	return nil, nil
+end
+
+local function updateEspHighlights()
+	if not EspEnabled then
+		clearEsp()
+		return
+	end
+
+	local _, allowedSet = getActivePartsList()
+	local espParent = getEspParent()
+	local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local originPos = hrp and hrp.Position or Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame.Position
+	local seen = {}
+
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if allowedSet[obj.Name] then
+			local adornee = getEspAdornee(obj)
+			if adornee and obj:IsDescendantOf(Workspace) then
+				seen[obj] = true
+				local entry = espEntries[obj]
+				if not entry then
+					entry = {}
+					espEntries[obj] = entry
+				end
+
+				if not entry.highlight or not entry.highlight.Parent then
+					local ok, created = pcall(function()
+						local h = Instance.new("Highlight")
+						h.Name = "ScavengerEspBox"
+						h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+						h.FillTransparency = 0.55
+						h.OutlineTransparency = 0
+						h.Adornee = adornee
+						h.Parent = espParent
+						return h
+					end)
+					if ok and created then
+						entry.highlight = created
+					end
+				end
+
+				if not entry.billboard or not entry.billboard.Parent or not entry.label or not entry.label.Parent then
+					local bb, lbl = createBillboardForAdornee(adornee, espParent)
+					entry.billboard = bb
+					entry.label = lbl
+				end
+
+				local active = isItemActiveInMap(obj)
+				local col = active and ESP_ACTIVE_COLOR or ESP_INACTIVE_COLOR
+				local cf = getPivotCFrame(obj)
+				local distStuds = (cf and originPos) and math.floor((cf.Position - originPos).Magnitude) or 0
+				local shortName = string.gsub(obj.Name, "^StepsScavenger", "")
+
+				if entry.highlight and entry.highlight.Parent then
+					pcall(function()
+						entry.highlight.Adornee = adornee
+						entry.highlight.FillColor = col
+						entry.highlight.OutlineColor = col
+					end)
+				end
+
+				if entry.billboard and entry.billboard.Parent and entry.label and entry.label.Parent then
+					pcall(function()
+						entry.billboard.Adornee = adornee
+						entry.label.TextColor3 = col
+						entry.label.Text = string.format("%s [%d stud]", shortName, distStuds)
+					end)
+				end
+			end
+		end
+	end
+
+	for obj, entry in pairs(espEntries) do
+		if not seen[obj] or not obj or not obj.Parent then
+			destroyEspEntry(entry)
+			espEntries[obj] = nil
+		end
+	end
+end
+
+local function setEspEnabled(state)
+	EspEnabled = state
+	if EspEnabled then
+		updateEspHighlights()
+		local elapsed = 0
+		espConn = RunService.Heartbeat:Connect(function(dt)
+			if not EspEnabled then
+				return
+			end
+			elapsed += dt
+			if elapsed >= 0.25 then
+				elapsed = 0
+				updateEspHighlights()
+			end
+		end)
+	else
+		clearEsp()
+	end
+end
+
+local function triggerInteractionsOn(obj)
+	if not AUTO_TRIGGER_PROMPTS or not obj then
+		return
+	end
+
+	local function fireOnNode(node)
+		if node:IsA("ProximityPrompt") and node.Enabled then
+			if node.HoldDuration > 0 then
+				pcall(function()
+					node.HoldDuration = 0
+				end)
+			end
+			if typeof(fireproximityprompt) == "function" then
+				pcall(fireproximityprompt, node)
+			end
+		elseif node:IsA("ClickDetector") and node.MaxActivationDistance > 0 then
+			if typeof(fireclickdetector) == "function" then
+				pcall(fireclickdetector, node, 0)
+			end
+		end
+	end
+
+	fireOnNode(obj)
+	for _, desc in ipairs(obj:GetDescendants()) do
+		fireOnNode(desc)
+	end
+end
+
+local function setRootAtPosition(hrp, targetPos)
+	if not hrp or not hrp.Parent then
+		return
+	end
+	local currentLook = hrp.CFrame.LookVector
+	local flatLook = Vector3.new(currentLook.X, 0, currentLook.Z)
+	if flatLook.Magnitude < 0.01 then
+		flatLook = Vector3.new(0, 0, -1)
+	else
+		flatLook = flatLook.Unit
+	end
+
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	hrp.AssemblyAngularVelocity = Vector3.zero
+	hrp.CFrame = CFrame.lookAt(targetPos, targetPos + flatLook)
+end
+
+local function findAllPartsByName(partName, maxLimit)
+	if maxLimit and maxLimit <= 0 then
+		return {}
+	end
+	local hrp = getRootPart()
+	local origin = hrp and hrp.Position or Vector3.zero
+	local list = {}
+
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj.Name == partName and isItemActiveInMap(obj) then
+			local cf = getPivotCFrame(obj)
+			if cf then
+				table.insert(list, {
+					instance = obj,
+					cframe = cf,
+					dist = (cf.Position - origin).Magnitude,
+				})
+			end
+		end
+	end
+
+	table.sort(list, function(a, b)
+		return a.dist < b.dist
+	end)
+
+	if maxLimit and #list > maxLimit then
+		local trimmed = {}
+		for i = 1, maxLimit do
+			trimmed[i] = list[i]
+		end
+		return trimmed
+	end
+
+	return list
+end
+
+local function tpAndWaitCollected(item, isStillValidFn, onStatusFn)
+	local obj = item and item.instance
+	if not obj or not isItemActiveInMap(obj) then
+		return false
+	end
+
+	local activeUgc = getActiveUgc()
+	local assetId = activeUgc and activeUgc.asset_id or nil
+	local startFoundCount = getCollectedCountForUgc(assetId)
+
+	local sinceLast = os.clock() - lastCollectTick
+	if sinceLast < PROP_COOLDOWN then
+		local waitRemain = PROP_COOLDOWN - sinceLast
+		local waitUntil = os.clock() + waitRemain
+		while isStillValidFn() and os.clock() < waitUntil do
+			if onStatusFn then
+				onStatusFn(waitUntil - os.clock(), true)
+			end
+			RunService.Heartbeat:Wait()
+		end
+	end
+
+	local startTime = os.clock()
+	local lastTrigger = 0
+	local collected = false
+
+	while isStillValidFn() do
+		if os.clock() - startTime >= COLLECT_TIMEOUT then
+			break
+		end
+
+		if assetId and getCollectedCountForUgc(assetId) > startFoundCount then
+			collected = true
+			break
+		end
+
+		if not isItemActiveInMap(obj) then
+			-- Beri jeda singkat untuk memastikan data server sempat terupdate
+			local graceEnd = os.clock() + 0.35
+			while isStillValidFn() and os.clock() < graceEnd do
+				if assetId and getCollectedCountForUgc(assetId) > startFoundCount then
+					break
+				end
+				RunService.Heartbeat:Wait()
+			end
+			collected = true
+			break
+		end
+
+		local hrp = getRootPart()
+		local cf = getPivotCFrame(obj)
+		if hrp and cf then
+			local goalPos = cf.Position + TP_OFFSET_POS
+			if (hrp.Position - goalPos).Magnitude > 0.5 then
+				setRootAtPosition(hrp, goalPos)
+			else
+				hrp.AssemblyLinearVelocity = Vector3.zero
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end
+
+			if os.clock() - lastTrigger >= 0.2 then
+				lastTrigger = os.clock()
+				triggerInteractionsOn(obj)
+			end
+		end
+
+		if onStatusFn then
+			onStatusFn(math.max(0, COLLECT_TIMEOUT - (os.clock() - startTime)), false)
+		end
+
+		RunService.Heartbeat:Wait()
+	end
+
+	if collected or (assetId and getCollectedCountForUgc(assetId) > startFoundCount) then
+		lastCollectTick = os.clock()
+		return true
+	end
+
+	return false
+end
+
+local function attachGuiToParent(gui)
+	local candidates = {}
+
+	local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+	if pg then
+		table.insert(candidates, pg)
+	end
+
+	if typeof(gethui) == "function" then
+		local ok, hui = pcall(gethui)
+		if ok and typeof(hui) == "Instance" then
+			table.insert(candidates, hui)
+		end
+	end
+
+	local okCore, core = pcall(function()
+		return CoreGui
+	end)
+	if okCore and typeof(core) == "Instance" then
+		table.insert(candidates, core)
+	end
+
+	for _, targetParent in ipairs(candidates) do
+		pcall(function()
+			local old = targetParent:FindFirstChild("ScavengerTpGui")
+			if old then
+				old:Destroy()
+			end
+		end)
+
+		local okSet = pcall(function()
+			gui.Parent = targetParent
+		end)
+		if okSet and gui.Parent == targetParent then
+			attachedParent = targetParent
+			return targetParent
+		end
+	end
+
+	return nil
+end
+
+local TOP_BAR_HEIGHT = 24
+local THEME_BAR_HEIGHT = 22
+local FULL_WIDTH = 224
+local GRID_ROWS = math.ceil(#ALL_SCAVENGER_PARTS / 2)
+local FULL_HEIGHT = TOP_BAR_HEIGHT + THEME_BAR_HEIGHT + 6 + (GRID_ROWS * 22) + 28
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ScavengerTpGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, FULL_WIDTH, 0, FULL_HEIGHT)
+MainFrame.Position = UDim2.new(0.05, 0, 0.14, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(14, 21, 38)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 7)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(37, 63, 112)
+MainStroke.Thickness = 1
+MainStroke.Parent = MainFrame
+
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, TOP_BAR_HEIGHT)
+TopBar.BackgroundColor3 = Color3.fromRGB(20, 31, 56)
+TopBar.BorderSizePixel = 0
+TopBar.Active = true
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 7)
+TopCorner.Parent = TopBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -46, 1, 0)
+TitleLabel.Position = UDim2.new(0, 8, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Scavenger TP"
+TitleLabel.TextColor3 = Color3.fromRGB(226, 234, 248)
+TitleLabel.TextSize = 10
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+TitleLabel.Parent = TopBar
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Name = "MinimizeBtn"
+MinBtn.Size = UDim2.new(0, 18, 0, 18)
+MinBtn.Position = UDim2.new(1, -40, 0.5, -9)
+MinBtn.BackgroundColor3 = Color3.fromRGB(30, 46, 82)
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.fromRGB(226, 234, 248)
+MinBtn.TextSize = 12
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.BorderSizePixel = 0
+MinBtn.Parent = TopBar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.Parent = MinBtn
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 18, 0, 18)
+CloseBtn.Position = UDim2.new(1, -20, 0.5, -9)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(120, 34, 48)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 240, 242)
+CloseBtn.TextSize = 10
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+local BodyFrame = Instance.new("Frame")
+BodyFrame.Name = "BodyFrame"
+BodyFrame.Size = UDim2.new(1, 0, 1, -TOP_BAR_HEIGHT)
+BodyFrame.Position = UDim2.new(0, 0, 0, TOP_BAR_HEIGHT)
+BodyFrame.BackgroundTransparency = 1
+BodyFrame.Parent = MainFrame
+
+local ThemeBtn = Instance.new("TextButton")
+ThemeBtn.Name = "ThemeSelectorBtn"
+ThemeBtn.Size = UDim2.new(1, -10, 0, THEME_BAR_HEIGHT)
+ThemeBtn.Position = UDim2.new(0, 5, 0, 4)
+ThemeBtn.BackgroundColor3 = Color3.fromRGB(32, 48, 84)
+ThemeBtn.TextColor3 = Color3.fromRGB(147, 197, 253)
+ThemeBtn.TextSize = 9.5
+ThemeBtn.Font = Enum.Font.GothamBold
+ThemeBtn.TextTruncate = Enum.TextTruncate.AtEnd
+ThemeBtn.BorderSizePixel = 0
+ThemeBtn.Parent = BodyFrame
+
+do
+	local tc = Instance.new("UICorner")
+	tc.CornerRadius = UDim.new(0, 4)
+	tc.Parent = ThemeBtn
+	local ts = Instance.new("UIStroke")
+	ts.Color = Color3.fromRGB(56, 88, 148)
+	ts.Thickness = 0.8
+	ts.Parent = ThemeBtn
+end
+
+local GridHolder = Instance.new("Frame")
+GridHolder.Name = "GridHolder"
+GridHolder.Size = UDim2.new(1, -10, 1, -(THEME_BAR_HEIGHT + 34))
+GridHolder.Position = UDim2.new(0, 5, 0, THEME_BAR_HEIGHT + 7)
+GridHolder.BackgroundTransparency = 1
+GridHolder.Parent = BodyFrame
+
+local GridLayout = Instance.new("UIGridLayout")
+GridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+GridLayout.FillDirection = Enum.FillDirection.Horizontal
+GridLayout.FillDirectionMaxCells = 2
+GridLayout.CellPadding = UDim2.new(0, 4, 0, 2)
+GridLayout.CellSize = UDim2.new(0.5, -2, 0, 20)
+GridLayout.Parent = GridHolder
+
+local buttonsByOrder = {}
+local BASE_BTN_COLOR = Color3.fromRGB(21, 33, 60)
+local DISABLED_BTN_COLOR = Color3.fromRGB(15, 20, 32)
+local ACTIVE_BTN_COLOR = Color3.fromRGB(36, 128, 235)
+local ALL_BTN_COLOR = Color3.fromRGB(29, 108, 214)
+local ALL_ACTIVE_COLOR = Color3.fromRGB(48, 152, 255)
+local ESP_OFF_COLOR = Color3.fromRGB(26, 44, 76)
+local ESP_ON_COLOR = Color3.fromRGB(34, 153, 84)
+
+local espBtn = nil
+
+local function refreshThemeUi()
+	local ugc = getActiveUgc()
+	if ugc.theme_id then
+		ThemeBtn.Text = string.format("UGC: %s [%s]", ugc.label, ugc.theme_id)
+	else
+		ThemeBtn.Text = "UGC: SEMUA TEMA (Klik Ganti)"
+	end
+
+	local _, allowedSet, remMap = getActivePartsList()
+	for idx, partName in ipairs(ALL_SCAVENGER_PARTS) do
+		local btn = buttonsByOrder[idx]
+		if btn then
+			local shortName = string.gsub(partName, "^StepsScavenger", "")
+			local isAllowed = allowedSet[partName] == true
+			local isSelected = (ActiveMode == "SINGLE" and ActiveIndex == idx)
+
+			if remMap and isAllowed then
+				local remCount = remMap[partName] or 0
+				btn.Text = string.format("%d. %s (%d)", idx, shortName, remCount)
+			else
+				btn.Text = string.format("%d. %s", idx, shortName)
+			end
+
+			btn.Active = isAllowed
+			if isSelected then
+				btn.BackgroundColor3 = ACTIVE_BTN_COLOR
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			elseif not isAllowed then
+				btn.BackgroundColor3 = DISABLED_BTN_COLOR
+				btn.TextColor3 = Color3.fromRGB(95, 108, 132)
+			else
+				btn.BackgroundColor3 = BASE_BTN_COLOR
+				btn.TextColor3 = Color3.fromRGB(232, 238, 250)
+			end
+		end
+	end
+end
+
+local function refreshButtonHighlights()
+	refreshThemeUi()
+
+	local allBtn = buttonsByOrder[#ALL_SCAVENGER_PARTS + 1]
+	if allBtn then
+		allBtn.BackgroundColor3 = (ActiveMode == "ALL") and ALL_ACTIVE_COLOR or ALL_BTN_COLOR
+		allBtn.Text = (ActiveMode == "ALL") and "STOP SEMUA" or "TP SEMUA"
+	end
+
+	if espBtn then
+		espBtn.BackgroundColor3 = EspEnabled and ESP_ON_COLOR or ESP_OFF_COLOR
+		espBtn.Text = EspEnabled and "ESP: ON" or "ESP: OFF"
+	end
+end
+
+local function stopLoop()
+	ActiveMode = nil
+	ActivePartName = nil
+	ActiveIndex = nil
+	LoopToken += 1
+	refreshButtonHighlights()
+	if TitleLabel and TitleLabel.Parent then
+		TitleLabel.Text = "Scavenger TP"
+	end
+end
+
+local function startSingleLoop(idx, partName, shortName)
+	local _, allowedSet = getActivePartsList()
+	if not allowedSet[partName] then
+		if TitleLabel and TitleLabel.Parent then
+			TitleLabel.Text = shortName .. " bukan prop tema ini"
+		end
+		return
+	end
+
+	if ActiveMode == "SINGLE" and ActiveIndex == idx then
+		stopLoop()
+		return
+	end
+
+	ActiveMode = "SINGLE"
+	ActivePartName = partName
+	ActiveIndex = idx
+	LoopToken += 1
+	local myToken = LoopToken
+	ensureHuntBegun(getActiveUgc())
+	refreshButtonHighlights()
+
+	local function isValid()
+		return ActiveMode == "SINGLE" and ActiveIndex == idx and LoopToken == myToken
+	end
+
+	task.spawn(function()
+		while isValid() do
+			local _, _, currentRem = getActivePartsList()
+			local limit = currentRem and (currentRem[partName] or 0) or nil
+			local matches = findAllPartsByName(partName, limit)
+
+			if #matches == 0 then
+				if TitleLabel and TitleLabel.Parent and isValid() then
+					TitleLabel.Text = string.format("#%d %s (0)", idx, shortName)
+				end
+				RunService.Heartbeat:Wait()
+			else
+				for i, item in ipairs(matches) do
+					if not isValid() then
+						break
+					end
+					if not isItemActiveInMap(item.instance) then
+						continue
+					end
+					tpAndWaitCollected(item, isValid, function(rem, coolingDown)
+						if TitleLabel and TitleLabel.Parent and isValid() then
+							if coolingDown then
+								TitleLabel.Text = string.format("CD %.1fs #%d", rem, idx)
+							else
+								TitleLabel.Text = string.format("#%d (%d/%d) %.1fs", idx, i, #matches, rem)
+							end
+						end
+					end)
+					refreshThemeUi()
+				end
+			end
+		end
+	end)
+end
+
+local function startAllLoop()
+	if ActiveMode == "ALL" then
+		stopLoop()
+		return
+	end
+
+	ActiveMode = "ALL"
+	ActivePartName = nil
+	ActiveIndex = nil
+	LoopToken += 1
+	local myToken = LoopToken
+	ensureHuntBegun(getActiveUgc())
+	refreshButtonHighlights()
+
+	local function isValid()
+		return ActiveMode == "ALL" and LoopToken == myToken
+	end
+
+	task.spawn(function()
+		while isValid() do
+			local orderedParts, _, remMap = getActivePartsList()
+			for idx, partName in ipairs(orderedParts) do
+				if not isValid() then
+					break
+				end
+				local limit = remMap and (remMap[partName] or 0) or nil
+				local matches = findAllPartsByName(partName, limit)
+				for i, item in ipairs(matches) do
+					if not isValid() then
+						break
+					end
+					if not isItemActiveInMap(item.instance) then
+						continue
+					end
+					tpAndWaitCollected(item, isValid, function(rem, coolingDown)
+						if TitleLabel and TitleLabel.Parent and isValid() then
+							if coolingDown then
+								TitleLabel.Text = string.format("CD %.1fs All #%d", rem, idx)
+							else
+								TitleLabel.Text = string.format("All #%d (%d/%d) %.1fs", idx, i, #matches, rem)
+							end
+						end
+					end)
+					refreshThemeUi()
+				end
+			end
+			if isValid() then
+				RunService.Heartbeat:Wait()
+			end
+		end
+	end)
+end
+
+ThemeBtn.MouseButton1Click:Connect(function()
+	SelectedUgcIndex += 1
+	if SelectedUgcIndex > #UGC_THEMES then
+		SelectedUgcIndex = 1
+	end
+	if ActiveMode then
+		stopLoop()
+	else
+		refreshButtonHighlights()
+	end
+	if EspEnabled then
+		updateEspHighlights()
+	end
+end)
+
+local function styleButton(btn, accentColor)
+	btn.BackgroundColor3 = accentColor
+	btn.TextColor3 = Color3.fromRGB(232, 238, 250)
+	btn.TextSize = 9
+	btn.Font = Enum.Font.GothamMedium
+	btn.TextTruncate = Enum.TextTruncate.AtEnd
+	btn.BorderSizePixel = 0
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = btn
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(36, 58, 102)
+	stroke.Thickness = 0.8
+	stroke.Parent = btn
+end
+
+for idx, partName in ipairs(ALL_SCAVENGER_PARTS) do
+	local shortName = string.gsub(partName, "^StepsScavenger", "")
+	local btn = Instance.new("TextButton")
+	btn.Name = "Row_" .. tostring(idx)
+	btn.LayoutOrder = idx
+	btn.Text = string.format("%d. %s", idx, shortName)
+	btn.Parent = GridHolder
+	styleButton(btn, BASE_BTN_COLOR)
+
+	btn.MouseButton1Click:Connect(function()
+		startSingleLoop(idx, partName, shortName)
+	end)
+
+	buttonsByOrder[idx] = btn
+end
+
+local BottomBar = Instance.new("Frame")
+BottomBar.Name = "BottomBar"
+BottomBar.Size = UDim2.new(1, -10, 0, 22)
+BottomBar.Position = UDim2.new(0, 5, 1, -27)
+BottomBar.BackgroundTransparency = 1
+BottomBar.Parent = BodyFrame
+
+local allBtn = Instance.new("TextButton")
+allBtn.Name = "Row_" .. tostring(#ALL_SCAVENGER_PARTS + 1)
+allBtn.Size = UDim2.new(0.62, -2, 1, 0)
+allBtn.Position = UDim2.new(0, 0, 0, 0)
+allBtn.Text = "TP SEMUA"
+allBtn.Parent = BottomBar
+styleButton(allBtn, ALL_BTN_COLOR)
+
+allBtn.MouseButton1Click:Connect(function()
+	startAllLoop()
+end)
+
+buttonsByOrder[#ALL_SCAVENGER_PARTS + 1] = allBtn
+
+espBtn = Instance.new("TextButton")
+espBtn.Name = "EspToggleBtn"
+espBtn.Size = UDim2.new(0.38, -2, 1, 0)
+espBtn.Position = UDim2.new(0.62, 2, 0, 0)
+espBtn.Text = "ESP: OFF"
+espBtn.Parent = BottomBar
+styleButton(espBtn, ESP_OFF_COLOR)
+
+espBtn.MouseButton1Click:Connect(function()
+	setEspEnabled(not EspEnabled)
+	refreshButtonHighlights()
+end)
+
+MinBtn.MouseButton1Click:Connect(function()
+	Minimized = not Minimized
+	BodyFrame.Visible = not Minimized
+	MinBtn.Text = Minimized and "+" or "-"
+	MainFrame.Size = Minimized and UDim2.new(0, FULL_WIDTH, 0, TOP_BAR_HEIGHT) or UDim2.new(0, FULL_WIDTH, 0, FULL_HEIGHT)
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	stopLoop()
+	setEspEnabled(false)
+	ScreenGui:Destroy()
+end)
+
+do
+	local dragging = false
+	local dragStart = Vector2.zero
+	local startPos = MainFrame.Position
+
+	TopBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = MainFrame.Position
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			MainFrame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+refreshButtonHighlights()
+attachGuiToParent(ScreenGui)
