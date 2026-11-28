@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local TP_OFFSET_POS = Vector3.new(0, 1.2, 0) -- Posisi dekat item tanpa mewarisi rotasi aneh
 local COLLECT_TIMEOUT = 3.2 -- Batas tunggu maksimal per item agar respon server sempat masuk
-local PROP_COOLDOWN = 3.05 -- Selaras dengan min_seconds_between_props = 3 di StepsInfo
+local PROP_COOLDOWN = 3.05 -- Jeda antar prop (dapat diatur langsung lewat TextBox di GUI)
 local AUTO_TRIGGER_PROMPTS = true
 local AUTO_BEGIN_HUNT = true
 
@@ -224,6 +224,7 @@ end
 
 local Minimized = false
 local EspEnabled = false
+local HidePlayersEnabled = false
 local SelectedUgcIndex = 1 -- 1 = SEMUA TEMA, 2..15 = UGC 1..14
 local ActiveMode = nil -- nil | "SINGLE" | "ALL"
 local ActivePartName = nil
@@ -233,6 +234,12 @@ local espEntries = {}
 local espConn = nil
 local attachedParent = nil
 
+-- Penyimpanan state asli untuk fitur Hide Players
+local hiddenPartStates = {} -- [BasePart] = { Transparency, LocalTransparencyModifier, CastShadow }
+local hiddenDecalStates = {} -- [Decal] = Transparency
+local hiddenGuiStates = {} -- [BillboardGui/SurfaceGui] = Enabled
+local playerHookConns = {}
+
 local function getActiveUgc()
 	return UGC_THEMES[SelectedUgcIndex] or UGC_THEMES[1]
 end
@@ -240,6 +247,130 @@ end
 local function getActivePartsList()
 	local parts, setMap, remMap = getThemeFilter(getActiveUgc())
 	return parts, setMap, remMap
+end
+
+local function applyHideToInstance(desc)
+	if not HidePlayersEnabled or not desc or not desc.Parent then
+		return
+	end
+	if desc:IsA("BasePart") then
+		if hiddenPartStates[desc] == nil then
+			hiddenPartStates[desc] = {
+				Transparency = desc.Transparency,
+				LocalTransparencyModifier = desc.LocalTransparencyModifier,
+				CastShadow = desc.CastShadow,
+			}
+		end
+		pcall(function()
+			desc.Transparency = 1
+			desc.LocalTransparencyModifier = 1
+			desc.CastShadow = false
+		end)
+	elseif desc:IsA("Decal") then
+		if hiddenDecalStates[desc] == nil then
+			hiddenDecalStates[desc] = desc.Transparency
+		end
+		pcall(function()
+			desc.Transparency = 1
+		end)
+	elseif desc:IsA("BillboardGui") or desc:IsA("SurfaceGui") then
+		if hiddenGuiStates[desc] == nil then
+			hiddenGuiStates[desc] = desc.Enabled
+		end
+		pcall(function()
+			desc.Enabled = false
+		end)
+	end
+end
+
+local function hideCharacter(character)
+	if not HidePlayersEnabled or not character then
+		return
+	end
+	for _, desc in ipairs(character:GetDescendants()) do
+		applyHideToInstance(desc)
+	end
+	table.insert(playerHookConns, character.DescendantAdded:Connect(function(desc)
+		if HidePlayersEnabled then
+			applyHideToInstance(desc)
+		end
+	end))
+end
+
+local function hookPlayerForHide(player)
+	if player == LocalPlayer then
+		return
+	end
+	if player.Character then
+		hideCharacter(player.Character)
+	end
+	table.insert(playerHookConns, player.CharacterAdded:Connect(function(char)
+		if HidePlayersEnabled then
+			task.defer(function()
+				if HidePlayersEnabled then
+					hideCharacter(char)
+				end
+			end)
+		end
+	end))
+end
+
+local function restoreHiddenPlayers()
+	for part, state in pairs(hiddenPartStates) do
+		if part and part.Parent then
+			pcall(function()
+				part.Transparency = state.Transparency
+				part.LocalTransparencyModifier = state.LocalTransparencyModifier
+				part.CastShadow = state.CastShadow
+			end)
+		end
+		hiddenPartStates[part] = nil
+	end
+
+	for decal, origTrans in pairs(hiddenDecalStates) do
+		if decal and decal.Parent then
+			pcall(function()
+				decal.Transparency = origTrans
+			end)
+		end
+		hiddenDecalStates[decal] = nil
+	end
+
+	for guiObj, origEnabled in pairs(hiddenGuiStates) do
+		if guiObj and guiObj.Parent then
+			pcall(function()
+				guiObj.Enabled = origEnabled
+			end)
+		end
+		hiddenGuiStates[guiObj] = nil
+	end
+end
+
+local function disconnectPlayerHooks()
+	for _, conn in ipairs(playerHookConns) do
+		pcall(function()
+			conn:Disconnect()
+		end)
+	end
+	table.clear(playerHookConns)
+end
+
+local function setHidePlayersEnabled(enabled)
+	HidePlayersEnabled = enabled
+	disconnectPlayerHooks()
+
+	if HidePlayersEnabled then
+		for _, plr in ipairs(Players:GetPlayers()) do
+			hookPlayerForHide(plr)
+		end
+		table.insert(playerHookConns, Players.PlayerAdded:Connect(function(plr)
+			if HidePlayersEnabled then
+				hookPlayerForHide(plr)
+			end
+		end))
+	else
+		restoreHiddenPlayers()
+	end
 end
 
 local function getRootPart()
@@ -657,7 +788,6 @@ local function tpAndWaitCollected(item, isStillValidFn, onStatusFn)
 		end
 
 		if not isItemActiveInMap(obj) then
-			-- Beri jeda singkat untuk memastikan data server sempat terupdate
 			local graceEnd = os.clock() + 0.35
 			while isStillValidFn() and os.clock() < graceEnd do
 				if assetId and getCollectedCountForUgc(assetId) > startFoundCount then
@@ -744,10 +874,11 @@ local function attachGuiToParent(gui)
 end
 
 local TOP_BAR_HEIGHT = 24
-local THEME_BAR_HEIGHT = 22
-local FULL_WIDTH = 224
+local THEME_BAR_HEIGHT = 20
+local DELAY_BAR_HEIGHT = 20
+local FULL_WIDTH = 232
 local GRID_ROWS = math.ceil(#ALL_SCAVENGER_PARTS / 2)
-local FULL_HEIGHT = TOP_BAR_HEIGHT + THEME_BAR_HEIGHT + 6 + (GRID_ROWS * 22) + 28
+local FULL_HEIGHT = TOP_BAR_HEIGHT + THEME_BAR_HEIGHT + DELAY_BAR_HEIGHT + 8 + (GRID_ROWS * 22) + 28
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ScavengerTpGui"
@@ -859,10 +990,75 @@ do
 	ts.Parent = ThemeBtn
 end
 
+local DelayBar = Instance.new("Frame")
+DelayBar.Name = "DelayBar"
+DelayBar.Size = UDim2.new(1, -10, 0, DELAY_BAR_HEIGHT)
+DelayBar.Position = UDim2.new(0, 5, 0, 4 + THEME_BAR_HEIGHT + 3)
+DelayBar.BackgroundColor3 = Color3.fromRGB(18, 28, 50)
+DelayBar.BorderSizePixel = 0
+DelayBar.Parent = BodyFrame
+
+do
+	local dc = Instance.new("UICorner")
+	dc.CornerRadius = UDim.new(0, 4)
+	dc.Parent = DelayBar
+	local ds = Instance.new("UIStroke")
+	ds.Color = Color3.fromRGB(36, 58, 102)
+	ds.Thickness = 0.8
+	ds.Parent = DelayBar
+end
+
+local DelayLabel = Instance.new("TextLabel")
+DelayLabel.Size = UDim2.new(0.58, -4, 1, 0)
+DelayLabel.Position = UDim2.new(0, 6, 0, 0)
+DelayLabel.BackgroundTransparency = 1
+DelayLabel.Text = "Delay Antar Prop (s):"
+DelayLabel.TextColor3 = Color3.fromRGB(190, 206, 235)
+DelayLabel.TextSize = 9
+DelayLabel.Font = Enum.Font.GothamMedium
+DelayLabel.TextXAlignment = Enum.TextXAlignment.Left
+DelayLabel.Parent = DelayBar
+
+local DelayBox = Instance.new("TextBox")
+DelayBox.Name = "DelayInputBox"
+DelayBox.Size = UDim2.new(0.42, -6, 1, -4)
+DelayBox.Position = UDim2.new(0.58, 0, 0, 2)
+DelayBox.BackgroundColor3 = Color3.fromRGB(27, 42, 74)
+DelayBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+DelayBox.PlaceholderText = "3.05"
+DelayBox.PlaceholderColor3 = Color3.fromRGB(120, 138, 170)
+DelayBox.Text = tostring(PROP_COOLDOWN)
+DelayBox.TextSize = 9
+DelayBox.Font = Enum.Font.GothamBold
+DelayBox.ClearTextOnFocus = false
+DelayBox.BorderSizePixel = 0
+DelayBox.Parent = DelayBar
+
+do
+	local bc = Instance.new("UICorner")
+	bc.CornerRadius = UDim.new(0, 3)
+	bc.Parent = DelayBox
+end
+
+local function applyDelayText(raw)
+	local cleaned = tostring(raw or ""):gsub(",", ".")
+	local num = tonumber(cleaned)
+	if num and num >= 0 then
+		PROP_COOLDOWN = math.clamp(num, 0, 60)
+	else
+		PROP_COOLDOWN = 0
+	end
+	DelayBox.Text = tostring(PROP_COOLDOWN)
+end
+
+DelayBox.FocusLost:Connect(function()
+	applyDelayText(DelayBox.Text)
+end)
+
 local GridHolder = Instance.new("Frame")
 GridHolder.Name = "GridHolder"
-GridHolder.Size = UDim2.new(1, -10, 1, -(THEME_BAR_HEIGHT + 34))
-GridHolder.Position = UDim2.new(0, 5, 0, THEME_BAR_HEIGHT + 7)
+GridHolder.Size = UDim2.new(1, -10, 1, -(THEME_BAR_HEIGHT + DELAY_BAR_HEIGHT + 37))
+GridHolder.Position = UDim2.new(0, 5, 0, THEME_BAR_HEIGHT + DELAY_BAR_HEIGHT + 10)
 GridHolder.BackgroundTransparency = 1
 GridHolder.Parent = BodyFrame
 
@@ -882,8 +1078,11 @@ local ALL_BTN_COLOR = Color3.fromRGB(29, 108, 214)
 local ALL_ACTIVE_COLOR = Color3.fromRGB(48, 152, 255)
 local ESP_OFF_COLOR = Color3.fromRGB(26, 44, 76)
 local ESP_ON_COLOR = Color3.fromRGB(34, 153, 84)
+local HIDE_OFF_COLOR = Color3.fromRGB(26, 44, 76)
+local HIDE_ON_COLOR = Color3.fromRGB(180, 95, 24)
 
 local espBtn = nil
+local hidePlrBtn = nil
 
 local function refreshThemeUi()
 	local ugc = getActiveUgc()
@@ -929,12 +1128,17 @@ local function refreshButtonHighlights()
 	local allBtn = buttonsByOrder[#ALL_SCAVENGER_PARTS + 1]
 	if allBtn then
 		allBtn.BackgroundColor3 = (ActiveMode == "ALL") and ALL_ACTIVE_COLOR or ALL_BTN_COLOR
-		allBtn.Text = (ActiveMode == "ALL") and "STOP SEMUA" or "TP SEMUA"
+		allBtn.Text = (ActiveMode == "ALL") and "STOP" or "TP SEMUA"
 	end
 
 	if espBtn then
 		espBtn.BackgroundColor3 = EspEnabled and ESP_ON_COLOR or ESP_OFF_COLOR
 		espBtn.Text = EspEnabled and "ESP: ON" or "ESP: OFF"
+	end
+
+	if hidePlrBtn then
+		hidePlrBtn.BackgroundColor3 = HidePlayersEnabled and HIDE_ON_COLOR or HIDE_OFF_COLOR
+		hidePlrBtn.Text = HidePlayersEnabled and "Hide: ON" or "Hide: OFF"
 	end
 end
 
@@ -1121,7 +1325,7 @@ BottomBar.Parent = BodyFrame
 
 local allBtn = Instance.new("TextButton")
 allBtn.Name = "Row_" .. tostring(#ALL_SCAVENGER_PARTS + 1)
-allBtn.Size = UDim2.new(0.62, -2, 1, 0)
+allBtn.Size = UDim2.new(0.42, -2, 1, 0)
 allBtn.Position = UDim2.new(0, 0, 0, 0)
 allBtn.Text = "TP SEMUA"
 allBtn.Parent = BottomBar
@@ -1135,14 +1339,27 @@ buttonsByOrder[#ALL_SCAVENGER_PARTS + 1] = allBtn
 
 espBtn = Instance.new("TextButton")
 espBtn.Name = "EspToggleBtn"
-espBtn.Size = UDim2.new(0.38, -2, 1, 0)
-espBtn.Position = UDim2.new(0.62, 2, 0, 0)
+espBtn.Size = UDim2.new(0.29, -2, 1, 0)
+espBtn.Position = UDim2.new(0.42, 1, 0, 0)
 espBtn.Text = "ESP: OFF"
 espBtn.Parent = BottomBar
 styleButton(espBtn, ESP_OFF_COLOR)
 
 espBtn.MouseButton1Click:Connect(function()
 	setEspEnabled(not EspEnabled)
+	refreshButtonHighlights()
+end)
+
+hidePlrBtn = Instance.new("TextButton")
+hidePlrBtn.Name = "HidePlayerBtn"
+hidePlrBtn.Size = UDim2.new(0.29, -2, 1, 0)
+hidePlrBtn.Position = UDim2.new(0.71, 2, 0, 0)
+hidePlrBtn.Text = "Hide: OFF"
+hidePlrBtn.Parent = BottomBar
+styleButton(hidePlrBtn, HIDE_OFF_COLOR)
+
+hidePlrBtn.MouseButton1Click:Connect(function()
+	setHidePlayersEnabled(not HidePlayersEnabled)
 	refreshButtonHighlights()
 end)
 
@@ -1156,6 +1373,7 @@ end)
 CloseBtn.MouseButton1Click:Connect(function()
 	stopLoop()
 	setEspEnabled(false)
+	setHidePlayersEnabled(false)
 	ScreenGui:Destroy()
 end)
 
